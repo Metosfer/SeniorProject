@@ -63,8 +63,8 @@ public class PlayerMovement : MonoBehaviour
         }
 
         // Lock cursor for third person camera
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        //Cursor.lockState = CursorLockMode.Locked;
+        //Cursor.visible = false;
     }
 
     private void Update()

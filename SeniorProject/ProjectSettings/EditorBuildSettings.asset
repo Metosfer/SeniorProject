@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/FarmScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/ShopScene.unity
+    guid: 8e8a9d97da6775040afa381a7b1b9d1e
   m_configObjects: {}
