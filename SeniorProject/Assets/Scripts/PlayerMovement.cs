@@ -105,25 +105,22 @@ public class PlayerMovement : MonoBehaviour
         UpdateAnimations(direction.magnitude);
     }
 
-    private void MovePlayer(Vector3 direction)
-    {
-        // Calculate the target angle based on input direction and camera
-        float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
-        
-        // Smoothly rotate player to the movement direction
-        float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
-        transform.rotation = Quaternion.Euler(0f, angle, 0f);
+private void MovePlayer(Vector3 direction)
+{
+    // Kameranın yönüne göre hedef açıyı hesapla
+    float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
+    float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+    transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
-        // Calculate move direction
-        Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+    // Hareket yönünü doğrudan kameranın forward vektörüne göre hesapla
+    Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+    moveDirection.y = 0f; // Y eksenini sıfırla (yerçekimi zaten bunu hallediyor)
+    moveDirection = moveDirection.normalized;
 
-        // Determine movement speed (walk or run)
-        float targetSpeed = isRunning ? runSpeed : walkSpeed;
-        currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
-
-        // Move the player
-        controller.Move(moveDir.normalized * currentSpeed * Time.deltaTime);
-    }
+    float targetSpeed = isRunning ? runSpeed : walkSpeed;
+    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+    controller.Move(moveDirection * currentSpeed * Time.deltaTime);
+}
 
     private void Jump()
     {
