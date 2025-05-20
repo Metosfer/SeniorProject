@@ -30,11 +30,13 @@ public class PlayerMovement : MonoBehaviour
     private float velocityY;
     private bool isGrounded;
     private bool isRunning;
+    private bool isSpuding; // Yeni eklenen animasyonlar için (örneğin Spuding)
 
     // Animation parameter hashes for better performance
     private int speedHash;
     private int groundedHash;
     private int jumpHash;
+    private int spudingHash; // Yeni eklenen animasyonlar için
 
     private void Awake()
     {
@@ -60,11 +62,8 @@ public class PlayerMovement : MonoBehaviour
             speedHash = Animator.StringToHash("Speed");
             groundedHash = Animator.StringToHash("Grounded");
             jumpHash = Animator.StringToHash("Jump");
+            spudingHash = Animator.StringToHash("isSpuding"); // Yeni eklenen hash
         }
-
-        // Lock cursor for third person camera
-        //Cursor.lockState = CursorLockMode.Locked;
-        //Cursor.visible = false;
     }
 
     private void Update()
@@ -98,6 +97,12 @@ public class PlayerMovement : MonoBehaviour
             Jump();
         }
 
+        // Handle spuding (örnek bir input)
+        if (Input.GetKeyDown(KeyCode.E) && isGrounded && !isSpuding)
+        {
+            StartSpuding();
+        }
+
         // Apply gravity
         ApplyGravity();
 
@@ -105,28 +110,26 @@ public class PlayerMovement : MonoBehaviour
         UpdateAnimations(direction.magnitude);
     }
 
-private void MovePlayer(Vector3 direction)
-{
-    // Kameranın yönüne göre hedef açıyı hesapla
-    float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
-    float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
-    transform.rotation = Quaternion.Euler(0f, angle, 0f);
+    private void MovePlayer(Vector3 direction)
+    {
+        // Kameranın yönüne göre hedef açıyı hesapla
+        float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
+        float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
+        transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
-    // Hareket yönünü doğrudan kameranın forward vektörüne göre hesapla
-    Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
-    moveDirection.y = 0f; // Y eksenini sıfırla (yerçekimi zaten bunu hallediyor)
-    moveDirection = moveDirection.normalized;
+        // Hareket yönünü doğrudan kameranın forward vektörüne göre hesapla
+        Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+        moveDirection.y = 0f;
+        moveDirection = moveDirection.normalized;
 
-    float targetSpeed = isRunning ? runSpeed : walkSpeed;
-    currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
-    controller.Move(moveDirection * currentSpeed * Time.deltaTime);
-}
+        float targetSpeed = isRunning ? runSpeed : walkSpeed;
+        currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+        controller.Move(moveDirection * currentSpeed * Time.deltaTime);
+    }
 
     private void Jump()
     {
         velocityY = jumpForce;
-        
-        // Trigger jump animation
         if (animator != null)
         {
             animator.SetTrigger(jumpHash);
@@ -135,33 +138,43 @@ private void MovePlayer(Vector3 direction)
 
     private void ApplyGravity()
     {
-        // Reset Y velocity when grounded
         if (isGrounded && velocityY < 0)
         {
-            velocityY = -2f; // Small negative value to keep player grounded
+            velocityY = -2f;
         }
-
-        // Apply gravity
         velocityY += gravity * Time.deltaTime;
-        
-        // Apply vertical movement
-        Vector3 verticalMovement = new Vector3(0, velocityY * Time.deltaTime, 0);
-        controller.Move(verticalMovement);
+        controller.Move(new Vector3(0, velocityY * Time.deltaTime, 0));
     }
 
     private void UpdateAnimations(float inputMagnitude)
     {
         if (animator == null) return;
 
-        // Update speed parameter (normalized between walk and run)
-        float animationSpeedPercent = isRunning ? inputMagnitude : inputMagnitude * 0.5f;
-        animator.SetFloat(speedHash, animationSpeedPercent, speedSmoothTime, Time.deltaTime);
-        
+        // Normalize speed based on max speed for Blend Tree
+        float maxSpeed = isRunning ? runSpeed : walkSpeed;
+        float normalizedSpeed = currentSpeed / maxSpeed;
+        animator.SetFloat(speedHash, normalizedSpeed, speedSmoothTime, Time.deltaTime);
+
         // Update grounded state
         animator.SetBool(groundedHash, isGrounded);
+
+        // Update spuding state (örnek)
+        animator.SetBool(spudingHash, isSpuding);
     }
 
-    // Use this for visualization during development
+    private void StartSpuding()
+    {
+        isSpuding = true;
+        animator.SetBool(spudingHash, true);
+    }
+
+    // Animation Event ile çağrılacak (Spuding animasyonu bittiğinde)
+    public void OnSpudingAnimationEnd()
+    {
+        isSpuding = false;
+        animator.SetBool(spudingHash, false);
+    }
+
     private void OnDrawGizmosSelected()
     {
         if (groundCheck != null)
