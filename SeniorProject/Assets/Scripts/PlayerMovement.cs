@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
@@ -23,180 +21,250 @@ public class PlayerMovement : MonoBehaviour
 
     // Private variables
     private CharacterController controller;
-    private Animator animator;
+    private PlayerAnimationController animController;
     private float turnSmoothVelocity;
     private float speedSmoothVelocity;
     private float currentSpeed;
     private float velocityY;
     private bool isGrounded;
+    private bool wasGrounded; // Önceki frame'deki ground durumu
     private bool isRunning;
-    private bool isSpuding;
     private bool isJumping;
-
-    // Animation parameter hashes for better performance
-    private int speedHash;
-    private int groundedHash;
-    private int isJumpingHash;
-    private int spudingHash;
 
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-        animator = GetComponentInChildren<Animator>();
+        animController = GetComponentInChildren<PlayerAnimationController>();
 
-        if (cameraTransform == null)
+        if (animController == null)
+        {
+            Debug.LogError("PlayerAnimationController scripti bulunamadı! Lütfen oyuncu nesnesine veya çocuklarından birine ekleyin.", this);
+        }
+
+        if (cameraTransform == null && Camera.main != null)
         {
             cameraTransform = Camera.main.transform;
+        }
+        else if(cameraTransform == null)
+        {
+             Debug.LogError("Kamera Transformu atanmamış ve Ana Kamera bulunamadı!", this);
         }
 
         if (groundCheck == null)
         {
-            Debug.LogWarning("Ground check transform not assigned. Creating one at feet position.");
-            groundCheck = new GameObject("GroundCheck").transform;
+            Debug.LogWarning("Ground check transform atanmamış. Ayak pozisyonunda bir tane oluşturuluyor.", this);
+            GameObject groundCheckObj = new GameObject("GroundCheck");
+            groundCheck = groundCheckObj.transform;
             groundCheck.SetParent(transform);
-            groundCheck.localPosition = new Vector3(0, -0.9f, 0);
-        }
-
-        // Set up animation hashes
-        if (animator != null)
-        {
-            speedHash = Animator.StringToHash("Speed");
-            groundedHash = Animator.StringToHash("Grounded");
-            isJumpingHash = Animator.StringToHash("IsJumping");
-            spudingHash = Animator.StringToHash("isSpuding");
+            groundCheck.localPosition = new Vector3(0, -controller.height / 2, 0);
         }
     }
 
     private void Update()
     {
-        // Check if player is grounded
-        bool wasGrounded = isGrounded;
+        // Yerde olma kontrolü
+        CheckGrounded();
+
+        // Girdi al ve hareketi işle
+        HandleInputAndMovement();
+
+        // Yerçekimi uygula
+        ApplyGravity();
+
+        // Animasyonları güncelle
+        UpdateAnimations();
+    }
+
+    /// <summary>
+    /// Oyuncunun yerde olup olmadığını kontrol eder ve ilgili değişkenleri ayarlar.
+    /// </summary>
+    private void CheckGrounded()
+    {
+        wasGrounded = isGrounded;
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
-        // Yere iniş kontrolü ve hız sıfırlama
-        if (!wasGrounded && isGrounded && isJumping)
+        // Yere iniş kontrolü - Landing detection
+        if (!wasGrounded && isGrounded)
         {
-            isJumping = false;
-            // Hareket yoksa hızı anında sıfırla (idle'a geçiş için)
-            float horizontal = Input.GetAxisRaw("Horizontal");
-            float vertical = Input.GetAxisRaw("Vertical");
-            Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;
-            if (direction.magnitude < 0.1f)
-            {
-                currentSpeed = 0f; // Hızı sıfırla ki idle oynasın
-            }
+            OnLanding();
+        }
+        
+        // Yerden ayrılma kontrolü - Takeoff detection  
+        if (wasGrounded && !isGrounded)
+        {
+            OnTakeoff();
+        }
+    }
+
+    /// <summary>
+    /// Yere iniş olayını işler
+    /// </summary>
+    private void OnLanding()
+    {
+        isJumping = false;
+        velocityY = -2f; // Yerçekimi sıfırlama
+        
+        // Eğer hareket yoksa hızı sıfırla
+        float horizontal = Input.GetAxisRaw("Horizontal");
+        float vertical = Input.GetAxisRaw("Vertical");
+        Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;
+        
+        if (direction.magnitude < 0.1f)
+        {
+            currentSpeed = 0f;
+        }
+    }
+
+    /// <summary>
+    /// Yerden ayrılma olayını işler
+    /// </summary>
+    private void OnTakeoff()
+    {
+        if (!isJumping) // Eğer zıplama ile değil de düşme ile ayrıldıysak
+        {
+            isJumping = true;
+        }
+    }
+
+    /// <summary>
+    /// Kullanıcı girdilerini alır ve hareketi, zıplamayı, "spuding"i yönetir.
+    /// </summary>
+    private void HandleInputAndMovement()
+    {
+        // Animasyon oynarken hareket girişini engelle
+        if (animController != null && animController.IsSpuding())
+        {
+            // Spuding sırasında hareket etmeyi engelle
+            currentSpeed = 0f;
+            return;
         }
 
-        // Get movement input
+        // Girdi al
         float horizontalInput = Input.GetAxisRaw("Horizontal");
         float verticalInput = Input.GetAxisRaw("Vertical");
         Vector3 directionInput = new Vector3(horizontalInput, 0f, verticalInput).normalized;
 
-        // Handle running
+        // Koşma kontrolü
         isRunning = Input.GetKey(KeyCode.LeftShift);
 
-        // Handle movement
+        // Hareket etme
         if (directionInput.magnitude >= 0.1f)
         {
             MovePlayer(directionInput);
         }
         else
         {
-            // Slow down to stop
+            // Durmak için yavaşla
             float targetSpeed = 0;
             currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
+            
+            // Hareket etmiyorsa CharacterController'ın yatay hızını yavaşla
+            Vector3 horizontalVelocity = controller.velocity;
+            horizontalVelocity.y = 0;
+            if(horizontalVelocity.magnitude > 0.1f && currentSpeed < 0.1f)
+            {
+                 controller.Move(-horizontalVelocity * Time.deltaTime * 2f); // Daha hızlı durma
+            }
         }
 
-        // Handle jumping
+        // Zıplama kontrolü
         if (Input.GetButtonDown("Jump") && isGrounded && !isJumping)
         {
             Jump();
         }
 
-        // Handle spuding
-        if (Input.GetKeyDown(KeyCode.E) && isGrounded && !isSpuding)
+        // "Spuding" kontrolü - sadece yerdeyken ve hareket etmiyorken
+        if (Input.GetKeyDown(KeyCode.E) && isGrounded && animController != null && !animController.IsSpuding())
         {
-            StartSpuding();
+            // Spuding yaparken hareketi durdur
+            currentSpeed = 0f;
+            animController.TriggerSpuding();
+            Debug.Log("Spuding triggered!"); // Debug için
         }
-
-        // Apply gravity
-        ApplyGravity();
-
-        // Update animations
-        UpdateAnimations(directionInput.magnitude);
+        
+        // Debug için F tuşu ile animator durumunu kontrol et
+        if (Input.GetKeyDown(KeyCode.F) && animController != null)
+        {
+            animController.DebugCurrentState();
+        }
     }
 
+    /// <summary>
+    /// Oyuncuyu verilen yöne doğru hareket ettirir ve döndürür.
+    /// </summary>
     private void MovePlayer(Vector3 direction)
     {
-        // Kameranın yönüne göre hedef açıyı hesapla
+        if (cameraTransform == null) return;
+
         float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
         float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
         transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
-        // Hareket yönünü kameranın forward vektörüne göre hesapla
         Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
-        moveDirection.y = 0f;
-        moveDirection = moveDirection.normalized;
 
         float targetSpeed = isRunning ? runSpeed : walkSpeed;
         currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedSmoothVelocity, speedSmoothTime);
-        controller.Move(moveDirection * currentSpeed * Time.deltaTime);
+        controller.Move(moveDirection.normalized * currentSpeed * Time.deltaTime);
     }
 
-private void Jump()
-{
-    Debug.Log("Jump triggered at frame: " + Time.frameCount);
-    velocityY = jumpForce;
-    isJumping = true;
-}
+    /// <summary>
+    /// Zıplama eylemini gerçekleştirir.
+    /// </summary>
+    private void Jump()
+    {
+        velocityY = Mathf.Sqrt(jumpForce * -2f * gravity);
+        isJumping = true;
 
+        if (animController != null)
+        {
+            animController.TriggerJumpAnimation();
+        }
+    }
+
+    /// <summary>
+    /// Yerçekimini uygular ve dikey hareketi yönetir.
+    /// </summary>
     private void ApplyGravity()
     {
         if (isGrounded && velocityY < 0)
         {
-            velocityY = -2f;
+            velocityY = -2f; // Yerdeyken hafif bir yerçekimi uygula
         }
-        velocityY += gravity * Time.deltaTime;
+        else
+        {
+            velocityY += gravity * Time.deltaTime;
+        }
+        
         controller.Move(new Vector3(0, velocityY * Time.deltaTime, 0));
     }
 
-    private void UpdateAnimations(float inputMagnitude)
+    /// <summary>
+    /// Animasyon kontrolcüsüne güncel durumları gönderir.
+    /// </summary>
+    private void UpdateAnimations()
     {
-        if (animator == null) return;
+        if (animController == null) return;
 
-        // Normalize speed based on max speed for Blend Tree
         float maxSpeed = isRunning ? runSpeed : walkSpeed;
-        float normalizedSpeed = currentSpeed / maxSpeed;
-        animator.SetFloat(speedHash, normalizedSpeed, speedSmoothTime, Time.deltaTime);
-
-        // Update grounded state
-        animator.SetBool(groundedHash, isGrounded);
-
-        // Update jumping state
-        animator.SetBool(isJumpingHash, isJumping);
-
-        // Update spuding state
-        animator.SetBool(spudingHash, isSpuding);
+        animController.UpdateSpeed(currentSpeed, maxSpeed, speedSmoothTime);
+        animController.UpdateGrounded(isGrounded);
+        animController.UpdateJumping(isJumping || !isGrounded);
     }
 
-    private void StartSpuding()
-    {
-        isSpuding = true;
-        animator.SetBool(spudingHash, true);
-    }
-
-    public void OnSpudingAnimationEnd()
-    {
-        isSpuding = false;
-        animator.SetBool(spudingHash, false);
-    }
-
+    /// <summary>
+    /// Sahnede yer kontrolü için Gizmo çizer.
+    /// </summary>
     private void OnDrawGizmosSelected()
     {
         if (groundCheck != null)
         {
             Gizmos.color = isGrounded ? Color.green : Color.red;
-            Gizmos.DrawSphere(groundCheck.position, groundDistance);
+            Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
         }
     }
+
+    // Debug için getter'lar
+    public bool IsGrounded() => isGrounded;
+    public bool IsJumping() => isJumping;
+    public float CurrentSpeed() => currentSpeed;
 }
