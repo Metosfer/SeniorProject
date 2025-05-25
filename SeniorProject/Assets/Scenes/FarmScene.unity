@@ -207,7 +207,7 @@ Transform:
   m_GameObject: {fileID: 232422105}
   serializedVersion: 2
   m_LocalRotation: {x: 0.32572442, y: -0, z: -0, w: 0.9454648}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -0.00000023841858}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1431,8 +1431,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413112954}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.32572442, y: -3.1652177e-15, z: -3.50124e-16, w: 0.9454648}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.32572445, y: 0.00000001626803, z: -0.0000000056045395, w: 0.9454648}
+  m_LocalPosition: {x: 0, y: 0, z: -0.00000023841858}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1510,8 +1510,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1468351677}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.32572442, y: -0.000000017818216, z: 0.0000000061385985, w: 0.9454648}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.32995853, y: -0.000000028133256, z: 0.00000000983353, w: 0.9439954}
+  m_LocalPosition: {x: 0, y: -0.37972498, z: 0.5170051}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3238,6 +3238,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4493600155637647314, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
+      propertyPath: gravity
+      value: -20
+      objectReference: {fileID: 0}
+    - target: {fileID: 4493600155637647314, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
       propertyPath: groundCheck
       value: 
       objectReference: {fileID: 6362369}
@@ -3315,6 +3320,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
       value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 8998000620266901072, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.0063
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:

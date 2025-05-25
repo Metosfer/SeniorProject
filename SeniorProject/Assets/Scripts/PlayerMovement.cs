@@ -30,13 +30,14 @@ public class PlayerMovement : MonoBehaviour
     private float velocityY;
     private bool isGrounded;
     private bool isRunning;
-    private bool isSpuding; // Yeni eklenen animasyonlar için (örneğin Spuding)
+    private bool isSpuding;
+    private bool isJumping;
 
     // Animation parameter hashes for better performance
     private int speedHash;
     private int groundedHash;
-    private int jumpHash;
-    private int spudingHash; // Yeni eklenen animasyonlar için
+    private int isJumpingHash;
+    private int spudingHash;
 
     private void Awake()
     {
@@ -61,28 +62,43 @@ public class PlayerMovement : MonoBehaviour
         {
             speedHash = Animator.StringToHash("Speed");
             groundedHash = Animator.StringToHash("Grounded");
-            jumpHash = Animator.StringToHash("Jump");
-            spudingHash = Animator.StringToHash("isSpuding"); // Yeni eklenen hash
+            isJumpingHash = Animator.StringToHash("IsJumping");
+            spudingHash = Animator.StringToHash("isSpuding");
         }
     }
 
     private void Update()
     {
         // Check if player is grounded
+        bool wasGrounded = isGrounded;
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
+        // Yere iniş kontrolü ve hız sıfırlama
+        if (!wasGrounded && isGrounded && isJumping)
+        {
+            isJumping = false;
+            // Hareket yoksa hızı anında sıfırla (idle'a geçiş için)
+            float horizontal = Input.GetAxisRaw("Horizontal");
+            float vertical = Input.GetAxisRaw("Vertical");
+            Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;
+            if (direction.magnitude < 0.1f)
+            {
+                currentSpeed = 0f; // Hızı sıfırla ki idle oynasın
+            }
+        }
+
         // Get movement input
-        float horizontal = Input.GetAxisRaw("Horizontal");
-        float vertical = Input.GetAxisRaw("Vertical");
-        Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;
+        float horizontalInput = Input.GetAxisRaw("Horizontal");
+        float verticalInput = Input.GetAxisRaw("Vertical");
+        Vector3 directionInput = new Vector3(horizontalInput, 0f, verticalInput).normalized;
 
         // Handle running
         isRunning = Input.GetKey(KeyCode.LeftShift);
 
         // Handle movement
-        if (direction.magnitude >= 0.1f)
+        if (directionInput.magnitude >= 0.1f)
         {
-            MovePlayer(direction);
+            MovePlayer(directionInput);
         }
         else
         {
@@ -92,12 +108,12 @@ public class PlayerMovement : MonoBehaviour
         }
 
         // Handle jumping
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        if (Input.GetButtonDown("Jump") && isGrounded && !isJumping)
         {
             Jump();
         }
 
-        // Handle spuding (örnek bir input)
+        // Handle spuding
         if (Input.GetKeyDown(KeyCode.E) && isGrounded && !isSpuding)
         {
             StartSpuding();
@@ -107,7 +123,7 @@ public class PlayerMovement : MonoBehaviour
         ApplyGravity();
 
         // Update animations
-        UpdateAnimations(direction.magnitude);
+        UpdateAnimations(directionInput.magnitude);
     }
 
     private void MovePlayer(Vector3 direction)
@@ -117,7 +133,7 @@ public class PlayerMovement : MonoBehaviour
         float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
         transform.rotation = Quaternion.Euler(0f, angle, 0f);
 
-        // Hareket yönünü doğrudan kameranın forward vektörüne göre hesapla
+        // Hareket yönünü kameranın forward vektörüne göre hesapla
         Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
         moveDirection.y = 0f;
         moveDirection = moveDirection.normalized;
@@ -127,14 +143,12 @@ public class PlayerMovement : MonoBehaviour
         controller.Move(moveDirection * currentSpeed * Time.deltaTime);
     }
 
-    private void Jump()
-    {
-        velocityY = jumpForce;
-        if (animator != null)
-        {
-            animator.SetTrigger(jumpHash);
-        }
-    }
+private void Jump()
+{
+    Debug.Log("Jump triggered at frame: " + Time.frameCount);
+    velocityY = jumpForce;
+    isJumping = true;
+}
 
     private void ApplyGravity()
     {
@@ -158,7 +172,10 @@ public class PlayerMovement : MonoBehaviour
         // Update grounded state
         animator.SetBool(groundedHash, isGrounded);
 
-        // Update spuding state (örnek)
+        // Update jumping state
+        animator.SetBool(isJumpingHash, isJumping);
+
+        // Update spuding state
         animator.SetBool(spudingHash, isSpuding);
     }
 
@@ -168,7 +185,6 @@ public class PlayerMovement : MonoBehaviour
         animator.SetBool(spudingHash, true);
     }
 
-    // Animation Event ile çağrılacak (Spuding animasyonu bittiğinde)
     public void OnSpudingAnimationEnd()
     {
         isSpuding = false;
