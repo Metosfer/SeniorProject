@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: feccdefb0fdb13e4fa7fb8a5e07e3a98, type: 3}
+  m_Name: ValerianDriedHerb
+  m_EditorClassIdentifier: 
+  itemName: ValerianDried
+  icon: {fileID: 21300000, guid: e642698ff77744e47825fe1d9b160378, type: 3}
+  category: 2
+  prefab: {fileID: 4148940763791018315, guid: 4a5fb5c0c4feda547a20f33d42d13b74, type: 3}
+  expires: 0
+  expirationTime: 0

@@ -57,4 +57,10 @@ public class FlaskManager : MonoBehaviour
             isPanelActive = false;
         }
     }
+
+    // Panel durumunu kontrol etmek için public metod
+    public bool IsPanelActive()
+    {
+        return isPanelActive;
+    }
 }

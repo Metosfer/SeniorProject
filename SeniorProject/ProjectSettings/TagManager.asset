@@ -6,6 +6,8 @@ TagManager:
   tags:
   - Ground
   - Drawer
+  - Farm
+  - Plant
   layers:
   - Default
   - TransparentFX

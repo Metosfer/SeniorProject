@@ -81,6 +81,13 @@ public class PauseMenuController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            // Önce diğer panellerin açık olup olmadığını kontrol et
+            if (IsAnyOtherPanelActive())
+            {
+                // Başka paneller açıksa pause menüyü açma
+                return;
+            }
+
             if (settingsPanel != null && settingsPanel.activeSelf)
             {
                 CloseSettings();
@@ -98,6 +105,30 @@ public class PauseMenuController : MonoBehaviour
                 PauseGame();
             }
         }
+    }
+
+    // Diğer panellerin açık olup olmadığını kontrol eden metod
+    private bool IsAnyOtherPanelActive()
+    {
+        // FlaskManager ve BookManager scriptlerini bul
+        FlaskManager flaskManager = FindObjectOfType<FlaskManager>();
+        BookManager bookManager = FindObjectOfType<BookManager>();
+
+        // Flask paneli açık mı kontrol et
+        if (flaskManager != null && flaskManager.IsPanelActive())
+        {
+            return true;
+        }
+
+        // Book paneli açık mı kontrol et
+        if (bookManager != null && bookManager.IsPanelActive())
+        {
+            return true;
+        }
+
+        // Başka panel scriptleri eklemek için buraya ekleyebilirsiniz
+        
+        return false;
     }
 
     void PauseGame()

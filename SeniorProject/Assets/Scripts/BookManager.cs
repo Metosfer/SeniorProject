@@ -57,4 +57,10 @@ public class BookManager : MonoBehaviour
             isPanelActive = false;
         }
     }
+
+    // Panel durumunu kontrol etmek için public metod
+    public bool IsPanelActive()
+    {
+        return isPanelActive;
+    }
 }
