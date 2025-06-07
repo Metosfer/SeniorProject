@@ -1,22 +1,27 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Inventory : MonoBehaviour
 {
     public SCInventory playerInventory;
 
-    void OnTriggerEnter(Collider other) // Corrected from OggerEnter
+    void Start()
+    {
+        // Oyunun başında envanteri sıfırla
+        playerInventory.ResetInventory();
+    }
+
+    void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.CompareTag("Plant"))
         {
-            Plant plant = other.gameObject.GetComponent<Plant>(); // Assuming Plant component exists
+            Plant plant = other.gameObject.GetComponent<Plant>();
             if (plant != null)
             {
-                if (playerInventory.AddItem(plant.item)) // Corrected from GetComponent<SCItem>().item
+                if (playerInventory.AddItem(plant.item))
                 {
-                    Destroy(other.gameObject); // Corrected from Destroy(gameObject)
+                    Destroy(other.gameObject); // Sadece eşya eklenirse nesneyi yok et
                 }
+                // Eğer eşya eklenemezse, nesne yok edilmez ve sahnede kalır
             }
         }
     }

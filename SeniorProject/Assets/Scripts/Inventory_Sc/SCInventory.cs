@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,8 +7,24 @@ public class SCInventory : ScriptableObject
     public List<Slot> inventorySlots = new List<Slot>();
     int stackLimit = 4;
 
-    public bool AddItem(SCItem item) // Corrected from Item to SCItem
+    public bool AddItem(SCItem item)
     {
+        // Önce tüm slotların dolu olup olmadığını kontrol et
+        bool allSlotsFull = true;
+        foreach (Slot slot in inventorySlots)
+        {
+            if (!slot.isFull)
+            {
+                allSlotsFull = false;
+                break;
+            }
+        }
+        if (allSlotsFull)
+        {
+            return false; // Tüm slotlar doluysa eşya eklenemez
+        }
+
+        // Normal eşya ekleme mantığı
         foreach (Slot slot in inventorySlots)
         {
             if (slot.item == item)
@@ -19,9 +34,10 @@ public class SCInventory : ScriptableObject
                     if (slot.itemCount < stackLimit)
                     {
                         slot.itemCount++;
-                        if (slot.itemCount == stackLimit) // Corrected from > to ==
+                        if (slot.itemCount == stackLimit)
                         {
                             slot.isFull = true;
+                            return false;
                         }
                         return true;
                     }
@@ -34,6 +50,16 @@ public class SCInventory : ScriptableObject
             }
         }
         return false;
+    }
+
+    public void ResetInventory()
+    {
+        foreach (Slot slot in inventorySlots)
+        {
+            slot.item = null;
+            slot.itemCount = 0;
+            slot.isFull = false;
+        }
     }
 }
 
