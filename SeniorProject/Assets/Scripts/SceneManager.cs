@@ -7,6 +7,10 @@ using System.Collections;
 
 public class SceneManager : MonoBehaviour
 {
+    private Camera mainCamera;
+    private void Start() {
+        mainCamera = FindAnyObjectByType<Camera>();
+    }
     public void ChangeToShopScene()
     {
         UnityEngine.SceneManagement.SceneManager.LoadScene("ShopScene");
