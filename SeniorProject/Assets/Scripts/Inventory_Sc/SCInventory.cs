@@ -6,6 +6,7 @@ public class SCInventory : ScriptableObject
 {
     public List<Slot> inventorySlots = new List<Slot>();
     int stackLimit = 4;
+    public event System.Action OnInventoryChanged;
 
     public bool AddItem(SCItem item)
     {
@@ -37,8 +38,10 @@ public class SCInventory : ScriptableObject
                         if (slot.itemCount == stackLimit)
                         {
                             slot.isFull = true;
+                            OnInventoryChanged?.Invoke();
                             return false;
                         }
+                        OnInventoryChanged?.Invoke();
                         return true;
                     }
                 }
@@ -46,6 +49,7 @@ public class SCInventory : ScriptableObject
             else if (slot.itemCount == 0)
             {
                 slot.AddItemToSlot(item);
+                OnInventoryChanged?.Invoke();
                 return true;
             }
         }
@@ -60,6 +64,7 @@ public class SCInventory : ScriptableObject
             slot.itemCount = 0;
             slot.isFull = false;
         }
+        OnInventoryChanged?.Invoke();
     }
 }
 
