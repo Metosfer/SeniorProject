@@ -4,30 +4,43 @@ using System.Collections.Generic;
 public class InventoryUIManager : MonoBehaviour
 {
     public SCInventory inventory;
+    public GameObject inventoryPanel; // Inventory paneline referans
     private List<InventorySlotUI> slotUIs;
-    private bool isInventoryVisible = false;
-
-    private void Start()
+    public bool isInventoryVisible = false;    private void Start()
     {
         slotUIs = new List<InventorySlotUI>();
-        foreach (Transform child in transform)
+        
+        // Inventory panelinin child'larını kontrol et
+        if (inventoryPanel != null)
         {
-            InventorySlotUI slotUI = child.GetComponent<InventorySlotUI>();
-            if (slotUI != null)
+            foreach (Transform child in inventoryPanel.transform)
             {
-                slotUIs.Add(slotUI);
+                InventorySlotUI slotUI = child.GetComponent<InventorySlotUI>();
+                if (slotUI != null)
+                {
+                    slotUIs.Add(slotUI);
+                }
             }
         }
+        
         UpdateUI();
-        gameObject.SetActive(true); // Oyun başladığında envanter UI'sını gizle
-    }
-
-    private void Update()
+        
+        // Oyun başladığında inventory panelini gizle
+        if (inventoryPanel != null)
+        {
+            inventoryPanel.SetActive(false);
+        }
+    }    private void Update()
     {
         if (Input.GetKeyDown(KeyCode.I))
         {
             isInventoryVisible = !isInventoryVisible;
-            gameObject.SetActive(isInventoryVisible);
+            
+            if (inventoryPanel != null)
+            {
+                inventoryPanel.SetActive(isInventoryVisible);
+            }
+            
             if (isInventoryVisible)
             {
                 UpdateUI(); // Envanter açıldığında UI'yı güncelle
