@@ -23,14 +23,18 @@ public class InventoryUIManager : MonoBehaviour
             }
         }
         
-        UpdateUI();
+        // Sadece inventory ve slotUIs mevcut ise UpdateUI çağır
+        if (inventory != null && slotUIs.Count > 0)
+        {
+            UpdateUI();
+        }
         
         // Oyun başladığında inventory panelini gizle
         if (inventoryPanel != null)
         {
             inventoryPanel.SetActive(false);
         }
-    }    private void Update()
+    }private void Update()
     {
         if (Input.GetKeyDown(KeyCode.I))
         {
@@ -40,10 +44,13 @@ public class InventoryUIManager : MonoBehaviour
             {
                 inventoryPanel.SetActive(isInventoryVisible);
             }
-            
-            if (isInventoryVisible)
+              if (isInventoryVisible)
             {
-                UpdateUI(); // Envanter açıldığında UI'yı güncelle
+                // Sadece inventory ve slotUIs mevcut ise UpdateUI çağır
+                if (inventory != null && slotUIs.Count > 0)
+                {
+                    UpdateUI(); // Envanter açıldığında UI'yı güncelle
+                }
             }
         }
     }
@@ -62,16 +69,29 @@ public class InventoryUIManager : MonoBehaviour
         {
             inventory.OnInventoryChanged -= UpdateUI;
         }
-    }
-
-    private void UpdateUI()
+    }    private void UpdateUI()
     {
+        // Null kontrollerini ekle
+        if (inventory == null || inventory.inventorySlots == null || slotUIs == null)
+        {
+            Debug.LogWarning("InventoryUIManager: inventory, inventorySlots veya slotUIs null!");
+            return;
+        }
+
         for (int i = 0; i < inventory.inventorySlots.Count; i++)
         {
-            if (i < slotUIs.Count)
+            if (i < slotUIs.Count && slotUIs[i] != null)
             {
                 Slot slot = inventory.inventorySlots[i];
                 InventorySlotUI slotUI = slotUIs[i];
+                
+                // SlotUI bileşenlerinin null olmadığını kontrol et
+                if (slotUI.itemIcon == null || slotUI.itemCountText == null)
+                {
+                    Debug.LogWarning($"InventoryUIManager: SlotUI {i} bileşenleri null!");
+                    continue;
+                }
+                
                 if (slot.item != null)
                 {
                     slotUI.itemIcon.sprite = slot.item.itemIcon;

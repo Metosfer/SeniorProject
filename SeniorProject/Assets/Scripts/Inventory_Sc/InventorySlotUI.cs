@@ -5,11 +5,28 @@ using TMPro;
 public class InventorySlotUI : MonoBehaviour
 {
     public Image itemIcon;
-    public TextMeshProUGUI itemCountText;
-
-    private void Awake()
+    public TextMeshProUGUI itemCountText;    private void Awake()
     {
-        itemIcon = transform.Find("Icon").GetComponent<Image>();
-        itemCountText = transform.Find("Count").GetComponent<TextMeshProUGUI>();
+        // Transform.Find ile bileşenleri bul ve null kontrolü yap
+        Transform iconTransform = transform.Find("Icon");
+        Transform countTransform = transform.Find("Count");
+        
+        if (iconTransform != null)
+        {
+            itemIcon = iconTransform.GetComponent<Image>();
+        }
+        else
+        {
+            Debug.LogWarning($"InventorySlotUI: 'Icon' child bulunamadı! GameObject: {gameObject.name}");
+        }
+        
+        if (countTransform != null)
+        {
+            itemCountText = countTransform.GetComponent<TextMeshProUGUI>();
+        }
+        else
+        {
+            Debug.LogWarning($"InventorySlotUI: 'Count' child bulunamadı! GameObject: {gameObject.name}");
+        }
     }
 }

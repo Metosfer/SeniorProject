@@ -54,15 +54,22 @@ public class SCInventory : ScriptableObject
             }
         }
         return false;
-    }
-
-    public void ResetInventory()
+    }    public void ResetInventory()
     {
+        if (inventorySlots == null)
+        {
+            Debug.LogWarning("SCInventory: inventorySlots null!");
+            return;
+        }
+        
         foreach (Slot slot in inventorySlots)
         {
-            slot.item = null;
-            slot.itemCount = 0;
-            slot.isFull = false;
+            if (slot != null)
+            {
+                slot.item = null;
+                slot.itemCount = 0;
+                slot.isFull = false;
+            }
         }
         OnInventoryChanged?.Invoke();
     }
