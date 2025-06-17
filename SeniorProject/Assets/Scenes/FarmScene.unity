@@ -768,23 +768,7 @@ PrefabInstance:
     - target: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
       propertyPath: m_Name
-      value: Aloe (4)
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: range
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: herbName
-      value: 
-      objectReference: {fileID: 11400000, guid: 18d031128ede55c40b979c2cd9d7dd66,
-        type: 2}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: plantName
-      value: Aloe
+      value: Plant_Aloe
       objectReference: {fileID: 0}
     - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
@@ -844,31 +828,8 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 181198220}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b18b24a5ed9bc043805d04e9add7695, type: 3}
---- !u!1 &181198219 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-    type: 3}
-  m_PrefabInstance: {fileID: 181198218}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &181198220
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 181198219}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
 --- !u!1 &187961175
 GameObject:
   m_ObjectHideFlags: 0
@@ -2000,7 +1961,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0.32572442, y: 0, z: 0, w: 0.9454648}
-  m_LocalPosition: {x: 1.628, y: 2.069, z: -0.7520001}
+  m_LocalPosition: {x: 1.628, y: 1.83, z: -3.03}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3551,23 +3512,7 @@ PrefabInstance:
     - target: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
       propertyPath: m_Name
-      value: Aloe (1)
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: range
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: herbName
-      value: 
-      objectReference: {fileID: 11400000, guid: 18d031128ede55c40b979c2cd9d7dd66,
-        type: 2}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: plantName
-      value: Aloe
+      value: Plant_Aloe
       objectReference: {fileID: 0}
     - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
@@ -3627,11 +3572,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1594206867}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b18b24a5ed9bc043805d04e9add7695, type: 3}
 --- !u!1001 &636951380
 PrefabInstance:
@@ -5415,23 +5356,7 @@ PrefabInstance:
     - target: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
       propertyPath: m_Name
-      value: Aloe (5)
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: range
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: herbName
-      value: 
-      objectReference: {fileID: 11400000, guid: 18d031128ede55c40b979c2cd9d7dd66,
-        type: 2}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: plantName
-      value: Aloe
+      value: Plant_Aloe
       objectReference: {fileID: 0}
     - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
@@ -5491,31 +5416,8 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 997993733}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b18b24a5ed9bc043805d04e9add7695, type: 3}
---- !u!1 &997993732 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-    type: 3}
-  m_PrefabInstance: {fileID: 997993731}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &997993733
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 997993732}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
 --- !u!1 &1001055389
 GameObject:
   m_ObjectHideFlags: 0
@@ -5943,23 +5845,7 @@ PrefabInstance:
     - target: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
       propertyPath: m_Name
-      value: Aloe (3)
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: range
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: herbName
-      value: 
-      objectReference: {fileID: 11400000, guid: 18d031128ede55c40b979c2cd9d7dd66,
-        type: 2}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: plantName
-      value: Aloe
+      value: Plant_Aloe
       objectReference: {fileID: 0}
     - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
@@ -6019,31 +5905,8 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1058429868}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b18b24a5ed9bc043805d04e9add7695, type: 3}
---- !u!1 &1058429867 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-    type: 3}
-  m_PrefabInstance: {fileID: 1058429866}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1058429868
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1058429867}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
 --- !u!1 &1080532555
 GameObject:
   m_ObjectHideFlags: 0
@@ -6265,23 +6128,7 @@ PrefabInstance:
     - target: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
       propertyPath: m_Name
-      value: Aloe (2)
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: range
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: herbName
-      value: 
-      objectReference: {fileID: 11400000, guid: 18d031128ede55c40b979c2cd9d7dd66,
-        type: 2}
-    - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      propertyPath: plantName
-      value: Aloe
+      value: Plant_Aloe
       objectReference: {fileID: 0}
     - target: {fileID: 1295117883630431170, guid: 9b18b24a5ed9bc043805d04e9add7695,
         type: 3}
@@ -6341,31 +6188,8 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1113950583}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b18b24a5ed9bc043805d04e9add7695, type: 3}
---- !u!1 &1113950582 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-    type: 3}
-  m_PrefabInstance: {fileID: 1113950581}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1113950583
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1113950582}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
 --- !u!1 &1114443393
 GameObject:
   m_ObjectHideFlags: 0
@@ -7372,13 +7196,59 @@ Transform:
   m_GameObject: {fileID: 1344349581}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.628, y: 2.069, z: -0.7520001}
+  m_LocalPosition: {x: 1.628, y: 1.83, z: -3.03}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1468351679}
   - {fileID: 232422107}
   - {fileID: 1413112956}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1376024547
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1376024549}
+  - component: {fileID: 1376024548}
+  m_Layer: 0
+  m_Name: WorldItemSpawner
+  m_TagString: WorldItem
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1376024548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1376024547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f430ca93b6754cb41979bd13e107ca9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultWorldItemPrefab: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
+    type: 3}
+--- !u!4 &1376024549
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1376024547}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.3, z: -3.589}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1377976345
@@ -8011,7 +7881,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413112954}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.32572445, y: -0.000000028177048, z: 0.000000009707346, w: 0.9454648}
+  m_LocalRotation: {x: 0.32572445, y: 0.000000028177048, z: -0.000000009707346, w: 0.9454648}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -8289,7 +8159,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1468351677}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.32572445, y: 0.000000028177048, z: -0.000000009707346, w: 0.9454648}
+  m_LocalRotation: {x: 0.32572445, y: -0.000000028177048, z: 0.000000009707346, w: 0.9454648}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -9146,25 +9016,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1586552814}
   m_CullTransparentMesh: 1
---- !u!1 &1594206862 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
-    type: 3}
-  m_PrefabInstance: {fileID: 591275428}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1594206867
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1594206862}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
 --- !u!1 &1681648856
 GameObject:
   m_ObjectHideFlags: 0
@@ -11333,6 +11184,7 @@ GameObject:
   - component: {fileID: 2045879617}
   - component: {fileID: 2045879616}
   - component: {fileID: 2045879615}
+  - component: {fileID: 2045879619}
   m_Layer: 0
   m_Name: Cube
   m_TagString: Farm
@@ -11355,7 +11207,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -11426,6 +11278,29 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2045879619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2045879614}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15f8b81e106a5ed4d9681fbe40db7729, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  acceptAllItems: 1
+  acceptedItemTypes: []
+  dropIndicator: {fileID: 919132149155446097, guid: 455f69646ef6a07458a7c82e7f30c168,
+    type: 3}
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  highlightColor: {r: 0, g: 1, b: 0, a: 1}
+  invalidColor: {r: 1, g: 0, b: 0, a: 1}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 129
+  maxDropDistance: 10
 --- !u!1 &2105892888
 GameObject:
   m_ObjectHideFlags: 0
@@ -108870,12 +108745,12 @@ PrefabInstance:
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.349
+      value: 0.11
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 1.448
+      value: -0.83
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
@@ -133694,3 +133569,4 @@ SceneRoots:
   - {fileID: 1762732222}
   - {fileID: 802079512}
   - {fileID: 1796112760}
+  - {fileID: 1376024549}

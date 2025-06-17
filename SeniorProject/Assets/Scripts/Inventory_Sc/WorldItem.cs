@@ -1,9 +1,10 @@
 using UnityEngine;
 
-public class Plant : MonoBehaviour
+public class WorldItem : MonoBehaviour
 {
     [Header("Item Data")]
     public SCItem item;
+    public int quantity = 1;
     
     [Header("Pickup Settings")]
     public float pickupRange = 2f;
@@ -23,14 +24,6 @@ public class Plant : MonoBehaviour
         {
             pickupUI.SetActive(false);
         }
-        
-        // Eğer collider yoksa ekle ve trigger yap
-        Collider col = GetComponent<Collider>();
-        if (col == null)
-        {
-            col = gameObject.AddComponent<BoxCollider>();
-        }
-        col.isTrigger = true;
     }
 
     private void Update()
@@ -69,9 +62,20 @@ public class Plant : MonoBehaviour
             
             if (added)
             {
-                Debug.Log($"Picked up: {item.itemName}");
-                ShowPickupUI(false);
-                Destroy(gameObject); // Plant'ı yok et
+                Debug.Log($"Picked up: {item.itemName} x{quantity}");
+                
+                // Eğer quantity 1'den fazlaysa, sadece 1 tane al ve quantity'yi azalt
+                if (quantity > 1)
+                {
+                    quantity--;
+                    UpdateWorldItemDisplay();
+                }
+                else
+                {
+                    // Quantity 1 ise eşyayı tamamen kaldır
+                    ShowPickupUI(false);
+                    Destroy(gameObject);
+                }
             }
             else
             {
@@ -79,6 +83,13 @@ public class Plant : MonoBehaviour
                 // UI feedback verilebilir (inventory dolu mesajı vs.)
             }
         }
+    }
+
+    private void UpdateWorldItemDisplay()
+    {
+        // Quantity'ye göre item boyutunu güncelle (opsiyonel)
+        float scale = Mathf.Clamp(0.3f + (quantity * 0.1f), 0.3f, 1f);
+        transform.localScale = Vector3.one * scale;
     }
 
     private void ShowPickupUI(bool show)
@@ -94,7 +105,7 @@ public class Plant : MonoBehaviour
     {
         if (item != null)
         {
-            gameObject.name = $"Plant_{item.itemName}";
+            gameObject.name = $"WorldItem_{item.itemName}";
         }
     }
 }

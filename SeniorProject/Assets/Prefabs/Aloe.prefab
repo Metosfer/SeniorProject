@@ -12,8 +12,9 @@ GameObject:
   - component: {fileID: 1779647838932357007}
   - component: {fileID: 2896128715128966461}
   - component: {fileID: 1295117883630431170}
+  - component: {fileID: 613044189333151020}
   m_Layer: 0
-  m_Name: Aloe
+  m_Name: Plant_Aloe
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -106,10 +107,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e5895117c74c1a4bbdae2f74d8d9f9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  range: 10
+  range: 2
   playerPos: {fileID: 0}
   plantName: Aloe
   text: {fileID: 7621818845574464851}
+--- !u!114 &613044189333151020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 274698330208481050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
+  pickupRange: 1
+  pickupKey: 101
+  pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
+    type: 3}
 --- !u!1 &328393171130564316
 GameObject:
   m_ObjectHideFlags: 0

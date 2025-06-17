@@ -13,12 +13,27 @@ public class InventoryUIManager : MonoBehaviour
         // Inventory panelinin child'larını kontrol et
         if (inventoryPanel != null)
         {
+            int slotIndex = 0;
             foreach (Transform child in inventoryPanel.transform)
             {
                 InventorySlotUI slotUI = child.GetComponent<InventorySlotUI>();
                 if (slotUI != null)
                 {
                     slotUIs.Add(slotUI);
+                    
+                    // DragAndDropHandler ekle
+                    DragAndDropHandler dragHandler = child.GetComponent<DragAndDropHandler>();
+                    if (dragHandler == null)
+                    {
+                        dragHandler = child.gameObject.AddComponent<DragAndDropHandler>();
+                    }
+                    
+                    // Drag handler'ı konfigure et
+                    dragHandler.slotIndex = slotIndex;
+                    dragHandler.inventory = inventory;
+                    dragHandler.uiManager = this;
+                    
+                    slotIndex++;
                 }
             }
         }
@@ -112,6 +127,14 @@ public class InventoryUIManager : MonoBehaviour
                     slotUI.itemCountText.enabled = false;
                 }
             }
+        }
+    }
+    
+    public void RefreshUI()
+    {
+        if (inventory != null && slotUIs != null && slotUIs.Count > 0)
+        {
+            UpdateUI();
         }
     }
 }

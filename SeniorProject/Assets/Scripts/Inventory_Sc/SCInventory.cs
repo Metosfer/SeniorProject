@@ -6,55 +6,40 @@ public class SCInventory : ScriptableObject
 {
     public List<Slot> inventorySlots = new List<Slot>();
     int stackLimit = 4;
-    public event System.Action OnInventoryChanged;
-
-    public bool AddItem(SCItem item)
+    public event System.Action OnInventoryChanged;    public bool AddItem(SCItem item)
     {
-        // Önce tüm slotların dolu olup olmadığını kontrol et
-        bool allSlotsFull = true;
+        // Önce aynı türden item'ı stack'lemeye çalış
         foreach (Slot slot in inventorySlots)
         {
-            if (!slot.isFull)
+            if (slot.item == item && slot.item.canStackable)
             {
-                allSlotsFull = false;
-                break;
-            }
-        }
-        if (allSlotsFull)
-        {
-            return false; // Tüm slotlar doluysa eşya eklenemez
-        }
-
-        // Normal eşya ekleme mantığı
-        foreach (Slot slot in inventorySlots)
-        {
-            if (slot.item == item)
-            {
-                if (slot.item.canStackable)
+                if (slot.itemCount < stackLimit)
                 {
-                    if (slot.itemCount < stackLimit)
+                    slot.itemCount++;
+                    if (slot.itemCount == stackLimit)
                     {
-                        slot.itemCount++;
-                        if (slot.itemCount == stackLimit)
-                        {
-                            slot.isFull = true;
-                            OnInventoryChanged?.Invoke();
-                            return false;
-                        }
-                        OnInventoryChanged?.Invoke();
-                        return true;
+                        slot.isFull = true;
                     }
+                    OnInventoryChanged?.Invoke();
+                    return true;
                 }
             }
-            else if (slot.itemCount == 0)
+        }
+
+        // Eğer stack'lenemiyorsa, boş slot ara
+        foreach (Slot slot in inventorySlots)
+        {
+            if (slot.itemCount == 0)
             {
                 slot.AddItemToSlot(item);
                 OnInventoryChanged?.Invoke();
                 return true;
             }
         }
+
+        // Hiç boş slot yoksa
         return false;
-    }    public void ResetInventory()
+    }public void ResetInventory()
     {
         if (inventorySlots == null)
         {
@@ -71,6 +56,11 @@ public class SCInventory : ScriptableObject
                 slot.isFull = false;
             }
         }
+        OnInventoryChanged?.Invoke();
+    }
+
+    public void TriggerInventoryChanged()
+    {
         OnInventoryChanged?.Invoke();
     }
 }
