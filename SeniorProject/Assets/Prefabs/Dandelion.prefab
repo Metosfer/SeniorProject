@@ -114,8 +114,9 @@ GameObject:
   - component: {fileID: 6526989519312595202}
   - component: {fileID: 5232680993570588268}
   - component: {fileID: 7204479084279244162}
+  - component: {fileID: 3246994477920976397}
   m_Layer: 0
-  m_Name: Dandelion
+  m_Name: Plant_Dandelion
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -211,6 +212,23 @@ MonoBehaviour:
   playerPos: {fileID: 0}
   plantName: Dandelion
   text: {fileID: 1836927565035048851}
+--- !u!114 &3246994477920976397
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1245685804592879791}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  item: {fileID: 11400000, guid: 39db70c71a104bf4f9027dbddfd9dd1d, type: 2}
+  pickupRange: 2
+  pickupKey: 101
+  pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
+    type: 3}
 --- !u!1 &2171190410300904288
 GameObject:
   m_ObjectHideFlags: 0

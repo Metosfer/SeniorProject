@@ -1208,7 +1208,7 @@ Transform:
   m_GameObject: {fileID: 232422105}
   serializedVersion: 2
   m_LocalRotation: {x: 0.32572442, y: -0, z: -0, w: 0.9454648}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -0.00000011920929, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2879,20 +2879,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 600439731126750411, guid: 6490238b61859ac48b885b01f272486f,
-        type: 3}
-      propertyPath: m_Radius
-      value: 4.62
-      objectReference: {fileID: 0}
-    - target: {fileID: 600439731126750411, guid: 6490238b61859ac48b885b01f272486f,
-        type: 3}
-      propertyPath: m_IsTrigger
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 5413114494039111643, guid: 6490238b61859ac48b885b01f272486f,
         type: 3}
       propertyPath: m_Name
-      value: Plantago
+      value: Plant_Plantago
       objectReference: {fileID: 0}
     - target: {fileID: 5885866898968156798, guid: 6490238b61859ac48b885b01f272486f,
         type: 3}
@@ -2944,8 +2934,7 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 3341091826360271234, guid: 6490238b61859ac48b885b01f272486f, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -3585,7 +3574,7 @@ PrefabInstance:
     - target: {fileID: 4148940763791018315, guid: 4a5fb5c0c4feda547a20f33d42d13b74,
         type: 3}
       propertyPath: m_Name
-      value: Valeriana
+      value: Plant_Valerian
       objectReference: {fileID: 0}
     - target: {fileID: 6765457808216086031, guid: 4a5fb5c0c4feda547a20f33d42d13b74,
         type: 3}
@@ -3637,18 +3626,7 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6930979070013564929, guid: 4a5fb5c0c4feda547a20f33d42d13b74,
-        type: 3}
-      propertyPath: m_Radius
-      value: 4.62
-      objectReference: {fileID: 0}
-    - target: {fileID: 6930979070013564929, guid: 4a5fb5c0c4feda547a20f33d42d13b74,
-        type: 3}
-      propertyPath: m_IsTrigger
-      value: 1
-      objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 6424036677805597103, guid: 4a5fb5c0c4feda547a20f33d42d13b74, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -7416,7 +7394,7 @@ PrefabInstance:
     - target: {fileID: 1245685804592879791, guid: 9bb97ee2e53e0934daa7f873b2308274,
         type: 3}
       propertyPath: m_Name
-      value: Dandelion
+      value: Plant_Dandelion
       objectReference: {fileID: 0}
     - target: {fileID: 2155881141784486970, guid: 9bb97ee2e53e0934daa7f873b2308274,
         type: 3}
@@ -7468,18 +7446,7 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2904381878540055380, guid: 9bb97ee2e53e0934daa7f873b2308274,
-        type: 3}
-      propertyPath: m_Radius
-      value: 4.62
-      objectReference: {fileID: 0}
-    - target: {fileID: 2904381878540055380, guid: 9bb97ee2e53e0934daa7f873b2308274,
-        type: 3}
-      propertyPath: m_IsTrigger
-      value: 1
-      objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 6526989519312595202, guid: 9bb97ee2e53e0934daa7f873b2308274, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -7881,8 +7848,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413112954}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.32572445, y: 0.000000028177048, z: -0.000000009707346, w: 0.9454648}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.32572445, y: -0.000000006013597, z: 0.0000000020717599, w: 0.9454648}
+  m_LocalPosition: {x: 0, y: -0.00000011920929, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -8159,8 +8126,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1468351677}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.32572445, y: -0.000000028177048, z: 0.000000009707346, w: 0.9454648}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.35171893, y: -0.0000000623821, z: 0.000000023438556, w: 0.93610567}
+  m_LocalPosition: {x: 0, y: -0.52995205, z: 0.8399}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

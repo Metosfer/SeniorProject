@@ -5115,8 +5115,9 @@ GameObject:
   - component: {fileID: 6424036677805597103}
   - component: {fileID: 4899653114986849388}
   - component: {fileID: 4142744957254230405}
+  - component: {fileID: 5398389265820674203}
   m_Layer: 0
-  m_Name: Valeriana
+  m_Name: Plant_Valerian
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5207,10 +5208,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e5895117c74c1a4bbdae2f74d8d9f9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  range: 3
+  range: 2
   playerPos: {fileID: 0}
   plantName: Valerian
   text: {fileID: 5003444729157865017}
+--- !u!114 &5398389265820674203
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4148940763791018315}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  item: {fileID: 11400000, guid: 9e94a2e25ee615b4ba0442fa0f8b00c2, type: 2}
+  pickupRange: 2
+  pickupKey: 101
+  pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
+    type: 3}
 --- !u!1 &4169622530101963228
 GameObject:
   m_ObjectHideFlags: 0
