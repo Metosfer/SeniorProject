@@ -26,8 +26,16 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
         rectTransform = GetComponent<RectTransform>();
         inventorySlot = GetComponent<InventorySlotUI>();
-    }    public void OnBeginDrag(PointerEventData eventData)
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
     {
+        // CanvasGroup interactable kontrolü
+        if (canvasGroup != null && !canvasGroup.interactable)
+        {
+            return;
+        }
+        
         // Eğer slot boşsa sürükleme başlatma
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
@@ -54,8 +62,16 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             canvas.worldCamera,
             out localPointerPosition);
         rectTransform.localPosition = localPointerPosition;
-    }    public void OnDrag(PointerEventData eventData)
+    }
+
+    public void OnDrag(PointerEventData eventData)
     {
+        // CanvasGroup interactable kontrolü
+        if (canvasGroup != null && !canvasGroup.interactable)
+        {
+            return;
+        }
+        
         // Eğer slot boşsa sürüklemeyi durdurmadan önce kontrol et
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
@@ -71,8 +87,16 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             canvas.worldCamera,
             out localPointerPosition);
         rectTransform.localPosition = localPointerPosition;
-    }public void OnEndDrag(PointerEventData eventData)
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
     {
+        // CanvasGroup interactable kontrolü
+        if (canvasGroup != null && !canvasGroup.interactable)
+        {
+            return;
+        }
+        
         // Eğer slot boşsa işlemi sonlandır
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
@@ -96,7 +120,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             {
                 dropZone = hitObject.GetComponentInParent<DropZone>();
             }
-        }        // Eğer geçerli bir drop zone bulunursa
+        }
+
+        // Eğer geçerli bir drop zone bulunursa
         if (dropZone != null && dropZone.CanAcceptDrop())
         {
             // Sadece 1 tane eşyayı dünyada spawn et
@@ -165,7 +191,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         // Fallback pozisyon
         return Vector3.zero + Vector3.up * 0.5f;
-    }    private void RemoveSingleItemFromInventory()
+    }
+
+    private void RemoveSingleItemFromInventory()
     {
         if (inventory != null && slotIndex < inventory.inventorySlots.Count)
         {

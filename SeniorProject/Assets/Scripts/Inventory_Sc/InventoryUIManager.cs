@@ -107,6 +107,10 @@ public class InventoryUIManager : MonoBehaviour
                     continue;
                 }
                 
+                // DragAndDropHandler için CanvasGroup referansını al
+                DragAndDropHandler dragHandler = slotUI.GetComponent<DragAndDropHandler>();
+                CanvasGroup slotCanvasGroup = slotUI.GetComponent<CanvasGroup>();
+                
                 if (slot.item != null)
                 {
                     slotUI.itemIcon.sprite = slot.item.itemIcon;
@@ -120,11 +124,23 @@ public class InventoryUIManager : MonoBehaviour
                     {
                         slotUI.itemCountText.enabled = false;
                     }
+                    
+                    // Slot dolu ise sürüklemeyi etkinleştir
+                    if (slotCanvasGroup != null)
+                    {
+                        slotCanvasGroup.interactable = true;
+                    }
                 }
                 else
                 {
                     slotUI.itemIcon.enabled = false;
                     slotUI.itemCountText.enabled = false;
+                    
+                    // Slot boş ise sürüklemeyi devre dışı bırak
+                    if (slotCanvasGroup != null)
+                    {
+                        slotCanvasGroup.interactable = false;
+                    }
                 }
             }
         }
