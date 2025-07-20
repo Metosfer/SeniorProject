@@ -16459,6 +16459,7 @@ GameObject:
   - component: {fileID: 1129689795651278875}
   - component: {fileID: 6002321812500662198}
   - component: {fileID: 1518091543152155471}
+  - component: {fileID: 6465830424661561906}
   m_Layer: 0
   m_Name: Plant_Plantago
   m_TagString: Plant
@@ -16575,6 +16576,19 @@ MonoBehaviour:
   pickupKey: 101
   pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
     type: 3}
+--- !u!114 &6465830424661561906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5413114494039111643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36c7fe076a2654e5293011391d18da8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemData: {fileID: 11400000, guid: 558dc3863de201a47ae3f5779c55fa22, type: 2}
 --- !u!1 &5451704422399215027
 GameObject:
   m_ObjectHideFlags: 0

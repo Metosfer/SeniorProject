@@ -83,6 +83,68 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &1112068031950805210
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7865935989428717425}
+  m_Layer: 0
+  m_Name: SlotPosition1
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7865935989428717425
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1112068031950805210}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -6.09, y: 4.13, z: -5.17}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7527610918039060699}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2455797645544786530
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6352264689811698926}
+  m_Layer: 0
+  m_Name: SlotPosition2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6352264689811698926
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2455797645544786530}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.94, y: 4.13, z: -5.17}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7527610918039060699}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2735150353186258220
 GameObject:
   m_ObjectHideFlags: 0
@@ -175,6 +237,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7527610918039060699}
+  - component: {fileID: 3562534756060999902}
+  - component: {fileID: 5521824601301375741}
   m_Layer: 0
   m_Name: RopeDry
   m_TagString: Untagged
@@ -190,12 +254,114 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4773540242314222168}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.000000014901159, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 5.12, y: 0.00000011920929, z: 6.17}
   m_LocalScale: {x: 0.14884934, y: 0.14884934, z: 0.14884934}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3353467772862738686}
   - {fileID: 5635301211299452780}
+  - {fileID: 7865935989428717425}
+  - {fileID: 6352264689811698926}
+  - {fileID: 8987966173267733536}
   m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &3562534756060999902
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4773540242314222168}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 17.273441, y: 11.8436575, z: 9.470642}
+  m_Center: {x: -0.41390753, y: 5.7016726, z: 0.11718882}
+--- !u!114 &5521824601301375741
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4773540242314222168}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77daaa366ed14caea514b10d93b0156, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dryingSlots:
+  - slotTransform: {fileID: 7865935989428717425}
+    currentObject: {fileID: 0}
+    currentItemData: {fileID: 0}
+    timer: 0
+    isOccupied: 0
+    isReadyToCollect: 0
+    slotIcon: {fileID: 0}
+    timerText: {fileID: 0}
+    collectButton: {fileID: 0}
+    slotCanvasGroup: {fileID: 0}
+  - slotTransform: {fileID: 6352264689811698926}
+    currentObject: {fileID: 0}
+    currentItemData: {fileID: 0}
+    timer: 0
+    isOccupied: 0
+    isReadyToCollect: 0
+    slotIcon: {fileID: 0}
+    timerText: {fileID: 0}
+    collectButton: {fileID: 0}
+    slotCanvasGroup: {fileID: 0}
+  - slotTransform: {fileID: 8987966173267733536}
+    currentObject: {fileID: 0}
+    currentItemData: {fileID: 0}
+    timer: 0
+    isOccupied: 0
+    isReadyToCollect: 0
+    slotIcon: {fileID: 0}
+    timerText: {fileID: 0}
+    collectButton: {fileID: 0}
+    slotCanvasGroup: {fileID: 0}
+  interactionRange: 3
+  interactionKey: 105
+  interactionUI: {fileID: 0}
+  dryingUI: {fileID: 0}
+--- !u!1 &7214614170803818662
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8987966173267733536}
+  m_Layer: 0
+  m_Name: SlotPosition3
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8987966173267733536
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7214614170803818662}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 5.42, y: 4.13, z: -5.17}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7527610918039060699}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

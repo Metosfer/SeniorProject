@@ -5116,6 +5116,7 @@ GameObject:
   - component: {fileID: 4899653114986849388}
   - component: {fileID: 4142744957254230405}
   - component: {fileID: 5398389265820674203}
+  - component: {fileID: -6225207455328074561}
   m_Layer: 0
   m_Name: Plant_Valerian
   m_TagString: Plant
@@ -5229,6 +5230,19 @@ MonoBehaviour:
   pickupKey: 101
   pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
     type: 3}
+--- !u!114 &-6225207455328074561
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4148940763791018315}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36c7fe076a2654e5293011391d18da8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemData: {fileID: 11400000, guid: 9e94a2e25ee615b4ba0442fa0f8b00c2, type: 2}
 --- !u!1 &4169622530101963228
 GameObject:
   m_ObjectHideFlags: 0

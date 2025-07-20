@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: feccdefb0fdb13e4fa7fb8a5e07e3a98, type: 3}
-  m_Name: Aloe
+  m_Name: Aloe_Dried
   m_EditorClassIdentifier: 
-  itemName: Aloe
-  itemDescription: Aloe vera herb
+  itemName: AloeDried
+  itemDescription: Aloe vera herb dried
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: ab8dfd54b777f054ca6986e52331490e, type: 3}
-  itemPrefab: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
+  itemIcon: {fileID: 21300000, guid: 50053e696c2f94b43866827358f3d595, type: 3}
+  itemPrefab: {fileID: 274698330208481050, guid: 9e12e5cf0ef1e4169b3be81d0c26c1c3,
     type: 3}
-  dropPrefab: {fileID: 6494029105147101976, guid: 3c0ec09ce30939b4aafd89bccb0f774a,
+  dropPrefab: {fileID: 274698330208481050, guid: 9e12e5cf0ef1e4169b3be81d0c26c1c3,
     type: 3}
   dryPrefab: {fileID: 274698330208481050, guid: 9e12e5cf0ef1e4169b3be81d0c26c1c3,
     type: 3}
-  canBeDried: 1
+  canBeDried: 0
   dryingTime: 10
-  driedVersion: {fileID: 11400000, guid: 61c2653c935f041cabed5e5ffc1a1af5, type: 2}
-  isExpirable: 1
+  driedVersion: {fileID: 0}
+  isExpirable: 0
   expirationTime: 15

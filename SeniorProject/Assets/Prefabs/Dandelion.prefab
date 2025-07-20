@@ -115,6 +115,7 @@ GameObject:
   - component: {fileID: 5232680993570588268}
   - component: {fileID: 7204479084279244162}
   - component: {fileID: 3246994477920976397}
+  - component: {fileID: -2447697373900770522}
   m_Layer: 0
   m_Name: Plant_Dandelion
   m_TagString: Plant
@@ -229,6 +230,19 @@ MonoBehaviour:
   pickupKey: 101
   pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
     type: 3}
+--- !u!114 &-2447697373900770522
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1245685804592879791}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36c7fe076a2654e5293011391d18da8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemData: {fileID: 11400000, guid: 39db70c71a104bf4f9027dbddfd9dd1d, type: 2}
 --- !u!1 &2171190410300904288
 GameObject:
   m_ObjectHideFlags: 0
