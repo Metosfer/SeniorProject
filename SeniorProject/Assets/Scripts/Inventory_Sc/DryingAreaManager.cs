@@ -39,12 +39,12 @@ public class DryingAreaManager : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
         // Player mesafe kontrolü
         CheckPlayerDistance();
 
-        // T tuşu kontrolü
+        // T tuşu kontrolü (input işlemleri Update'te olmalı)
         if (playerInRange && Input.GetKeyDown(interactionKey))
         {
             if (dryingUI != null)
@@ -52,7 +52,7 @@ public class DryingAreaManager : MonoBehaviour
                 dryingUI.TogglePanel();
             }
         }
-        
+
         // Kurutma timer'ları güncelle
         foreach (DryingSlot slot in dryingSlots)
         {
@@ -127,11 +127,12 @@ public class DryingAreaManager : MonoBehaviour
         
         if (slot.isReadyToCollect && slot.currentItemData != null)
         {
+            Debug.Log($"CollectSlot: slotIndex={slotIndex}, item={slot.currentItemData.itemName}, driedVersion={(slot.currentItemData.driedVersion != null ? slot.currentItemData.driedVersion.itemName : "null")}");
             // Kurutulmuş item'ı inventory'e ekle
             if (playerInventory != null && slot.currentItemData.driedVersion != null)
             {
                 bool added = playerInventory.playerInventory.AddItem(slot.currentItemData.driedVersion);
-                
+                Debug.Log($"AddItem(driedVersion): {slot.currentItemData.driedVersion.itemName}, result={added}");
                 if (added)
                 {
                     Debug.Log($"Kurutulmuş item toplandı: {slot.currentItemData.driedVersion.itemName}");
@@ -139,14 +140,14 @@ public class DryingAreaManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("Inventory dolu! Kurutulmuş item toplanamadı.");
+                    Debug.LogWarning("Inventory dolu! Kurutulmuş item toplanamadı.");
                 }
             }
             else if (slot.currentItemData.driedVersion == null)
             {
                 // Eğer dried version yoksa orijinal item'ı geri ver
                 bool added = playerInventory.playerInventory.AddItem(slot.currentItemData);
-                
+                Debug.Log($"AddItem(original): {slot.currentItemData.itemName}, result={added}");
                 if (added)
                 {
                     Debug.Log($"Item toplandı (dried version yok): {slot.currentItemData.itemName}");
@@ -154,7 +155,7 @@ public class DryingAreaManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("Inventory dolu! Item toplanamadı.");
+                    Debug.LogWarning("Inventory dolu! Item toplanamadı.");
                 }
             }
         }

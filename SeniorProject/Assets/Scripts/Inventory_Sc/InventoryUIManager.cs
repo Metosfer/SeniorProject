@@ -93,24 +93,25 @@ public class InventoryUIManager : MonoBehaviour
             return;
         }
 
+        if (slotUIs.Count != inventory.inventorySlots.Count)
+        {
+            Debug.LogWarning($"InventoryUIManager: slotUIs.Count ({slotUIs.Count}) != inventorySlots.Count ({inventory.inventorySlots.Count})!");
+        }
         for (int i = 0; i < inventory.inventorySlots.Count; i++)
         {
             if (i < slotUIs.Count && slotUIs[i] != null)
             {
                 Slot slot = inventory.inventorySlots[i];
                 InventorySlotUI slotUI = slotUIs[i];
-                
                 // SlotUI bileşenlerinin null olmadığını kontrol et
                 if (slotUI.itemIcon == null || slotUI.itemCountText == null)
                 {
                     Debug.LogWarning($"InventoryUIManager: SlotUI {i} bileşenleri null!");
                     continue;
                 }
-                
                 // DragAndDropHandler için CanvasGroup referansını al
                 DragAndDropHandler dragHandler = slotUI.GetComponent<DragAndDropHandler>();
                 CanvasGroup slotCanvasGroup = slotUI.GetComponent<CanvasGroup>();
-                
                 if (slot.item != null)
                 {
                     slotUI.itemIcon.sprite = slot.item.itemIcon;
@@ -124,22 +125,34 @@ public class InventoryUIManager : MonoBehaviour
                     {
                         slotUI.itemCountText.enabled = false;
                     }
-                    
                     // Slot dolu ise sürüklemeyi etkinleştir
                     if (slotCanvasGroup != null)
                     {
                         slotCanvasGroup.interactable = true;
+                        slotCanvasGroup.blocksRaycasts = true;
+                    }
+                    // Slot arka planını occupiedColor yap
+                    if (slotUI.slotBackground != null)
+                    {
+                        slotUI.slotBackground.color = slotUI.occupiedColor;
+                        slotUI.slotBackground.enabled = true;
                     }
                 }
                 else
                 {
+                    // Slot boş ise ikon ve text'i gizle, slot GameObject'i aktif kalsın
                     slotUI.itemIcon.enabled = false;
                     slotUI.itemCountText.enabled = false;
-                    
-                    // Slot boş ise sürüklemeyi devre dışı bırak
                     if (slotCanvasGroup != null)
                     {
                         slotCanvasGroup.interactable = false;
+                        slotCanvasGroup.blocksRaycasts = true;
+                    }
+                    // Slot arka planını normalColor yap ve aktif bırak
+                    if (slotUI.slotBackground != null)
+                    {
+                        slotUI.slotBackground.color = slotUI.normalColor;
+                        slotUI.slotBackground.enabled = true;
                     }
                 }
             }

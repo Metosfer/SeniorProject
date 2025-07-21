@@ -24,6 +24,6 @@ MonoBehaviour:
     type: 3}
   canBeDried: 0
   dryingTime: 10
-  driedVersion: {fileID: 0}
+  driedVersion: {fileID: 11400000}
   isExpirable: 0
   expirationTime: 15

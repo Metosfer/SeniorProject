@@ -23,7 +23,7 @@ MonoBehaviour:
   dryPrefab: {fileID: 274698330208481050, guid: 9e12e5cf0ef1e4169b3be81d0c26c1c3,
     type: 3}
   canBeDried: 1
-  dryingTime: 10
+  dryingTime: 5
   driedVersion: {fileID: 11400000, guid: 61c2653c935f041cabed5e5ffc1a1af5, type: 2}
   isExpirable: 1
   expirationTime: 15
