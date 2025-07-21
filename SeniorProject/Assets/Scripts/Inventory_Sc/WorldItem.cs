@@ -16,8 +16,16 @@ public class WorldItem : MonoBehaviour
 
     private void Start()
     {
-        // Player inventory'sini bul
+        // Player inventory'sini bul veya persistent inventory kullan
         playerInventory = FindObjectOfType<Inventory>();
+        if (playerInventory == null || playerInventory.playerInventory == null)
+        {
+            // Eğer Inventory component'i yoksa, persistent inventory'yi direkt kullan
+            // Bu durumda bir dummy Inventory oluşturacağız
+            GameObject inventoryGO = new GameObject("TempInventory");
+            playerInventory = inventoryGO.AddComponent<Inventory>();
+            playerInventory.playerInventory = SCInventory.GetPersistentInventory();
+        }
         
         // Pickup UI'yı başlangıçta gizle
         if (pickupUI != null)

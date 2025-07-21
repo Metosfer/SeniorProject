@@ -4,9 +4,48 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Inventory", menuName = "Inventory/New Inventory")]
 public class SCInventory : ScriptableObject
 {
+    [System.NonSerialized] // Bu field serialize edilmeyecek, böylece Unity Inspector'da değişmez
+    private static SCInventory _persistentInventory;
+    
+    [System.NonSerialized]
+    private static bool _hasBeenResetThisSession = false; // Play mode başlangıcında bir kez sıfırla
+    
     public List<Slot> inventorySlots = new List<Slot>();
     int stackLimit = 4;
-    public event System.Action OnInventoryChanged;    public bool AddItem(SCItem item)
+    public event System.Action OnInventoryChanged;
+    
+    // Persistent inventory instance'ı al/oluştur
+    public static SCInventory GetPersistentInventory()
+    {
+        if (_persistentInventory == null)
+        {
+            _persistentInventory = CreateInstance<SCInventory>();
+            _persistentInventory.name = "PersistentInventory";
+            _persistentInventory.InitializeSlots();
+            
+            // Play mode başlangıcında bir kez sıfırla
+            if (!_hasBeenResetThisSession)
+            {
+                _persistentInventory.ResetInventory();
+                _hasBeenResetThisSession = true;
+                Debug.Log("Persistent inventory reset for new play session");
+            }
+        }
+        return _persistentInventory;
+    }
+    
+    // Slot'ları başlat
+    private void InitializeSlots()
+    {
+        if (inventorySlots.Count == 0)
+        {
+            // Varsayılan olarak 12 slot oluştur
+            for (int i = 0; i < 12; i++)
+            {
+                inventorySlots.Add(new Slot());
+            }
+        }
+    }    public bool AddItem(SCItem item)
     {
         // Önce aynı türden item'ı stack'lemeye çalış
         foreach (Slot slot in inventorySlots)

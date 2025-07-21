@@ -22,6 +22,10 @@ public class InventorySlotUI : MonoBehaviour
         if (iconTransform != null)
         {
             itemIcon = iconTransform.GetComponent<Image>();
+            if (itemIcon != null)
+            {
+                Debug.Log($"InventorySlotUI: Icon component found for {gameObject.name}");
+            }
         }
         else
         {
@@ -31,6 +35,10 @@ public class InventorySlotUI : MonoBehaviour
         if (countTransform != null)
         {
             itemCountText = countTransform.GetComponent<TextMeshProUGUI>();
+            if (itemCountText != null)
+            {
+                Debug.Log($"InventorySlotUI: Count component found for {gameObject.name}");
+            }
         }
         else
         {
@@ -40,6 +48,10 @@ public class InventorySlotUI : MonoBehaviour
         if (bgTransform != null)
         {
             slotBackground = bgTransform.GetComponent<Image>();
+            if (slotBackground != null)
+            {
+                Debug.Log($"InventorySlotUI: Background component found for {gameObject.name}");
+            }
         }
         else
         {

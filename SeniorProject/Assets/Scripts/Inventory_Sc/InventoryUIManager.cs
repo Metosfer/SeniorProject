@@ -6,10 +6,82 @@ public class InventoryUIManager : MonoBehaviour
     public SCInventory inventory;
     public GameObject inventoryPanel; // Inventory paneline referans
     private List<InventorySlotUI> slotUIs;
-    public bool isInventoryVisible = false;    private void Start()
+    public bool isInventoryVisible = false;
+
+    private void Awake()
     {
+        // Basit referans kontrolü yap - henüz inventory merge etme
         slotUIs = new List<InventorySlotUI>();
+    }
+    
+    private void Start()
+    {
+        // İlk inventory setup'ını yap
+        SetupInventory();
         
+        // UI setup'ını yap  
+        SetupUI();
+        
+        // Final update
+        FinalizeSetup();
+    }
+    
+    private void SetupInventory()
+    {
+        // Eğer inspector'da atanmış bir inventory varsa, onu persistent inventory ile merge et
+        SCInventory assignedInventory = inventory;
+        
+        // Persistent inventory kullan
+        inventory = SCInventory.GetPersistentInventory();
+        
+        // Eğer inspector'da atanmış inventory var ve persistent inventory boşsa, kopyala
+        if (assignedInventory != null && inventory.inventorySlots.Count > 0)
+        {
+            bool persistentIsEmpty = true;
+            foreach (var slot in inventory.inventorySlots)
+            {
+                if (slot.item != null)
+                {
+                    persistentIsEmpty = false;
+                    break;
+                }
+            }
+            
+            if (persistentIsEmpty && assignedInventory.inventorySlots.Count > 0)
+            {
+                Debug.Log("Merging inspector inventory to persistent inventory");
+                for (int i = 0; i < assignedInventory.inventorySlots.Count && i < inventory.inventorySlots.Count; i++)
+                {
+                    if (assignedInventory.inventorySlots[i].item != null)
+                    {
+                        inventory.inventorySlots[i] = new Slot
+                        {
+                            item = assignedInventory.inventorySlots[i].item,
+                            itemCount = assignedInventory.inventorySlots[i].itemCount,
+                            isFull = assignedInventory.inventorySlots[i].isFull
+                        };
+                        Debug.Log($"Copied slot {i}: {assignedInventory.inventorySlots[i].item.itemName}");
+                    }
+                }
+                inventory.TriggerInventoryChanged();
+            }
+        }
+        
+        Debug.Log($"Using inventory with {inventory.inventorySlots.Count} slots");
+        
+        // Inventory içeriğini debug et
+        for (int i = 0; i < Mathf.Min(3, inventory.inventorySlots.Count); i++)
+        {
+            var slot = inventory.inventorySlots[i];
+            if (slot.item != null)
+            {
+                Debug.Log($"Final Inventory Slot {i}: {slot.item.itemName} x{slot.itemCount}");
+            }
+        }
+    }
+    
+    private void SetupUI()
+    {
         // Inventory panelinin child'larını kontrol et
         if (inventoryPanel != null)
         {
@@ -38,10 +110,26 @@ public class InventoryUIManager : MonoBehaviour
             }
         }
         
-        // Sadece inventory ve slotUIs mevcut ise UpdateUI çağır
+        Debug.Log($"UI Setup complete - SlotUIs: {slotUIs.Count}, Inventory slots: {inventory.inventorySlots.Count}");
+    }
+    
+    private void FinalizeSetup()
+    {
+        // Event'i bağla
+        if (inventory != null)
+        {
+            inventory.OnInventoryChanged += UpdateUI;
+        }
+        
+        // UI'ı ilk kez güncelle
         if (inventory != null && slotUIs.Count > 0)
         {
+            Debug.Log("Calling initial UpdateUI");
             UpdateUI();
+        }
+        else
+        {
+            Debug.LogWarning($"Cannot update UI - inventory is null: {inventory == null}, slotUIs count: {slotUIs.Count}");
         }
         
         // Oyun başladığında inventory panelini gizle
@@ -49,7 +137,9 @@ public class InventoryUIManager : MonoBehaviour
         {
             inventoryPanel.SetActive(false);
         }
-    }private void Update()
+    }
+    
+    private void Update()
     {
         if (Input.GetKeyDown(KeyCode.I))
         {
@@ -59,12 +149,31 @@ public class InventoryUIManager : MonoBehaviour
             {
                 inventoryPanel.SetActive(isInventoryVisible);
             }
-              if (isInventoryVisible)
+            
+            if (isInventoryVisible)
             {
-                // Sadece inventory ve slotUIs mevcut ise UpdateUI çağır
+                Debug.Log("Inventory panel opened - forcing UI synchronization");
+                
+                // Panel açıldığında inventory referansını kontrol et ve güncelle
+                if (inventory == null)
+                {
+                    inventory = SCInventory.GetPersistentInventory();
+                    inventory.OnInventoryChanged += UpdateUI;
+                    Debug.Log("Re-connected to persistent inventory");
+                }
+                
+                // Drag handler referanslarını güncelle
+                UpdateDragHandlerReferences();
+                
+                // UI'ı zorla güncelle
                 if (inventory != null && slotUIs.Count > 0)
                 {
-                    UpdateUI(); // Envanter açıldığında UI'yı güncelle
+                    UpdateUI();
+                    Debug.Log("Forced UI update on panel open");
+                }
+                else
+                {
+                    Debug.LogWarning($"Cannot refresh UI on open - inventory null: {inventory == null}, slotUIs: {slotUIs?.Count}");
                 }
             }
         }
@@ -72,17 +181,25 @@ public class InventoryUIManager : MonoBehaviour
 
     private void OnEnable()
     {
+        // Inventory değiştiğinde UI'ı güncelle
         if (inventory != null)
         {
             inventory.OnInventoryChanged += UpdateUI;
+            Debug.Log("InventoryUIManager: Event connected on OnEnable");
+        }
+        else
+        {
+            Debug.LogWarning("InventoryUIManager: inventory is null in OnEnable");
         }
     }
 
     private void OnDisable()
     {
+        // Event'i disconnect et
         if (inventory != null)
         {
             inventory.OnInventoryChanged -= UpdateUI;
+            Debug.Log("InventoryUIManager: Event disconnected on OnDisable");
         }
     }    private void UpdateUI()
     {
@@ -91,6 +208,22 @@ public class InventoryUIManager : MonoBehaviour
         {
             Debug.LogWarning("InventoryUIManager: inventory, inventorySlots veya slotUIs null!");
             return;
+        }
+
+        Debug.Log($"UpdateUI called - Inventory has {inventory.inventorySlots.Count} slots, UI has {slotUIs.Count} slot UIs");
+        
+        // İlk birkaç slot'un içeriğini logla
+        for (int j = 0; j < Mathf.Min(3, inventory.inventorySlots.Count); j++)
+        {
+            var slot = inventory.inventorySlots[j];
+            if (slot.item != null)
+            {
+                Debug.Log($"Slot {j}: {slot.item.itemName} x{slot.itemCount}");
+            }
+            else
+            {
+                Debug.Log($"Slot {j}: Empty");
+            }
         }
 
         if (slotUIs.Count != inventory.inventorySlots.Count)
@@ -164,6 +297,105 @@ public class InventoryUIManager : MonoBehaviour
         if (inventory != null && slotUIs != null && slotUIs.Count > 0)
         {
             UpdateUI();
+        }
+    }
+    
+    public void SetInventoryReference(SCInventory newInventory)
+    {
+        // Eski inventory'den event'ı kaldır
+        if (inventory != null)
+        {
+            inventory.OnInventoryChanged -= UpdateUI;
+        }
+        
+        // Yeni inventory'yi ata
+        inventory = newInventory;
+        
+        // Yeni inventory'ye event'ı ekle
+        if (inventory != null)
+        {
+            inventory.OnInventoryChanged += UpdateUI;
+        }
+        
+        // Drag handler'ların inventory referansını güncelle
+        UpdateDragHandlerReferences();
+    }
+    
+    public void ForceInventoryMergeAndUpdate()
+    {
+        // Inspector'da atanmış inventory varsa onu merge et
+        SCInventory originalInventory = null;
+        
+        // Eğer bir inventory field atanmışsa, onu sakla
+        if (inventory != null && inventory.name != "PersistentInventory")
+        {
+            originalInventory = inventory;
+        }
+        
+        // Persistent inventory'yi al
+        inventory = SCInventory.GetPersistentInventory();
+        
+        // Inspector inventory'yi merge et
+        if (originalInventory != null && originalInventory.inventorySlots.Count > 0)
+        {
+            bool persistentIsEmpty = true;
+            foreach (var slot in inventory.inventorySlots)
+            {
+                if (slot.item != null)
+                {
+                    persistentIsEmpty = false;
+                    break;
+                }
+            }
+            
+            if (persistentIsEmpty)
+            {
+                Debug.Log("Force merging inspector inventory to persistent inventory");
+                for (int i = 0; i < originalInventory.inventorySlots.Count && i < inventory.inventorySlots.Count; i++)
+                {
+                    if (originalInventory.inventorySlots[i].item != null)
+                    {
+                        inventory.inventorySlots[i] = new Slot
+                        {
+                            item = originalInventory.inventorySlots[i].item,
+                            itemCount = originalInventory.inventorySlots[i].itemCount,
+                            isFull = originalInventory.inventorySlots[i].isFull
+                        };
+                    }
+                }
+            }
+        }
+        
+        // Event'ı yeniden bağla
+        inventory.OnInventoryChanged += UpdateUI;
+        
+        // Drag handler'ları güncelle
+        UpdateDragHandlerReferences();
+        
+        // UI'ı güncelle
+        if (slotUIs != null && slotUIs.Count > 0)
+        {
+            UpdateUI();
+            Debug.Log("Forced UI update completed");
+        }
+    }
+    
+    private void UpdateDragHandlerReferences()
+    {
+        if (inventoryPanel != null && inventory != null)
+        {
+            int slotIndex = 0;
+            foreach (Transform child in inventoryPanel.transform)
+            {
+                DragAndDropHandler dragHandler = child.GetComponent<DragAndDropHandler>();
+                if (dragHandler != null)
+                {
+                    dragHandler.inventory = inventory;
+                    dragHandler.slotIndex = slotIndex;
+                    dragHandler.uiManager = this;
+                }
+                slotIndex++;
+            }
         }
     }
 }
