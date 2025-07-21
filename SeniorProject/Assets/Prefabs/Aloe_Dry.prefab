@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 1295117883630431170}
   - component: {fileID: 613044189333151020}
   m_Layer: 0
-  m_Name: Plant_Aloe
+  m_Name: Plant_AloeDried
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -109,7 +109,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   range: 2
   playerPos: {fileID: 0}
-  plantName: Aloe
+  plantName: AloeDry
   text: {fileID: 7621818845574464851}
 --- !u!114 &613044189333151020
 MonoBehaviour:
@@ -123,7 +123,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
+  item: {fileID: 11400000, guid: 61c2653c935f041cabed5e5ffc1a1af5, type: 2}
   pickupRange: 1
   pickupKey: 101
   pickupUI: {fileID: 7546724881716881427, guid: 649d89d07f7dbe044952e9998d3fb3ea,
