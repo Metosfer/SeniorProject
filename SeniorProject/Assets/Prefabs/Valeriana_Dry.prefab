@@ -5211,7 +5211,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   range: 2
   playerPos: {fileID: 0}
-  plantName: Valerian
+  plantName: ValerianDry
   text: {fileID: 5003444729157865017}
 --- !u!114 &5398389265820674203
 MonoBehaviour:
