@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: feccdefb0fdb13e4fa7fb8a5e07e3a98, type: 3}
-  m_Name: Aloe_Dried
+  m_Name: Aloe_Dry
   m_EditorClassIdentifier: 
-  itemName: AloeDried
+  itemName: AloeDry
   itemDescription: Aloe vera herb dried
   canStackable: 1
   itemIcon: {fileID: 21300000, guid: 50053e696c2f94b43866827358f3d595, type: 3}
