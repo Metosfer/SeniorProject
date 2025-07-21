@@ -30,86 +30,118 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        // CanvasGroup interactable kontrolü
         if (canvasGroup != null && !canvasGroup.interactable)
         {
             return;
         }
         
-        // Eğer slot boşsa sürükleme başlatma
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
         {
             return;
         }
 
-        // Orijinal pozisyon ve parent'ı kaydet
         originalPosition = rectTransform.anchoredPosition;
         originalParent = transform.parent;
 
-        // Sürükleme sırasında slotu gizleme, alpha'yı değiştirme. Sadece raycast'i kapat.
         canvasGroup.blocksRaycasts = false;
 
-        // Drag icon oluştur (sadece item ikonu kopyası)
-        if (dragIcon == null && inventorySlot != null && inventorySlot.itemIcon != null && inventorySlot.itemIcon.sprite != null)
+        if (dragIcon == null && inventorySlot != null && inventorySlot.itemIcon != null && inventorySlot.itemIcon.sprite != null && canvas != null)
         {
+            Debug.Log("Creating dragIcon...");
             dragIcon = new GameObject("DragIcon");
+            dragIcon.SetActive(true);
             dragIcon.transform.SetParent(canvas.transform, false);
             var iconImage = dragIcon.AddComponent<Image>();
             iconImage.sprite = inventorySlot.itemIcon.sprite;
             iconImage.raycastTarget = false;
+            iconImage.color = Color.red; // Test için kırmızı
+            iconImage.enabled = true;
             var iconRect = dragIcon.GetComponent<RectTransform>();
-            iconRect.sizeDelta = inventorySlot.itemIcon.rectTransform.sizeDelta;
-            // Mouse pozisyonuna göre başlangıç konumunu ayarla
+            iconRect.sizeDelta = new Vector2(50, 50); // Sabit bir boyut testi
+            dragIcon.transform.SetAsLastSibling();
+
+            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+            iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+            iconRect.pivot = new Vector2(0.5f, 0.5f);
+
             Vector2 localPointerPosition;
-            Camera cam = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            Camera cam = null;
+            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                cam = canvas.worldCamera;
+                if (cam == null)
+                {
+                    cam = Camera.main;
+                }
+            }
+            Debug.Log($"Kullanılan kamera: {cam?.name}");
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvas.transform as RectTransform,
                 eventData.position,
                 cam,
                 out localPointerPosition);
-            iconRect.localPosition = localPointerPosition;
+            iconRect.anchoredPosition = localPointerPosition;
+            Debug.Log($"DragIcon pozisyonu: {localPointerPosition}, Boyutu: {iconRect.sizeDelta}");
+        }
+        else
+        {
+            Debug.LogWarning("DragIcon could not be created!");
         }
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        // CanvasGroup interactable kontrolü
         if (canvasGroup != null && !canvasGroup.interactable)
         {
             return;
         }
         
-        // Eğer slot boşsa sürüklemeyi durdurmadan önce kontrol et
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
         {
             return;
         }
 
-        // Drag icon'u mouse ile takip ettir
         if (dragIcon != null)
         {
             Vector2 localPointerPosition;
-            Camera cam = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            Camera cam = null;
+            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                cam = canvas.worldCamera;
+                if (cam == null)
+                {
+                    cam = Camera.main;
+                }
+            }
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvas.transform as RectTransform,
                 eventData.position,
                 cam,
                 out localPointerPosition);
-            dragIcon.GetComponent<RectTransform>().localPosition = localPointerPosition;
+            dragIcon.GetComponent<RectTransform>().anchoredPosition = localPointerPosition;
+            Debug.Log($"OnDrag: Moving dragIcon to position: {localPointerPosition}");
+        }
+        else
+        {
+            Debug.LogWarning("OnDrag: dragIcon is null!");
         }
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        // CanvasGroup interactable kontrolü
         if (canvasGroup != null && !canvasGroup.interactable)
         {
+            // DragIcon'u kesin destroy et
+            if (dragIcon != null)
+            {
+                Destroy(dragIcon);
+                dragIcon = null;
+            }
             return;
         }
         
-        // Eğer slot boşsa işlemi sonlandır
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
         {
@@ -117,7 +149,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             return;
         }
 
-        // Drag icon'u yok et
+        // DragIcon'u kesin destroy et - her durumda
         if (dragIcon != null)
         {
             Destroy(dragIcon);
@@ -125,11 +157,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
         canvasGroup.blocksRaycasts = true;
 
-        // Mouse altındaki objeyi kontrol et
         GameObject hitObject = eventData.pointerCurrentRaycast.gameObject;
         DropZone dropZone = null;
 
-        // DropZone bul (hit objesinin kendisinde veya parent'larında)
         if (hitObject != null)
         {
             dropZone = hitObject.GetComponent<DropZone>();
@@ -139,47 +169,38 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             }
         }
 
-        // Eğer geçerli bir drop zone bulunursa
         if (dropZone != null && dropZone.CanAcceptDrop())
         {
-            // Sadece 1 tane eşyayı dünyada spawn et
             Slot currentSlot = inventory.inventorySlots[slotIndex];
             Vector3 worldPosition = GetWorldDropPosition(eventData);
             
-            WorldItemSpawner.SpawnItem(currentSlot.item, worldPosition, 1); // Sadece 1 tane
+            WorldItemSpawner.SpawnItem(currentSlot.item, worldPosition, 1);
             
-            // Inventory'den 1 tane azalt
             RemoveSingleItemFromInventory();
         }
-        // Eğer UI canvas'ın dışında bırakılırsa (geçerli bir UI objesi değilse)
         else if (hitObject == null || (!IsUIElement(hitObject)))
         {
-            // Canvas dışında bırakıldı, dünyaya sadece 1 tane spawn et
             Slot currentSlot = inventory.inventorySlots[slotIndex];
             Vector3 worldPosition = GetWorldDropPosition(eventData);
             
-            WorldItemSpawner.SpawnItem(currentSlot.item, worldPosition, 1); // Sadece 1 tane
+            WorldItemSpawner.SpawnItem(currentSlot.item, worldPosition, 1);
             
-            // Inventory'den 1 tane azalt
             RemoveSingleItemFromInventory();
         }
         else
         {
-            // Geçerli bir drop zone yoksa eski pozisyona geri dön
             ResetPosition();
         }
     }
 
     private bool IsUIElement(GameObject obj)
     {
-        // Objenin UI elementi olup olmadığını kontrol et
         return obj.GetComponent<RectTransform>() != null || 
                obj.GetComponentInParent<Canvas>() != null;
     }
 
     private Vector3 GetWorldDropPosition(PointerEventData eventData)
     {
-        // Camera'dan ray çek
         Camera mainCamera = Camera.main;
         if (mainCamera == null)
         {
@@ -188,25 +209,21 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         if (mainCamera != null)
         {
-            // Mouse pozisyonundan ray çek
             Ray ray = mainCamera.ScreenPointToRay(eventData.position);
             RaycastHit hit;
 
-            // Zemin ile çarpışma kontrolü (sadece zemin layer'ında)
             if (Physics.Raycast(ray, out hit, Mathf.Infinity))
             {
-                return hit.point + Vector3.up * 0.5f; // Yere değmemesi için biraz yukarı
+                return hit.point + Vector3.up * 0.5f;
             }
             else
             {
-                // Eğer çarpışma yoksa varsayılan pozisyon
                 Vector3 worldPos = ray.GetPoint(10f);
                 worldPos.y = 0.5f;
                 return worldPos;
             }
         }
 
-        // Fallback pozisyon
         return Vector3.zero + Vector3.up * 0.5f;
     }
 
@@ -217,7 +234,6 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             Slot slot = inventory.inventorySlots[slotIndex];
             if (slot.itemCount > 1)
             {
-                // Eğer 1'den fazla item varsa, sadece 1 azalt
                 slot.itemCount--;
                 if (slot.isFull)
                 {
@@ -226,28 +242,10 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             }
             else
             {
-                // Son item ise, sadece içeriği temizle, slotu asla yok etme
                 slot.item = null;
                 slot.itemCount = 0;
                 slot.isFull = false;
             }
-            // Inventory değişikliğini tetikle
-            inventory.TriggerInventoryChanged();
-        }
-
-        ResetPosition();
-    }
-
-    private void RemoveItemFromInventory()
-    {
-        if (inventory != null && slotIndex < inventory.inventorySlots.Count)
-        {
-            Slot slot = inventory.inventorySlots[slotIndex];
-            slot.item = null;
-            slot.itemCount = 0;
-            slot.isFull = false;
-            
-            // Inventory değişikliğini tetikle
             inventory.TriggerInventoryChanged();
         }
 
@@ -256,16 +254,13 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     private void ResetPosition()
     {
-        // Drag icon'u yok et
         if (dragIcon != null)
         {
             Destroy(dragIcon);
             dragIcon = null;
         }
-        // Orijinal parent ve pozisyona geri dön
         transform.SetParent(originalParent, false);
         rectTransform.anchoredPosition = originalPosition;
-        // CanvasGroup'u her durumda görünür ve raycast yapılabilir yap
         if (canvasGroup != null)
         {
             canvasGroup.blocksRaycasts = true;
