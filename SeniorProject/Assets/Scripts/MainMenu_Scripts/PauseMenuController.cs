@@ -157,7 +157,17 @@ public class PauseMenuController : MonoBehaviour
 
     void SaveGame()
     {
-        string currentScene = Application.loadedLevelName;
+        // Try advanced save system first
+        GameSaveManager saveManager = FindObjectOfType<GameSaveManager>();
+        if (saveManager != null)
+        {
+            saveManager.SaveGame();
+            StartCoroutine(ShowSaveNotification());
+            return;
+        }
+        
+        // Fallback to old system
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         string saveTime = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
         List<string> saveTimes = GetSaveTimes();
@@ -270,7 +280,7 @@ public class PauseMenuController : MonoBehaviour
         if (pendingAction == "MainMenu")
         {
             Time.timeScale = 1;
-            Application.LoadLevel("MainMenu");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
         }
         else if (pendingAction == "Quit")
         {

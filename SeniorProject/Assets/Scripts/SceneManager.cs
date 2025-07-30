@@ -13,10 +13,14 @@ public class SceneManager : MonoBehaviour
     }
     public void ChangeToShopScene()
     {
+        // Save current scene state before changing (if save system is available)
+        // For now, just change scene directly
         UnityEngine.SceneManagement.SceneManager.LoadScene("ShopScene");
     }
     public void ChangeToFarmScene()
     {
+        // Save current scene state before changing (if save system is available)
+        // For now, just change scene directly
         UnityEngine.SceneManagement.SceneManager.LoadScene("FarmScene");
     }
 }

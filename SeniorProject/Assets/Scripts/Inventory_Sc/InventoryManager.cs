@@ -58,7 +58,12 @@ public class InventoryManager : MonoBehaviour
     
     public SCInventory GetPlayerInventory()
     {
-        return persistentInventory ?? (persistentInventory = SCInventory.GetPersistentInventory());
+        if (persistentInventory == null)
+        {
+            persistentInventory = SCInventory.GetPersistentInventory();
+            Debug.Log("Created new persistent inventory");
+        }
+        return persistentInventory;
     }
     
     public void SetPlayerInventory(SCInventory inventory)
@@ -104,6 +109,13 @@ public class InventoryManager : MonoBehaviour
                 inv.playerInventory = persistentInventory;
                 Debug.Log($"Synced {inv.name} inventory component");
             }
+        }
+        
+        // Event trigger'la
+        if (persistentInventory != null)
+        {
+            persistentInventory.TriggerInventoryChanged();
+            Debug.Log("Triggered inventory changed event");
         }
     }
     

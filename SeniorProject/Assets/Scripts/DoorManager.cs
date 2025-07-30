@@ -9,7 +9,6 @@ using UnityEngine.UI;
 using UnityEngine.UIElements;
 
 public class DoorManager : MonoBehaviour
-
 {
     public TMP_Text doorText;
     public float range = 5f;
@@ -75,7 +74,6 @@ private void FixedUpdate() {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, range);   
     }
-
 
 
 }

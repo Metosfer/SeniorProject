@@ -37,6 +37,37 @@ public class WorldItemSpawner : MonoBehaviour
             GameObject container = new GameObject("World Items");
             itemContainer = container.transform;
         }
+        
+        // Eğer default prefab yoksa basit bir prefab oluştur
+        if (worldItemPrefab == null && defaultWorldItemPrefab == null)
+        {
+            CreateDefaultWorldItemPrefab();
+        }
+    }
+    
+    private void CreateDefaultWorldItemPrefab()
+    {
+        // Basit bir cube prefab oluştur
+        GameObject defaultPrefab = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        defaultPrefab.name = "DefaultWorldItem";
+        defaultPrefab.transform.localScale = Vector3.one * 0.5f;
+        
+        // WorldItem component ekle
+        defaultPrefab.AddComponent<WorldItem>();
+        
+        // Collider'ı trigger yap
+        Collider col = defaultPrefab.GetComponent<Collider>();
+        if (col != null)
+        {
+            col.isTrigger = true;
+        }
+        
+        // Prefab olarak ayarla
+        worldItemPrefab = defaultPrefab;
+        defaultWorldItemPrefab = defaultPrefab;
+        
+        // Geçici objeyi deaktif et (prefab olarak kullanılacak)
+        defaultPrefab.SetActive(false);
     }
 
     public static void SpawnItem(SCItem item, Vector3 position, int quantity = 1)

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System;
 using TMPro;
@@ -54,7 +55,7 @@ public class MainMenuController : MonoBehaviour
 
     void StartGame()
     {
-        Application.LoadLevel("FarmScene");
+        UnityEngine.SceneManagement.SceneManager.LoadScene("FarmScene");
     }
 
     void LoadGame()
@@ -103,10 +104,20 @@ public class MainMenuController : MonoBehaviour
 
     void LoadSpecificSave(string saveTime)
     {
+        // Try advanced save system first
+        GameSaveManager saveManager = FindObjectOfType<GameSaveManager>();
+        if (saveManager != null)
+        {
+            saveManager.LoadGame(saveTime);
+            if (loadPanel != null) loadPanel.SetActive(false);
+            return;
+        }
+        
+        // Fallback to old system
         string savedScene = PlayerPrefs.GetString("SavedScene_" + saveTime);
         if (!string.IsNullOrEmpty(savedScene))
         {
-            Application.LoadLevel(savedScene);
+            UnityEngine.SceneManagement.SceneManager.LoadScene(savedScene);
             if (loadPanel != null) loadPanel.SetActive(false);
         }
         else
@@ -117,6 +128,14 @@ public class MainMenuController : MonoBehaviour
 
     List<string> GetSaveTimes()
     {
+        // Try advanced save system first
+        GameSaveManager saveManager = FindObjectOfType<GameSaveManager>();
+        if (saveManager != null)
+        {
+            return saveManager.GetSaveTimes();
+        }
+        
+        // Fallback to old system
         string times = PlayerPrefs.GetString("SaveTimes", "");
         return new List<string>(times.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
     }

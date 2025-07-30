@@ -14,6 +14,9 @@ public class SCInventory : ScriptableObject
     int stackLimit = 4;
     public event System.Action OnInventoryChanged;
     
+    // Public property olarak slots'a erişim
+    public List<Slot> slots => inventorySlots;
+    
     // Persistent inventory instance'ı al/oluştur
     public static SCInventory GetPersistentInventory()
     {
@@ -78,6 +81,21 @@ public class SCInventory : ScriptableObject
 
         // Hiç boş slot yoksa
         return false;
+    }
+    
+    // Quantity parametreli AddItem metodu
+    public bool AddItem(SCItem item, int quantity)
+    {
+        for (int i = 0; i < quantity; i++)
+        {
+            bool added = AddItem(item);
+            if (!added)
+            {
+                Debug.LogWarning($"Could not add all items. Added {i} out of {quantity} {item.itemName}");
+                return i > 0; // En az bir item eklendiyse true döndür
+            }
+        }
+        return true;
     }public void ResetInventory()
     {
         if (inventorySlots == null)
