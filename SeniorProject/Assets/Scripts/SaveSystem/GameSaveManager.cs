@@ -62,6 +62,8 @@ public class PlantSaveData
     public Vector3 rotation;
     public Vector3 scale;
     public string sceneName;
+    public string plantId; // Unique identifier for each plant
+    public bool isCollected; // Whether this plant has been collected
 }
 
 [System.Serializable]
@@ -267,8 +269,25 @@ public class GameSaveManager : MonoBehaviour
     
     private void SavePlants()
     {
-        currentSaveData.plants.Clear();
+        if (currentSaveData == null)
+        {
+            Debug.LogError("Cannot save plants: currentSaveData is null");
+            return;
+        }
         
+        // Önce mevcut plant verilerini koru, sadece bu sahnedeki bitkileri güncelle
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        
+        // Bu sahnedeki collected bitkileri koru
+        List<PlantSaveData> collectedPlantsInScene = currentSaveData.plants.FindAll(p => p.sceneName == currentScene && p.isCollected);
+        
+        // Bu sahnedeki tüm plant verilerini temizle
+        currentSaveData.plants.RemoveAll(p => p.sceneName == currentScene);
+        
+        // Collected bitkileri geri ekle
+        currentSaveData.plants.AddRange(collectedPlantsInScene);
+        
+        // Mevcut sahnedeki bitkileri kaydet
         Plant[] plants = FindObjectsOfType<Plant>();
         foreach (Plant plant in plants)
         {
@@ -279,11 +298,18 @@ public class GameSaveManager : MonoBehaviour
                 plantData.position = plant.transform.position;
                 plantData.rotation = plant.transform.eulerAngles;
                 plantData.scale = plant.transform.localScale;
-                plantData.sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                plantData.sceneName = currentScene;
+                
+                // Unique ID oluştur (pozisyon ve item name'e göre)
+                plantData.plantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+                plantData.isCollected = false;
                 
                 currentSaveData.plants.Add(plantData);
+                Debug.Log($"Saved plant: {plantData.itemName} at {plantData.position} with ID: {plantData.plantId}");
             }
         }
+        
+        Debug.Log($"Total plants in current scene: {plants.Length}, Total plants saved across all scenes: {currentSaveData.plants.Count}");
     }
     
     private void SaveInventoryData()
@@ -434,37 +460,64 @@ public class GameSaveManager : MonoBehaviour
     
     private void ClearExistingPlants()
     {
-        Plant[] existingPlants = FindObjectsOfType<Plant>();
-        foreach (Plant plant in existingPlants)
-        {
-            DestroyImmediate(plant.gameObject);
-        }
+        // Bu metodu artık kullanmayacağız
+        // Bitkileri akıllı bir şekilde restore edeceğiz
+        Debug.Log("ClearExistingPlants called but doing nothing - using smart plant restoration instead");
     }
     
     private void RestorePlants()
     {
+        if (currentSaveData == null || currentSaveData.plants == null)
+        {
+            Debug.Log("No plant data to restore");
+            return;
+        }
+        
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         
+        // Mevcut sahnedeki bitkilerin ID'lerini topla
+        Plant[] existingPlants = FindObjectsOfType<Plant>();
+        HashSet<string> existingPlantIds = new HashSet<string>();
+        
+        foreach (Plant plant in existingPlants)
+        {
+            if (plant.item != null)
+            {
+                string plantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+                existingPlantIds.Add(plantId);
+            }
+        }
+        
+        // Save edilen bitkileri kontrol et
         foreach (PlantSaveData plantData in currentSaveData.plants)
         {
-            if (plantData.sceneName == currentScene)
+            if (plantData.sceneName == currentScene && !plantData.isCollected)
             {
-                SCItem item = FindItemByName(plantData.itemName);
-                if (item != null && item.dropPrefab != null)
+                // Bu bitki zaten sahnede var mı kontrol et
+                if (!existingPlantIds.Contains(plantData.plantId))
                 {
-                    GameObject plantObject = Instantiate(item.dropPrefab, plantData.position, Quaternion.Euler(plantData.rotation));
-                    plantObject.transform.localScale = plantData.scale;
-                    
-                    // Plant component'ını kontrol et ve ayarla
-                    Plant plantComponent = plantObject.GetComponent<Plant>();
-                    if (plantComponent == null)
+                    // Bitki sahnede yok, restore et
+                    SCItem item = FindItemByName(plantData.itemName);
+                    if (item != null && item.dropPrefab != null)
                     {
-                        plantComponent = plantObject.AddComponent<Plant>();
+                        GameObject plantObject = Instantiate(item.dropPrefab, plantData.position, Quaternion.Euler(plantData.rotation));
+                        plantObject.transform.localScale = plantData.scale;
+                        
+                        // Plant component'ını kontrol et ve ayarla
+                        Plant plantComponent = plantObject.GetComponent<Plant>();
+                        if (plantComponent == null)
+                        {
+                            plantComponent = plantObject.AddComponent<Plant>();
+                        }
+                        plantComponent.item = item;
+                        
+                        Debug.Log($"Restored plant: {plantData.itemName} at {plantData.position}");
                     }
-                    plantComponent.item = item;
                 }
             }
         }
+        
+        Debug.Log($"Plant restoration completed for scene: {currentScene}");
     }
     
     private void RestoreInventoryData()
@@ -652,6 +705,47 @@ public class GameSaveManager : MonoBehaviour
         saveTimes.Remove(saveTime);
         PlayerPrefs.SetString(SAVE_TIMES_KEY, string.Join(",", saveTimes.ToArray()));
         PlayerPrefs.Save();
+    }
+    
+    /// <summary>
+    /// Bir bitki toplandığında bu metodu çağırın
+    /// </summary>
+    public void OnPlantCollected(Plant plant)
+    {
+        if (plant == null || plant.item == null) return;
+        
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        string plantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+        
+        // Current save data'yı kontrol et
+        if (currentSaveData == null)
+        {
+            // Eğer save data yoksa yeni bir tane oluştur
+            currentSaveData = new GameSaveData();
+        }
+        
+        // Bu bitkiyi collected olarak işaretle veya save listesinden çıkar
+        PlantSaveData existingPlant = currentSaveData.plants.Find(p => p.plantId == plantId && p.sceneName == currentScene);
+        if (existingPlant != null)
+        {
+            existingPlant.isCollected = true;
+            Debug.Log($"Plant marked as collected: {plantId}");
+        }
+        else
+        {
+            // Eğer listede yoksa collected olarak ekle
+            PlantSaveData newPlantData = new PlantSaveData();
+            newPlantData.itemName = plant.item.itemName;
+            newPlantData.position = plant.transform.position;
+            newPlantData.rotation = plant.transform.eulerAngles;
+            newPlantData.scale = plant.transform.localScale;
+            newPlantData.sceneName = currentScene;
+            newPlantData.plantId = plantId;
+            newPlantData.isCollected = true;
+            
+            currentSaveData.plants.Add(newPlantData);
+            Debug.Log($"Plant added as collected: {plantId}");
+        }
     }
     
     private void OnDestroy()

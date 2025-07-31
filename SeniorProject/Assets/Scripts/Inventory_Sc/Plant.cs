@@ -79,6 +79,13 @@ public class Plant : MonoBehaviour
             {
                 Debug.Log($"Picked up: {item.itemName}");
                 ShowPickupUI(false);
+                
+                // Save sistemine bitki toplandığını bildir
+                if (GameSaveManager.Instance != null)
+                {
+                    GameSaveManager.Instance.OnPlantCollected(this);
+                }
+                
                 Destroy(gameObject); // Plant'ı yok et
             }
             else
