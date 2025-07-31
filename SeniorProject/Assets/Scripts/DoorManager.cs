@@ -61,12 +61,54 @@ private void FixedUpdate() {
             
             transform.rotation = Quaternion.Euler(tempRot);
             Debug.Log("Kapı Açıldı");
+            
+            // Sahne değişmeden önce otomatik save
+            AutoSaveBeforeSceneChange();
+            
             UnityEngine.SceneManagement.SceneManager.LoadScene("ShopScene");
         }
         else
         {
             
             Debug.Log("Kapıya çok uzaksın!");
+        }
+    }
+    
+    void AutoSaveBeforeSceneChange()
+    {
+        // Gelişmiş save sistemini kullan
+        GameSaveManager saveManager = FindObjectOfType<GameSaveManager>();
+        if (saveManager != null)
+        {
+            saveManager.SaveGame();
+            Debug.Log("Otomatik save tamamlandı - sahne değişimi öncesi!");
+        }
+        else
+        {
+            // Eski save sistemine fallback
+            string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            string saveTime = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // Oyuncunun pozisyonunu kaydet
+            if (playerTransform != null)
+            {
+                PlayerPrefs.SetFloat("PlayerPosX", playerTransform.position.x);
+                PlayerPrefs.SetFloat("PlayerPosY", playerTransform.position.y);
+                PlayerPrefs.SetFloat("PlayerPosZ", playerTransform.position.z);
+                Debug.Log("Oyuncu pozisyonu kaydedildi (eski sistem): " + playerTransform.position);
+            }
+
+            PlayerPrefs.SetString("SavedScene_" + saveTime, currentScene);
+            
+            // Save times listesini güncelle
+            string times = PlayerPrefs.GetString("SaveTimes", "");
+            List<string> saveTimes = new List<string>(times.Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
+            saveTimes.Add(saveTime);
+            if (saveTimes.Count > 3) saveTimes.RemoveAt(0); // Maksimum 3 save
+            
+            PlayerPrefs.SetString("SaveTimes", string.Join(",", saveTimes.ToArray()));
+            PlayerPrefs.Save();
+            Debug.Log("Otomatik save tamamlandı (eski sistem): " + saveTime);
         }
     }
     void OnDrawGizmos()
