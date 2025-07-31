@@ -498,20 +498,48 @@ public class GameSaveManager : MonoBehaviour
                 {
                     // Bitki sahnede yok, restore et
                     SCItem item = FindItemByName(plantData.itemName);
-                    if (item != null && item.dropPrefab != null)
+                    if (item != null)
                     {
-                        GameObject plantObject = Instantiate(item.dropPrefab, plantData.position, Quaternion.Euler(plantData.rotation));
-                        plantObject.transform.localScale = plantData.scale;
+                        GameObject plantObject = null;
                         
-                        // Plant component'ını kontrol et ve ayarla
-                        Plant plantComponent = plantObject.GetComponent<Plant>();
-                        if (plantComponent == null)
+                        // Önce itemPrefab'ı dene (sabit bitki için)
+                        if (item.itemPrefab != null)
                         {
-                            plantComponent = plantObject.AddComponent<Plant>();
+                            plantObject = Instantiate(item.itemPrefab, plantData.position, Quaternion.Euler(plantData.rotation));
                         }
-                        plantComponent.item = item;
+                        // Eğer itemPrefab yoksa dropPrefab'ı kullan ama Rigidbody'yi kaldır
+                        else if (item.dropPrefab != null)
+                        {
+                            plantObject = Instantiate(item.dropPrefab, plantData.position, Quaternion.Euler(plantData.rotation));
+                            
+                            // Rigidbody varsa kaldır veya kinematic yap
+                            Rigidbody rb = plantObject.GetComponent<Rigidbody>();
+                            if (rb != null)
+                            {
+                                rb.isKinematic = true; // Rigidbody'yi kinematic yap (fizik simülasyonu yapmasın)
+                                rb.useGravity = false; // Yerçekimini kapat
+                                Debug.Log($"Made rigidbody kinematic for restored plant: {plantData.itemName}");
+                            }
+                        }
                         
-                        Debug.Log($"Restored plant: {plantData.itemName} at {plantData.position}");
+                        if (plantObject != null)
+                        {
+                            plantObject.transform.localScale = plantData.scale;
+                            
+                            // Plant component'ını kontrol et ve ayarla
+                            Plant plantComponent = plantObject.GetComponent<Plant>();
+                            if (plantComponent == null)
+                            {
+                                plantComponent = plantObject.AddComponent<Plant>();
+                            }
+                            plantComponent.item = item;
+                            
+                            Debug.Log($"Restored plant: {plantData.itemName} at {plantData.position} using {(item.itemPrefab != null ? "itemPrefab" : "dropPrefab")}");
+                        }
+                        else
+                        {
+                            Debug.LogError($"No suitable prefab found for plant: {plantData.itemName}");
+                        }
                     }
                 }
             }
