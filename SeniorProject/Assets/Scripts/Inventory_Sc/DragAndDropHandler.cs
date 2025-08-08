@@ -157,9 +157,35 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
         canvasGroup.blocksRaycasts = true;
 
+        // Aktif slot
+        Slot currentSlotRef = inventory.inventorySlots[slotIndex];
+
+        // Önce: Dünya (3D) FarmingArea hedefini ara
+        FarmingAreaManager farmingArea = null;
+        Camera cam = Camera.main != null ? Camera.main : FindObjectOfType<Camera>();
+        if (cam != null)
+        {
+            Ray ray = cam.ScreenPointToRay(eventData.position);
+            if (Physics.Raycast(ray, out RaycastHit worldHit, Mathf.Infinity))
+            {
+                farmingArea = worldHit.collider.GetComponent<FarmingAreaManager>();
+                if (farmingArea == null)
+                {
+                    farmingArea = worldHit.collider.GetComponentInParent<FarmingAreaManager>();
+                }
+            }
+        }
+
+        if (farmingArea != null && currentSlotRef.item != null && currentSlotRef.item.isSeed)
+        {
+            // FarmingAreaManager seed ekimini üstlenecek
+            farmingArea.OnDrop(eventData);
+            return;
+        }
+
+        // UI DropZone kontrolü
         GameObject hitObject = eventData.pointerCurrentRaycast.gameObject;
         DropZone dropZone = null;
-
         if (hitObject != null)
         {
             dropZone = hitObject.GetComponent<DropZone>();
@@ -171,20 +197,14 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         if (dropZone != null && dropZone.CanAcceptDrop())
         {
-            Slot currentSlot = inventory.inventorySlots[slotIndex];
             Vector3 worldPosition = GetWorldDropPosition(eventData);
-            
-            WorldItemSpawner.SpawnItem(currentSlot.item, worldPosition, 1);
-            
+            WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
             RemoveSingleItemFromInventory();
         }
         else if (hitObject == null || (!IsUIElement(hitObject)))
         {
-            Slot currentSlot = inventory.inventorySlots[slotIndex];
             Vector3 worldPosition = GetWorldDropPosition(eventData);
-            
-            WorldItemSpawner.SpawnItem(currentSlot.item, worldPosition, 1);
-            
+            WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
             RemoveSingleItemFromInventory();
         }
         else

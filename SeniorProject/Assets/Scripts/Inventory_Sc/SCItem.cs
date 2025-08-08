@@ -14,6 +14,16 @@ public class SCItem : ScriptableObject
     public GameObject dropPrefab; // Inventory'den atıldığında kullanılan prefab (örn: Aloe yaprağı)
     public GameObject dryPrefab; // Kurutma alanında kullanılan prefab (örn: kurutulmuş Aloe yaprağı)
 
+    [Header("Farming Settings")]
+    [Tooltip("Bu item bir tohum mu?")]
+    public bool isSeed = false;
+    [Tooltip("Tohumun olgunlaşma süresi (saniye)")]
+    public float growthTime = 10f;
+    [Tooltip("Büyüme tamamlandığında spawn edilecek olgun bitki prefab'ı (opsiyonel; yoksa itemPrefab kullanılır)")]
+    public GameObject grownPrefab;
+    [Tooltip("Olgun bitkiden toplanacak envanter item'i (opsiyonel; Plant script'i üzerinden atanır)")]
+    public SCItem harvestItem;
+
     [Header("Drying Settings")]
     public bool canBeDried = false; // Bu item kurutulabilir mi?
     public float dryingTime = 10f; // Kurutma süresi (saniye cinsinden)
