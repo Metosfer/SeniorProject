@@ -1682,7 +1682,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 232422105}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.0729413, y: 9.143479e-10, z: -6.687194e-11, w: 0.99733627}
+  m_LocalRotation: {x: 0.07294128, y: -0.000000029736992, z: 0.0000000021748474, w: 0.99733627}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -2295,7 +2295,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.1324248, y: 0.000000029539859, z: -0.000000003946567, w: 0.99119306}
+  m_LocalRotation: {x: 0.13242474, y: -0.000000029539859, z: 0.0000000039465653, w: 0.99119306}
   m_LocalPosition: {x: 1.628, y: 1.3000001, z: -2.19}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -8275,7 +8275,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413112954}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.13242477, y: 1.729424e-15, z: -2.6161163e-16, w: 0.99119306}
+  m_LocalRotation: {x: 0.13242474, y: -0.000000029539855, z: 0.000000003946565, w: 0.99119306}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -9200,7 +9200,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: -9.525818, y: -0.49898458, z: -10.668862, w: 0}
+  m_margin: {x: -12.471493, y: -0.49898458, z: -14.971778, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   _SortingLayer: 0
@@ -11686,8 +11686,13 @@ MonoBehaviour:
     type: 3}
   growVFXPrefab: {fileID: 339158821923109191, guid: 108ca465382c11742bd2c91fe4fdb13f,
     type: 3}
-  statusTextUI: {fileID: 1551168164}
-  statusFormat: "{0}/{1} haz\u0131r"
+  statusTMP: {fileID: 1551168164}
+  statusTextUI: {fileID: 0}
+  statusFormatSimple: '{0}/{1} ready'
+  statusFormatDetailed: 'Ready: {0} | Growing: {1} | Empty: {2}'
+  showDetailedStatus: 1
+  countdownTextPrefab: {fileID: 0}
+  countdownOffset: {x: 0, y: 0.25, z: 0}
   defaultGrowthTime: 10
   useItemGrowthTimeIfAvailable: 1
   spawnOffset: {x: 0, y: 0.02, z: 0}
