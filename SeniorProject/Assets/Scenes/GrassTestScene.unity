@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18323666, g: 0.22690189, b: 0.29489362, a: 1}
+  m_IndirectSpecularColor: {r: 0.18323691, g: 0.22690247, b: 0.29489458, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -482,6 +482,89 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 325521072}
   m_CullTransparentMesh: 1
+--- !u!1001 &344509778
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.29289
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.29289
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.29289
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 5.677777
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.152
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 2.8057938
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 79de6f0c48e242c448087f84a2636798,
+        type: 3}
+      propertyPath: m_Name
+      value: "SoilPla\u0441e"
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 79de6f0c48e242c448087f84a2636798, type: 3}
 --- !u!1 &384410647
 GameObject:
   m_ObjectHideFlags: 0
@@ -667,7 +750,8 @@ Terrain:
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
-  m_MaterialTemplate: {fileID: 2100000, guid: 5836ddabb23efea4aab2386dcb4c46fb, type: 2}
+  m_MaterialTemplate: {fileID: -6478536213147159724, guid: 79de6f0c48e242c448087f84a2636798,
+    type: 3}
   m_BakeLightProbesForTrees: 1
   m_PreserveTreePrototypeLayers: 0
   m_DeringLightProbesForTrees: 1
@@ -1588,3 +1672,4 @@ SceneRoots:
   - {fileID: 649328956}
   - {fileID: 114095192}
   - {fileID: 777350108}
+  - {fileID: 344509778}
