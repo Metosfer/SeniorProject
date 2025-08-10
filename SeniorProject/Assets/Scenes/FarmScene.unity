@@ -1682,7 +1682,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 232422105}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.07294128, y: -0.000000029736992, z: 0.0000000021748474, w: 0.99733627}
+  m_LocalRotation: {x: 0.0729413, y: 9.1435143e-10, z: -6.6872015e-11, w: 0.99733627}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -2295,7 +2295,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.13242474, y: 0.000000029539859, z: -0.0000000039465653, w: 0.99119306}
+  m_LocalRotation: {x: 0.1324248, y: -0.000000029539859, z: 0.000000003946567, w: 0.99119306}
   m_LocalPosition: {x: 1.628, y: 1.3000001, z: -2.19}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -8192,7 +8192,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413112954}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.13242474, y: 0.000000029539855, z: -0.000000003946565, w: 0.99119306}
+  m_LocalRotation: {x: 0.13242477, y: -3.5214251e-15, z: 4.704673e-16, w: 0.99119306}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -9812,7 +9812,7 @@ GameObject:
   - component: {fileID: 1710462773}
   - component: {fileID: 1710462772}
   m_Layer: 7
-  m_Name: Ground
+  m_Name: GroundTERRAIN
   m_TagString: Ground
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9864,7 +9864,8 @@ Terrain:
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
-  m_MaterialTemplate: {fileID: 2100000, guid: 5836ddabb23efea4aab2386dcb4c46fb, type: 2}
+  m_MaterialTemplate: {fileID: -6478536213147159724, guid: 79de6f0c48e242c448087f84a2636798,
+    type: 3}
   m_BakeLightProbesForTrees: 1
   m_PreserveTreePrototypeLayers: 0
   m_DeringLightProbesForTrees: 1
