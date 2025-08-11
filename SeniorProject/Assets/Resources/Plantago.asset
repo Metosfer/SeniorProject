@@ -15,12 +15,16 @@ MonoBehaviour:
   itemName: Plantago
   itemDescription: Plantago herb
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: 6b84f761371e9fa459f33ab00e99c46e, type: 3}
+  itemIcon: {fileID: 21300000, guid: 4824f0d6050b1e149816c9f14930f19d, type: 3}
   itemPrefab: {fileID: 5413114494039111643, guid: 6490238b61859ac48b885b01f272486f,
     type: 3}
   dropPrefab: {fileID: 5413114494039111643, guid: 6490238b61859ac48b885b01f272486f,
     type: 3}
   dryPrefab: {fileID: 0}
+  isSeed: 0
+  growthTime: 10
+  grownPrefab: {fileID: 0}
+  harvestItem: {fileID: 0}
   canBeDried: 1
   dryingTime: 10
   driedVersion: {fileID: 11400000, guid: 494c1cfe76ef240c69d4ad222606eed8, type: 2}

@@ -15,13 +15,17 @@ MonoBehaviour:
   itemName: Dandelion
   itemDescription: Dandelion herb
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: 2e8a7c79cf6242b409101de49fd9f9bc, type: 3}
+  itemIcon: {fileID: 21300000, guid: 9084e35f5b0f25242b874ad91af09840, type: 3}
   itemPrefab: {fileID: 1245685804592879791, guid: 9bb97ee2e53e0934daa7f873b2308274,
     type: 3}
   dropPrefab: {fileID: 1245685804592879791, guid: 9bb97ee2e53e0934daa7f873b2308274,
     type: 3}
   dryPrefab: {fileID: 1245685804592879791, guid: 0af739b9f846843f0941743d71be3aef,
     type: 3}
+  isSeed: 0
+  growthTime: 10
+  grownPrefab: {fileID: 0}
+  harvestItem: {fileID: 0}
   canBeDried: 1
   dryingTime: 10
   driedVersion: {fileID: 11400000, guid: a7e86c1b55fc84671b1299b108ce1675, type: 2}
