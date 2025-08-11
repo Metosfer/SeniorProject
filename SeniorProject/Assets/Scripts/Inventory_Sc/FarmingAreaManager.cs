@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -47,8 +48,31 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     [Tooltip("Apply a small offset at spawn position (slightly above ground).")]
     public Vector3 spawnOffset = new Vector3(0f, 0.02f, 0f);
 
+    [Header("Watering (Bucket Integration)")]
+    [Tooltip("Key to water crops when in range with a filled bucket.")]
+    public KeyCode waterKey = KeyCode.E;
+    [Tooltip("Max distance from player/bucket to this farming area to allow watering.")]
+    public float wateringRange = 2.5f;
+    [Tooltip("Optional UI prompt to show when watering is possible (e.g., 'Press E to water').")]
+    public GameObject wateringPromptUI;
+    [Tooltip("Optional VFX when watering starts.")]
+    public GameObject wateringVFX;
+
+    [Header("Status Formatting (Detailed)")]
+    [Tooltip("If true, use extended detailed status including waiting.")]
+    public bool useWateringAwareStatus = true;
+    [Tooltip("Detailed status format when watering is used: {0}=ready, {1}=growing, {2}=waiting, {3}=empty")]
+    public string statusFormatWatering = "Ready: {0} | Growing: {1} | Waiting: {2} | Empty: {3}";
+
     // Internal state tracking
     private readonly List<PlotState> _plots = new List<PlotState>();
+
+    // Throttled prompt update like WellManager
+    private const float UI_UPDATE_INTERVAL = 0.1f;
+    private const float RANGE_HYSTERESIS = 0.2f;
+    private float _lastUIUpdateTime;
+    private bool _inRangeSticky;
+    private bool _lastPromptState;
 
     private void Awake()
     {
@@ -59,6 +83,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     private void OnValidate()
     {
         SyncPlotStatesWithPoints();
+    }
+
+    private void Update()
+    {
+        // Watering prompt + input handling (integrates with BucketManager)
+        UpdateWateringPromptAndHandleInput();
     }
 
     private void SyncPlotStatesWithPoints()
@@ -132,17 +162,19 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
             state.seedMarkerInstance = Instantiate(seedMarkerPrefab, point.position + spawnOffset, seedMarkerPrefab.transform.rotation);
         }
 
-        // Growth time
-        float growthTime = GetGrowthTime(seedItem);
+    // Cache growth time but do NOT start yet (require water)
+    float growthTime = GetGrowthTime(seedItem);
 
-        // Set state and start
+    // Set state and wait for water
         state.isOccupied = true;
         state.currentSeed = seedItem;
-        state.growthEndTime = Time.time + growthTime;
-        state.growthRoutine = StartCoroutine(GrowAndSpawn(plotIndex, growthTime));
+    state.requiresWater = true;
+    state.isGrowing = false;
+    state.plannedGrowthTime = Mathf.Max(0.01f, growthTime);
+    state.growthEndTime = 0f;
 
-        // Countdown + status
-        CreateOrUpdateCountdown(plotIndex);
+    // Show per-plot "Waiting" text; do not start countdown until watered
+    CreateOrUpdateCountdown(plotIndex, startTimer: false, customText: "Waiting");
         UpdateStatusText();
         return true;
     }
@@ -154,8 +186,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
 
         yield return new WaitForSeconds(growthTime);
 
-        // Clear countdown
-        DestroyCountdown(plotIndex);
+    // Clear countdown (will be destroyed just before spawning to avoid residuals)
+    DestroyCountdown(plotIndex);
 
         // Remove marker
         if (state.seedMarkerInstance != null)
@@ -201,7 +233,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
 
         // Watch for harvest
         StartCoroutine(WatchForHarvest(plotIndex));
-        UpdateStatusText();
+    UpdateStatusText();
     }
 
     private IEnumerator WatchForHarvest(int plotIndex)
@@ -299,6 +331,9 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     private class PlotState
     {
         public bool isOccupied;
+        public bool requiresWater;
+        public bool isGrowing;
+        public float plannedGrowthTime;
         public SCItem currentSeed;
         public GameObject seedMarkerInstance;
         public GameObject grownInstance;
@@ -311,6 +346,9 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         public void Reset()
         {
             isOccupied = false;
+            requiresWater = false;
+            isGrowing = false;
+            plannedGrowthTime = 0f;
             currentSeed = null;
             if (seedMarkerInstance != null)
             {
@@ -351,7 +389,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
         {
             var s = _plots[i];
-            if (s != null && s.isOccupied && s.grownInstance == null) growing++;
+            if (s != null && s.isOccupied && s.isGrowing && s.grownInstance == null) growing++;
         }
         return growing;
     }
@@ -367,11 +405,31 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         return empty;
     }
 
+    private int CountWaiting()
+    {
+        int waiting = 0;
+        for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
+        {
+            var s = _plots[i];
+            if (s != null && s.isOccupied && !s.isGrowing && s.grownInstance == null) waiting++;
+        }
+        return waiting;
+    }
+
     private void UpdateStatusText()
     {
         int total = plotPoints != null ? plotPoints.Count : 0;
         int ready = CountReady();
-        if (showDetailedStatus)
+        if (useWateringAwareStatus && showDetailedStatus)
+        {
+            int growing = CountGrowing();
+            int waiting = CountWaiting();
+            int empty = total - ready - growing - waiting;
+            string msg = string.Format(statusFormatWatering, ready, growing, waiting, empty);
+            if (statusTMP != null) statusTMP.text = msg;
+            if (statusTextUI != null) statusTextUI.text = msg;
+        }
+        else if (showDetailedStatus)
         {
             int growing = CountGrowing();
             int empty = total - ready - growing;
@@ -423,7 +481,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     }
 
     // ------- Countdown helpers -------
-    private void CreateOrUpdateCountdown(int plotIndex)
+    private void CreateOrUpdateCountdown(int plotIndex, bool startTimer = true, string customText = null)
     {
         if (countdownTextPrefab == null || plotIndex < 0 || plotIndex >= plotPoints.Count) return;
         var state = _plots[plotIndex];
@@ -437,8 +495,20 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
             state.countdownText = state.countdownInstance.GetComponentInChildren<Text>();
         }
 
-        UpdateCountdownText(plotIndex);
-        StartCoroutine(CountdownRoutine(plotIndex));
+        if (!string.IsNullOrEmpty(customText))
+        {
+            if (state.countdownTMP != null) state.countdownTMP.text = customText;
+            if (state.countdownText != null) state.countdownText.text = customText;
+        }
+        else
+        {
+            UpdateCountdownText(plotIndex);
+        }
+
+        if (startTimer)
+        {
+            StartCoroutine(CountdownRoutine(plotIndex));
+        }
     }
 
     private IEnumerator CountdownRoutine(int plotIndex)
@@ -446,7 +516,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         while (plotIndex >= 0 && plotIndex < _plots.Count)
         {
             var s = _plots[plotIndex];
-            if (s == null || s.grownInstance != null || !s.isOccupied) break;
+            if (s == null || s.grownInstance != null || !s.isOccupied || !s.isGrowing) break;
             UpdateCountdownText(plotIndex);
             if (Time.time >= s.growthEndTime) break;
             yield return new WaitForSeconds(0.25f);
@@ -459,8 +529,16 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         if (plotIndex < 0 || plotIndex >= _plots.Count) return;
         var s = _plots[plotIndex];
         if (s == null) return;
-        float remaining = Mathf.Max(0f, s.growthEndTime - Time.time);
-        string msg = FormatTime(remaining);
+        string msg;
+        if (!s.isGrowing && s.isOccupied && s.grownInstance == null)
+        {
+            msg = "Waiting";
+        }
+        else
+        {
+            float remaining = Mathf.Max(0f, s.growthEndTime - Time.time);
+            msg = FormatTime(remaining);
+        }
         if (s.countdownTMP != null) s.countdownTMP.text = msg;
         if (s.countdownText != null) s.countdownText.text = msg;
     }
@@ -486,5 +564,134 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         int s = seconds % 60;
         if (m > 0) return string.Format("{0}:{1:00}", m, s);
         return s.ToString();
+    }
+
+    // ------- Watering logic -------
+    private bool HasAnyWaiting()
+    {
+        for (int i = 0; i < _plots.Count; i++)
+        {
+            var s = _plots[i];
+            if (s != null && s.isOccupied && !s.isGrowing && s.grownInstance == null) return true;
+        }
+        return false;
+    }
+
+    private void UpdateWateringPromptAndHandleInput()
+    {
+        // Get carried bucket (if any)
+        var bucket = BucketManager.CurrentCarried;
+        bool canWater = bucket != null && bucket.IsCarried && bucket.IsFilled && HasAnyWaiting();
+
+        bool shouldShow = false;
+        if (canWater)
+        {
+            Vector3 center = bucket.player != null ? bucket.player.position : bucket.transform.position;
+            float baseRange = Mathf.Max(0.1f, wateringRange);
+
+            // Throttle prompt updates
+            float currentTime = Time.unscaledTime;
+            bool timeToUpdate = currentTime - _lastUIUpdateTime >= UI_UPDATE_INTERVAL;
+            float enter = baseRange + RANGE_HYSTERESIS;
+            float exit = baseRange - RANGE_HYSTERESIS;
+
+            float sqr = (transform.position - center).sqrMagnitude;
+            if (!_inRangeSticky && sqr <= enter * enter) _inRangeSticky = true;
+            else if (_inRangeSticky && sqr > exit * exit) _inRangeSticky = false;
+
+            shouldShow = _inRangeSticky;
+
+            if (timeToUpdate)
+            {
+                _lastUIUpdateTime = currentTime;
+                if (wateringPromptUI != null && wateringPromptUI.activeSelf != shouldShow)
+                    wateringPromptUI.SetActive(shouldShow);
+                _lastPromptState = shouldShow;
+            }
+            else
+            {
+                if (wateringPromptUI != null && wateringPromptUI.activeSelf != _lastPromptState)
+                    wateringPromptUI.SetActive(_lastPromptState);
+            }
+
+            // Handle input
+            if (shouldShow && Input.GetKeyDown(waterKey))
+            {
+                int started = WaterAllWaiting(bucket);
+                if (started > 0)
+                {
+                    // Consume the bucket's water (compatible even if method is absent)
+                    ConsumeBucketWater(bucket);
+                }
+            }
+        }
+        else
+        {
+            _inRangeSticky = false;
+            if (wateringPromptUI != null && wateringPromptUI.activeSelf)
+                wateringPromptUI.SetActive(false);
+        }
+    }
+
+    private int WaterAllWaiting(BucketManager bucket)
+    {
+        int count = 0;
+        if (wateringVFX != null)
+        {
+            wateringVFX.SetActive(false);
+            wateringVFX.SetActive(true);
+        }
+        for (int i = 0; i < _plots.Count; i++)
+        {
+            var s = _plots[i];
+            if (s == null) continue;
+            if (!s.isOccupied || s.isGrowing || s.grownInstance != null) continue;
+
+            // Start growth for this plot
+            s.isGrowing = true;
+            s.requiresWater = false;
+            s.growthEndTime = Time.time + Mathf.Max(0.01f, s.plannedGrowthTime);
+            // Update countdown UI and timer
+            CreateOrUpdateCountdown(i, startTimer: true);
+            s.growthRoutine = StartCoroutine(GrowAndSpawn(i, s.plannedGrowthTime));
+            count++;
+        }
+        if (count > 0) UpdateStatusText();
+        return count;
+    }
+
+    private void ConsumeBucketWater(BucketManager bucket)
+    {
+        if (bucket == null) return;
+        // Prefer a public API if available
+        var mi = typeof(BucketManager).GetMethod("TryConsumeAllWater", BindingFlags.Public | BindingFlags.Instance);
+        if (mi != null)
+        {
+            try { mi.Invoke(bucket, null); return; } catch { /* fall through */ }
+        }
+
+        // Fallback: set private isFilled=false and call private ApplyVisual + RefreshCollidersAndPhysicsState
+        try
+        {
+            var fi = typeof(BucketManager).GetField("isFilled", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (fi != null) fi.SetValue(bucket, false);
+
+            var applyVisual = typeof(BucketManager).GetMethod("ApplyVisual", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (applyVisual != null) applyVisual.Invoke(bucket, null);
+
+            var refresh = typeof(BucketManager).GetMethod("RefreshCollidersAndPhysicsState", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (refresh != null) refresh.Invoke(bucket, null);
+
+            // Invoke public emptied event if present
+            try
+            {
+                // Access the public field onEmptied and invoke if not null
+                var evtField = typeof(BucketManager).GetField("onEmptied", BindingFlags.Public | BindingFlags.Instance);
+                var evt = evtField != null ? evtField.GetValue(bucket) as UnityEngine.Events.UnityEvent : null;
+                evt?.Invoke();
+            }
+            catch { }
+        }
+        catch { }
     }
 }

@@ -318,6 +318,17 @@ public class BucketManager : MonoBehaviour
         onFilled?.Invoke();
     }
 
+    // Empties the bucket after watering; returns true if water was consumed
+    public bool TryConsumeAllWater()
+    {
+        if (!isFilled) return false;
+        isFilled = false;
+        ApplyVisual();
+        RefreshCollidersAndPhysicsState();
+        onEmptied?.Invoke();
+        return true;
+    }
+
     private void UpdateCursorFeedbackThrottled()
     {
         // Only check hover state every HOVER_CHECK_INTERVAL seconds to reduce flicker
