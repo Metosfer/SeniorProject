@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18028301, g: 0.22571309, b: 0.30692127, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -2660,6 +2660,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   autoSetupInventoryUI: 1
   resetInventoryOnLoad: 0
+  forceUISynchronization: 1
 --- !u!4 &765968728
 Transform:
   m_ObjectHideFlags: 0
@@ -7155,7 +7156,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 2
-  m_Sprite: {fileID: 21300000, guid: d097a5b2095bf104f99328e492a31be2, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d9fa27c22b8085b4087dd9c9af3bc51f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
