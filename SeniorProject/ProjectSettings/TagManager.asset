@@ -10,6 +10,7 @@ TagManager:
   - Plant
   - WorldItem
   - DryingArea
+  - Well
   layers:
   - Default
   - TransparentFX
@@ -19,9 +20,9 @@ TagManager:
   - UI
   - Player
   - Ground
-  - 
-  - 
-  - 
+  - Well
+  - WorldUI
+  - Interactable
   - 
   - 
   - 
