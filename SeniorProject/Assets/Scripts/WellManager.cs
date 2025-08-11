@@ -46,6 +46,9 @@ public class WellManager : MonoBehaviour
     private bool _showContextMenu;
     private Vector2 _menuScreenPos;
     private Rect _lastMenuRect;
+    // Global context menu tracker
+    private static int s_contextMenuOpenCount = 0;
+    public static bool AnyContextMenuOpen => s_contextMenuOpenCount > 0;
 
     private void OnEnable()
     {
@@ -57,8 +60,14 @@ public class WellManager : MonoBehaviour
     private void OnDisable()
     {
         s_wells.Remove(this);
-    if (fillPromptUI != null) fillPromptUI.SetActive(false);
-    if (fillVFX != null && fillVFX.activeSelf) fillVFX.SetActive(false);
+        if (fillPromptUI != null) fillPromptUI.SetActive(false);
+        if (fillVFX != null && fillVFX.activeSelf) fillVFX.SetActive(false);
+        // Ensure menu closed accounting if this gets disabled while open
+        if (_showContextMenu)
+        {
+            _showContextMenu = false;
+            if (s_contextMenuOpenCount > 0) s_contextMenuOpenCount--;
+        }
     }
 
     private void Update()
@@ -107,14 +116,13 @@ public class WellManager : MonoBehaviour
         // Close automatically if conditions no longer valid
         if (!canInteract && _showContextMenu)
         {
-            _showContextMenu = false;
+            CloseContextMenu();
         }
 
         // Open on right click
         if (canInteract && Input.GetMouseButtonDown(1))
         {
-            _showContextMenu = true;
-            _menuScreenPos = Input.mousePosition;
+            OpenContextMenu(Input.mousePosition);
             // Hide prompt while menu is visible
             if (fillPromptUI != null && fillPromptUI.activeSelf) fillPromptUI.SetActive(false);
         }
@@ -122,7 +130,7 @@ public class WellManager : MonoBehaviour
         // Close via Escape
         if (_showContextMenu && Input.GetKeyDown(KeyCode.Escape))
         {
-            _showContextMenu = false;
+            CloseContextMenu();
         }
     }
 
@@ -251,14 +259,14 @@ public class WellManager : MonoBehaviour
                     if (FillBucket(bucket))
                     {
                         bucket.SendMessage("Fill", SendMessageOptions.DontRequireReceiver);
-                        _showContextMenu = false;
+                        CloseContextMenu();
                     }
                 }
             }
         }
         if (GUILayout.Button(rightClickSecondaryLabel, GUILayout.Height(22)))
         {
-            _showContextMenu = false;
+            CloseContextMenu();
         }
         GUILayout.EndArea();
 
@@ -267,9 +275,24 @@ public class WellManager : MonoBehaviour
         {
             if (!_lastMenuRect.Contains(Event.current.mousePosition))
             {
-                _showContextMenu = false;
+                CloseContextMenu();
             }
         }
+    }
+
+    private void OpenContextMenu(Vector2 screenPos)
+    {
+        if (_showContextMenu) return;
+        _showContextMenu = true;
+        _menuScreenPos = screenPos;
+        s_contextMenuOpenCount++;
+    }
+
+    private void CloseContextMenu()
+    {
+        if (!_showContextMenu) return;
+        _showContextMenu = false;
+        if (s_contextMenuOpenCount > 0) s_contextMenuOpenCount--;
     }
 }
 

@@ -192,6 +192,20 @@ public class BucketManager : MonoBehaviour, ISaveable
         // Mouse click toggle
         if (enableMouseInteraction && Input.GetMouseButtonDown(0))
         {
+            // If any context menu (e.g., Well) is open, swallow left click to allow UI selection
+            var wmType = System.Type.GetType("WellManager");
+            if (wmType != null)
+            {
+                var prop = wmType.GetProperty("AnyContextMenuOpen", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (prop != null)
+                {
+                    object val = prop.GetValue(null, null);
+                    if (val is bool open && open)
+                    {
+                        return; // Do not process pickup/drop while context menu is open
+                    }
+                }
+            }
             // If currently carried, drop on any left click (don't require raycast on trigger collider)
             if (isCarried)
             {
