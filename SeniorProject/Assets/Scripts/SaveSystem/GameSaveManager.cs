@@ -293,6 +293,15 @@ public class GameSaveManager : MonoBehaviour
         {
             if (plant.item != null)
             {
+                // Compute plantId and skip if this plant was already collected earlier
+                string thisPlantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+                var alreadyCollected = currentSaveData.plants.Any(p => p.sceneName == currentScene && p.plantId == thisPlantId && p.isCollected);
+                if (alreadyCollected)
+                {
+                    // Don’t re-add this plant to save list
+                    continue;
+                }
+
                 PlantSaveData plantData = new PlantSaveData();
                 plantData.itemName = plant.item.itemName;
                 plantData.position = plant.transform.position;
@@ -301,7 +310,7 @@ public class GameSaveManager : MonoBehaviour
                 plantData.sceneName = currentScene;
                 
                 // Unique ID oluştur (pozisyon ve item name'e göre)
-                plantData.plantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+                plantData.plantId = thisPlantId;
                 plantData.isCollected = false;
                 
                 currentSaveData.plants.Add(plantData);
@@ -348,11 +357,56 @@ public class GameSaveManager : MonoBehaviour
     {
         currentSaveData.sceneObjects.Clear();
         
-        // ISaveable interface şimdilik devre dışı - gelecekte eklenebilir
-        // ISaveable[] saveableObjects = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
-        // Bu kısım gelecekte ISaveable interface implement edildiğinde aktifleştirilebilir
-        
-        Debug.Log("Scene objects save edildi (ISaveable interface henüz aktif değil)");
+        // Collect all ISaveable components in the scene and group by GameObject
+        var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
+        var byObject = new Dictionary<GameObject, List<ISaveable>>();
+        foreach (var comp in saveableComponents)
+        {
+            var mb = comp as MonoBehaviour;
+            if (mb == null) continue;
+            var go = mb.gameObject;
+            if (!byObject.TryGetValue(go, out var list))
+            {
+                list = new List<ISaveable>();
+                byObject[go] = list;
+            }
+            list.Add(comp);
+        }
+
+        foreach (var kvp in byObject)
+        {
+            var go = kvp.Key;
+            var comps = kvp.Value;
+
+            var sod = new SceneObjectSaveData();
+            sod.objectId = TryGetStableObjectId(go, comps);
+            sod.position = go.transform.position;
+            sod.rotation = go.transform.eulerAngles;
+            sod.scale = go.transform.localScale;
+
+            foreach (var comp in comps)
+            {
+                var typeName = comp.GetType().Name;
+                Dictionary<string, object> data = null;
+                try { data = comp.GetSaveData(); }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Save error in {typeName} on {go.name}: {ex.Message}");
+                    continue;
+                }
+                if (data == null) continue;
+                foreach (var entry in data)
+                {
+                    string key = $"{typeName}.{entry.Key}";
+                    string value = SerializeValue(entry.Value);
+                    sod.AddComponentData(key, value);
+                }
+            }
+
+            currentSaveData.sceneObjects.Add(sod);
+        }
+
+        Debug.Log($"Scene objects saved via ISaveable: {currentSaveData.sceneObjects.Count}");
     }
     
     private void RestoreSceneData()
@@ -670,11 +724,109 @@ public class GameSaveManager : MonoBehaviour
     
     private void RestoreSceneObjects()
     {
-        // ISaveable interface şimdilik devre dışı - gelecekte eklenebilir
-        // ISaveable[] saveableObjects = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
-        // Bu kısım gelecekte ISaveable interface implement edildiğinde aktifleştirilebilir
-        
-        Debug.Log("Scene objects restore edildi (ISaveable interface henüz aktif değil)");
+        // Index saved scene-objects by objectId for quick lookup
+        var map = new Dictionary<string, SceneObjectSaveData>();
+        foreach (var sod in currentSaveData.sceneObjects)
+        {
+            if (string.IsNullOrEmpty(sod.objectId)) continue;
+            map[sod.objectId] = sod;
+        }
+
+        var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
+        foreach (var comp in saveableComponents)
+        {
+            var mb = comp as MonoBehaviour;
+            if (mb == null) continue;
+            var go = mb.gameObject;
+
+            // Compute stable id same way as in save
+            string objectId = TryGetStableObjectId(go, new List<ISaveable> { comp });
+            if (string.IsNullOrEmpty(objectId) || !map.TryGetValue(objectId, out var sod))
+            {
+                continue; // Nothing saved for this object
+            }
+
+            // Apply saved transform
+            ApplyTransform(go.transform, sod.position, sod.rotation, sod.scale);
+
+            // Extract this component's namespaced data and pass it back
+            var typeName = comp.GetType().Name;
+            var dict = new Dictionary<string, object>();
+            for (int i = 0; i < sod.componentDataKeys.Count; i++)
+            {
+                string key = sod.componentDataKeys[i];
+                if (!key.StartsWith(typeName + ".", StringComparison.Ordinal)) continue;
+                string shortKey = key.Substring(typeName.Length + 1);
+                dict[shortKey] = sod.componentDataValues[i];
+            }
+
+            try { comp.LoadSaveData(dict); }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Load error in {typeName} on {go.name}: {ex.Message}");
+            }
+        }
+
+        Debug.Log("Scene objects restored via ISaveable");
+    }
+
+    private static void ApplyTransform(Transform t, Vector3 pos, Vector3 euler, Vector3 scale)
+    {
+        // Try to disable CharacterController if present (to avoid teleport issues)
+        var cc = t.GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+        t.position = pos;
+        t.eulerAngles = euler;
+        t.localScale = scale;
+        if (cc != null) cc.enabled = true;
+    }
+
+    private static string SerializeValue(object value)
+    {
+        if (value == null) return "";
+        if (value is bool b) return b ? "true" : "false";
+        if (value is int || value is float || value is double || value is long) return Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+        if (value is Vector3 v) return $"{v.x:R},{v.y:R},{v.z:R}";
+        return value.ToString();
+    }
+
+    private static string TryGetStableObjectId(GameObject go, IList<ISaveable> comps)
+    {
+        // If any component exposes a public 'saveId' field/property, use that for stable identity
+        foreach (var c in comps)
+        {
+            var mb = c as MonoBehaviour;
+            if (mb == null) continue;
+            var type = mb.GetType();
+            var fi = type.GetField("saveId", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (fi != null)
+            {
+                var v = fi.GetValue(mb) as string;
+                if (!string.IsNullOrEmpty(v)) return v;
+            }
+            var pi = type.GetProperty("saveId", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (pi != null && pi.PropertyType == typeof(string))
+            {
+                var v = pi.GetValue(mb) as string;
+                if (!string.IsNullOrEmpty(v)) return v;
+            }
+        }
+        // Fallback: hierarchy path (stable if scene hierarchy is stable)
+        return GetHierarchyPath(go);
+    }
+
+    private static string GetHierarchyPath(GameObject go)
+    {
+        if (go == null) return string.Empty;
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        Transform t = go.transform;
+        while (t != null)
+        {
+            if (sb.Length > 0) sb.Insert(0, "/");
+            sb.Insert(0, t.name);
+            t = t.parent;
+        }
+        return sb.ToString();
     }
     
     private SCItem FindItemByName(string itemName)
@@ -773,6 +925,20 @@ public class GameSaveManager : MonoBehaviour
             
             currentSaveData.plants.Add(newPlantData);
             Debug.Log($"Plant added as collected: {plantId}");
+        }
+
+        // As an extra safety, remove any other Plant clones at same spot to avoid duplicate pickups on reload
+        var plantsAtSamePos = GameObject.FindObjectsOfType<Plant>()
+            .Where(p => p != null && p.item != null &&
+                        Mathf.Approximately(p.transform.position.x, plant.transform.position.x) &&
+                        Mathf.Approximately(p.transform.position.y, plant.transform.position.y) &&
+                        Mathf.Approximately(p.transform.position.z, plant.transform.position.z));
+        foreach (var p in plantsAtSamePos)
+        {
+            if (p != plant)
+            {
+                Destroy(p.gameObject);
+            }
         }
     }
     

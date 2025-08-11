@@ -12,6 +12,7 @@ public class Plant : MonoBehaviour
     
     private bool playerInRange = false;
     private Inventory playerInventory;
+    private bool pickedUp = false; // guard against multiple awards
 
     private void Start()
     {
@@ -44,7 +45,7 @@ public class Plant : MonoBehaviour
     private void Update()
     {
         // Player range'de ise pickup kontrolü
-        if (playerInRange && Input.GetKeyDown(pickupKey))
+    if (!pickedUp && playerInRange && Input.GetKeyDown(pickupKey))
         {
             TryPickup();
         }
@@ -70,13 +71,15 @@ public class Plant : MonoBehaviour
 
     private void TryPickup()
     {
-        if (playerInventory != null && item != null)
+    if (pickedUp) return;
+    if (playerInventory != null && item != null)
         {
             // Inventory'e eklemeyi dene
             bool added = playerInventory.playerInventory.AddItem(item);
             
             if (added)
             {
+        pickedUp = true;
                 Debug.Log($"Picked up: {item.itemName}");
                 ShowPickupUI(false);
                 
@@ -85,8 +88,8 @@ public class Plant : MonoBehaviour
                 {
                     GameSaveManager.Instance.OnPlantCollected(this);
                 }
-                
-                Destroy(gameObject); // Plant'ı yok et
+        // Plant'ı yok et
+        Destroy(gameObject);
             }
             else
             {

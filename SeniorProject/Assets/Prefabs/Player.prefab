@@ -31,6 +31,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 8603149554588604752}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &745796433275926922
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8177002140778918547}
+  m_Layer: 6
+  m_Name: HandSocket
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8177002140778918547
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 745796433275926922}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.513, z: 0.232}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6817378188415643753}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &879540098574214547
 GameObject:
   m_ObjectHideFlags: 0
@@ -669,6 +700,7 @@ Transform:
   m_Children:
   - {fileID: 7582776486528176397}
   - {fileID: 8998000620266901072}
+  - {fileID: 8177002140778918547}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &4830099231600928376
@@ -709,9 +741,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9cb11a54aa9c86e49b95174a2820fe7c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  walkSpeed: 6
-  runSpeed: 12
-  jumpForce: 7
+  walkSpeed: 3
+  runSpeed: 5
+  jumpForce: 4
   turnSmoothTime: 0.1
   speedSmoothTime: 0.1
   gravity: -20

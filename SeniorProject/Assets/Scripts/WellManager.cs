@@ -27,22 +27,46 @@ public class WellManager : MonoBehaviour
     private bool _lastPromptState;
     private bool _inRangeSticky;
 
+    // Stabilized interact state to prevent flicker
+    private const float INTERACT_CHECK_INTERVAL = 0.05f; // how often to evaluate interactability
+    private const float ENTER_STABLE_TIME = 0.18f; // must remain in range this long to turn ON
+    private const float EXIT_STABLE_TIME = 0.28f;  // must remain out of range this long to turn OFF
+    private float _lastInteractEvalTime;
+    private bool _desiredInRange;
+    private bool _stableInRange;
+    private float _lastDesireChangeTime;
+
+    [Header("Right-Click Fill (Context Menu)")]
+    [Tooltip("Allow right-click to open a small menu with actions when in range and carrying an empty bucket.")]
+    public bool enableRightClickMenu = true;
+    [Tooltip("Label for the primary action in the menu.")]
+    public string rightClickPrimaryLabel = "Fill Bucket";
+    [Tooltip("Label for the secondary/cancel action in the menu.")]
+    public string rightClickSecondaryLabel = "Cancel";
+    private bool _showContextMenu;
+    private Vector2 _menuScreenPos;
+    private Rect _lastMenuRect;
+
     private void OnEnable()
     {
         s_wells.Add(this);
-        if (fillPromptUI != null) fillPromptUI.SetActive(false);
+    if (fillPromptUI != null) fillPromptUI.SetActive(false);
+    if (fillVFX != null && fillVFX.activeSelf) fillVFX.SetActive(false);
     }
 
     private void OnDisable()
     {
         s_wells.Remove(this);
-        if (fillPromptUI != null) fillPromptUI.SetActive(false);
+    if (fillPromptUI != null) fillPromptUI.SetActive(false);
+    if (fillVFX != null && fillVFX.activeSelf) fillVFX.SetActive(false);
     }
 
     private void Update()
     {
         // Throttled UI update to prevent flicker
         UpdateFillPromptThrottled();
+    // Handle right-click context menu
+    UpdateRightClickMenu();
     }
     
     private void UpdateFillPromptThrottled()
@@ -55,39 +79,51 @@ public class WellManager : MonoBehaviour
         if (!shouldUpdate)
         {
             // Use cached state
-            if (fillPromptUI.activeSelf != _lastPromptState)
+            if (!_showContextMenu && fillPromptUI.activeSelf != _lastPromptState)
                 fillPromptUI.SetActive(_lastPromptState);
             return;
         }
         
         _lastUIUpdateTime = currentTime;
         
-        var bucket = BucketManager.CurrentCarried;
-        bool shouldShow = false;
-
-        if (bucket != null && bucket.IsCarried && !bucket.IsFilled)
-        {
-            Vector3 center = bucket.player != null ? bucket.player.position : bucket.transform.position;
-            float baseRange = Mathf.Max(0.1f, Mathf.Min(bucket.fillRange, detectRange));
-            float enterRange = baseRange + RANGE_HYSTERESIS;
-            float exitRange  = baseRange - RANGE_HYSTERESIS;
-            float sqrDistance = (transform.position - center).sqrMagnitude;
-
-            if (!_inRangeSticky && sqrDistance <= (enterRange * enterRange))
-                _inRangeSticky = true;
-            else if (_inRangeSticky && sqrDistance > (exitRange * exitRange))
-                _inRangeSticky = false;
-
-            shouldShow = _inRangeSticky;
-        }
-        else
-        {
-            _inRangeSticky = false;
-        }
+    bool shouldShow = GetStableCanInteract();
+    _inRangeSticky = shouldShow; // keep for legacy checks
 
         _lastPromptState = shouldShow;
-        if (fillPromptUI.activeSelf != shouldShow)
+    if (!_showContextMenu && fillPromptUI.activeSelf != shouldShow)
             fillPromptUI.SetActive(shouldShow);
+    }
+
+    private void UpdateRightClickMenu()
+    {
+        if (!enableRightClickMenu)
+        {
+            _showContextMenu = false;
+            return;
+        }
+
+    bool canInteract = GetStableCanInteract();
+
+        // Close automatically if conditions no longer valid
+        if (!canInteract && _showContextMenu)
+        {
+            _showContextMenu = false;
+        }
+
+        // Open on right click
+        if (canInteract && Input.GetMouseButtonDown(1))
+        {
+            _showContextMenu = true;
+            _menuScreenPos = Input.mousePosition;
+            // Hide prompt while menu is visible
+            if (fillPromptUI != null && fillPromptUI.activeSelf) fillPromptUI.SetActive(false);
+        }
+
+        // Close via Escape
+        if (_showContextMenu && Input.GetKeyDown(KeyCode.Escape))
+        {
+            _showContextMenu = false;
+        }
     }
 
     public static bool AnyWellInRange(Vector3 position, float range)
@@ -125,11 +161,8 @@ public class WellManager : MonoBehaviour
         if (bucket == null) return false;
         if (bucket.IsFilled) return false; // Already filled, ignore
 
-        // Validate range using sticky in-range OR direct distance check
-    Vector3 center = bucket.player != null ? bucket.player.position : bucket.transform.position;
-    float baseRange = Mathf.Max(0.1f, Mathf.Min(bucket.fillRange, detectRange));
-        float sqrDistance = (transform.position - center).sqrMagnitude;
-        if (!_inRangeSticky && sqrDistance > baseRange * baseRange)
+        // Validate through stabilized interact state to avoid flicker
+        if (!GetStableCanInteract())
             return false;
 
         // Additional checks can go here (cooldowns, water remaining, etc.)
@@ -140,6 +173,103 @@ public class WellManager : MonoBehaviour
         }
         onBucketFilled?.Invoke();
         return true;
+    }
+
+    // Unified, stabilized can-interact evaluation (2D distance + hysteresis + time)
+    private bool GetStableCanInteract()
+    {
+        float now = Time.unscaledTime;
+        if (now - _lastInteractEvalTime < INTERACT_CHECK_INTERVAL)
+        {
+            return _stableInRange;
+        }
+        _lastInteractEvalTime = now;
+
+        var bucket = BucketManager.CurrentCarried;
+        bool valid = (bucket != null && bucket.IsCarried && !bucket.IsFilled);
+        if (!valid)
+        {
+            _desiredInRange = false;
+        }
+        else
+        {
+            // Use bucket transform to avoid player animation jitter; compute planar (XZ) distance only
+            Vector3 a = transform.position; a.y = 0f;
+            Vector3 b = bucket.transform.position; b.y = 0f;
+            float baseRange = Mathf.Max(0.1f, Mathf.Min(bucket.fillRange, detectRange));
+            float enterRange = baseRange + RANGE_HYSTERESIS;
+            float exitRange  = baseRange - RANGE_HYSTERESIS;
+            float d = Vector3.Distance(a, b);
+
+            bool desire = _stableInRange ? (d <= exitRange) : (d <= enterRange);
+            if (desire != _desiredInRange)
+            {
+                _desiredInRange = desire;
+                _lastDesireChangeTime = now;
+            }
+
+            float required = _desiredInRange ? ENTER_STABLE_TIME : EXIT_STABLE_TIME;
+            if (_stableInRange != _desiredInRange && (now - _lastDesireChangeTime) >= required)
+            {
+                _stableInRange = _desiredInRange;
+            }
+        }
+
+        if (!valid)
+        {
+            _stableInRange = false;
+        }
+        return _stableInRange;
+    }
+
+    private void OnGUI()
+    {
+        if (!_showContextMenu) return;
+        // Convert mouse position to GUI space (invert Y)
+        Vector2 guiPos = _menuScreenPos;
+        guiPos.y = Screen.height - guiPos.y;
+
+        // Simple menu rect
+        float width = 160f;
+        float height = 70f;
+        Rect rect = new Rect(guiPos.x, guiPos.y, width, height);
+        rect.x = Mathf.Clamp(rect.x, 0, Screen.width - width);
+        rect.y = Mathf.Clamp(rect.y, 0, Screen.height - height);
+        _lastMenuRect = rect;
+
+        GUI.Box(rect, "Well");
+        GUILayout.BeginArea(new Rect(rect.x + 8, rect.y + 22, rect.width - 16, rect.height - 30));
+        if (GUILayout.Button(rightClickPrimaryLabel, GUILayout.Height(22)))
+        {
+            var bucket = BucketManager.CurrentCarried;
+            if (bucket != null && bucket.IsCarried && !bucket.IsFilled)
+            {
+                Vector3 center = bucket.player != null ? bucket.player.position : bucket.transform.position;
+                float r = Mathf.Min(bucket.fillRange, detectRange);
+                if (Vector3.SqrMagnitude(transform.position - center) <= r * r)
+                {
+                    if (FillBucket(bucket))
+                    {
+                        bucket.SendMessage("Fill", SendMessageOptions.DontRequireReceiver);
+                        _showContextMenu = false;
+                    }
+                }
+            }
+        }
+        if (GUILayout.Button(rightClickSecondaryLabel, GUILayout.Height(22)))
+        {
+            _showContextMenu = false;
+        }
+        GUILayout.EndArea();
+
+        // Close if left-click outside the menu
+        if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+        {
+            if (!_lastMenuRect.Contains(Event.current.mousePosition))
+            {
+                _showContextMenu = false;
+            }
+        }
     }
 }
 

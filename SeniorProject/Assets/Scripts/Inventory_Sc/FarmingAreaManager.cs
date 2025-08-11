@@ -10,7 +10,7 @@ using TMPro;
 // - 3D world drop is handled via DragAndDropHandler (raycast hits this object).
 // - When spawning the mature plant, keep the prefab's original shape/rotation/scale; do not parent.
 // - Shows a per-plot countdown and a status text (ready/growing/empty) while growing.
-public class FarmingAreaManager : MonoBehaviour, IDropHandler
+public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 {
     [Header("Planting Spots")]
     [Tooltip("Planting points (empty GameObjects). The first free slot is chosen.")]
@@ -64,6 +64,10 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     [Tooltip("Detailed status format when watering is used: {0}=ready, {1}=growing, {2}=waiting, {3}=empty")]
     public string statusFormatWatering = "Ready: {0} | Growing: {1} | Waiting: {2} | Empty: {3}";
 
+    [Header("Save")]
+    [Tooltip("Persistent ID for save/load. Set a unique value if you have multiple farming areas.")]
+    public string saveId;
+
     // Internal state tracking
     private readonly List<PlotState> _plots = new List<PlotState>();
 
@@ -78,6 +82,11 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     {
         SyncPlotStatesWithPoints();
         UpdateStatusText();
+        // Ensure prompts/VFX start disabled to avoid lingering after load
+        if (wateringPromptUI != null && wateringPromptUI.activeSelf)
+            wateringPromptUI.SetActive(false);
+        if (wateringVFX != null && wateringVFX.activeSelf)
+            wateringVFX.SetActive(false);
     }
 
     private void OnValidate()
@@ -189,7 +198,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
     // Clear countdown (will be destroyed just before spawning to avoid residuals)
     DestroyCountdown(plotIndex);
 
-        // Remove marker
+        // Remove marker (growth completed)
         if (state.seedMarkerInstance != null)
         {
             Destroy(state.seedMarkerInstance);
@@ -207,24 +216,49 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         GameObject grownPrefab = GetGrownPrefab(state.currentSeed);
         if (grownPrefab != null)
         {
-            state.grownInstance = Instantiate(grownPrefab, point.position + spawnOffset, grownPrefab.transform.rotation);
+            var instanceRoot = Instantiate(grownPrefab, point.position + spawnOffset, grownPrefab.transform.rotation);
 
-            // Ensure Plant + interaction safety
-            var plant = state.grownInstance.GetComponent<Plant>();
-            if (plant == null) plant = state.grownInstance.AddComponent<Plant>();
-            var col = state.grownInstance.GetComponent<Collider>();
-            if (col == null) col = state.grownInstance.AddComponent<BoxCollider>();
-            col.isTrigger = true;
-            var rb = state.grownInstance.GetComponent<Rigidbody>();
-            if (rb == null) rb = state.grownInstance.AddComponent<Rigidbody>();
+            // Prefer existing Plant anywhere in the hierarchy; otherwise add one on root
+            Plant[] plants = instanceRoot.GetComponentsInChildren<Plant>(true);
+            Plant plant = null;
+            if (plants != null && plants.Length > 0)
+            {
+                plant = plants[0];
+                // Destroy any duplicate Plant components beyond the first to prevent multi-pickup
+                for (int k = 1; k < plants.Length; k++)
+                {
+                    if (plants[k] != null) Destroy(plants[k]);
+                }
+            }
+            else
+            {
+                plant = instanceRoot.AddComponent<Plant>();
+            }
+
+            // Ensure the collider lives with the Plant object; create if missing
+            GameObject plantGO = plant.gameObject;
+            var plantCol = plantGO.GetComponent<Collider>();
+            if (plantCol == null)
+            {
+                plantCol = plantGO.AddComponent<BoxCollider>();
+            }
+            plantCol.isTrigger = true;
+
+            // Optional rigidbody on the Plant holder for stable trigger behavior
+            var rb = plantGO.GetComponent<Rigidbody>();
+            if (rb == null) rb = plantGO.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
 
+            // Assign harvest item if not set
             if (plant.item == null)
             {
                 var harvest = GetHarvestItem(state.currentSeed);
                 if (harvest != null) plant.item = harvest;
             }
+
+            // Track the actual Plant gameObject so when it's destroyed, we can reset the plot
+            state.grownInstance = plantGO;
         }
         else
         {
@@ -242,6 +276,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         while (state.grownInstance != null)
         {
             yield return new WaitForSeconds(0.5f);
+        }
+        // Harvested: ensure seed marker is removed if still present
+        if (state.seedMarkerInstance != null)
+        {
+            Destroy(state.seedMarkerInstance);
+            state.seedMarkerInstance = null;
         }
         state.Reset();
         UpdateStatusText();
@@ -564,6 +604,203 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler
         int s = seconds % 60;
         if (m > 0) return string.Format("{0}:{1:00}", m, s);
         return s.ToString();
+    }
+
+    // ===== ISaveable =====
+    public Dictionary<string, object> GetSaveData()
+    {
+        var data = new Dictionary<string, object>();
+        data["plotCount"] = plotPoints != null ? plotPoints.Count : 0;
+        for (int i = 0; i < _plots.Count; i++)
+        {
+            var s = _plots[i];
+            if (s == null) continue;
+            string prefix = $"Plot{i}.";
+            data[prefix + "occupied"] = s.isOccupied;
+            data[prefix + "waiting"] = s.isOccupied && !s.isGrowing && s.grownInstance == null;
+            data[prefix + "growing"] = s.isGrowing;
+            data[prefix + "ready"] = s.grownInstance != null;
+            data[prefix + "seedName"] = s.currentSeed != null ? s.currentSeed.itemName : "";
+            data[prefix + "planned"] = s.plannedGrowthTime;
+            // Save remaining time if growing
+            float remaining = s.isGrowing ? Mathf.Max(0f, s.growthEndTime - Time.time) : 0f;
+            data[prefix + "remaining"] = remaining;
+        }
+        return data;
+    }
+
+    public void LoadSaveData(Dictionary<string, object> data)
+    {
+        if (data == null) return;
+        // Stop any watering visuals on load
+        if (wateringVFX != null && wateringVFX.activeSelf)
+            wateringVFX.SetActive(false);
+        if (wateringPromptUI != null && wateringPromptUI.activeSelf)
+            wateringPromptUI.SetActive(false);
+        int count = plotPoints != null ? plotPoints.Count : 0;
+        // Clear any running growth
+        for (int i = 0; i < _plots.Count; i++)
+        {
+            var s = _plots[i];
+            if (s == null) continue;
+            if (s.growthRoutine != null) StopCoroutine(s.growthRoutine);
+            s.Reset();
+        }
+
+        for (int i = 0; i < count && i < _plots.Count; i++)
+        {
+            var s = _plots[i];
+            string prefix = $"Plot{i}.";
+
+            bool occupied = GetBool(data, prefix + "occupied");
+            if (!occupied) continue;
+
+            bool waiting = GetBool(data, prefix + "waiting");
+            bool growing = GetBool(data, prefix + "growing");
+            bool ready = GetBool(data, prefix + "ready");
+            string seedName = GetString(data, prefix + "seedName");
+            float planned = GetFloat(data, prefix + "planned", defaultGrowthTime);
+            float remaining = GetFloat(data, prefix + "remaining", 0f);
+
+            s.isOccupied = true;
+            s.plannedGrowthTime = Mathf.Max(0.01f, planned);
+            s.currentSeed = !string.IsNullOrEmpty(seedName) ? FindItemByName(seedName) : null;
+
+            var point = plotPoints[i];
+
+            if (ready)
+            {
+                // Prefer existing Plant restored by GameSaveManager to avoid duplicates
+                Plant nearest = FindNearestPlant(point.position + spawnOffset, 0.6f);
+                if (nearest != null)
+                {
+                    // Clean duplicates under this plant
+                    CleanupDuplicatePlantComponents(nearest.gameObject);
+                    s.grownInstance = nearest.gameObject;
+                }
+                else
+                {
+                    // Spawn the grown plant if none exists nearby
+                    var grownPrefab = GetGrownPrefab(s.currentSeed);
+                    if (grownPrefab != null)
+                    {
+                        var instanceRoot = Instantiate(grownPrefab, point.position + spawnOffset, grownPrefab.transform.rotation);
+                        // Choose Plant component in children if present; else add to root
+                        Plant[] plants = instanceRoot.GetComponentsInChildren<Plant>(true);
+                        Plant plant = null;
+                        if (plants != null && plants.Length > 0)
+                        {
+                            plant = plants[0];
+                            for (int k = 1; k < plants.Length; k++)
+                            {
+                                if (plants[k] != null) Destroy(plants[k]);
+                            }
+                        }
+                        else
+                        {
+                            plant = instanceRoot.AddComponent<Plant>();
+                        }
+                        var plantGO = plant.gameObject;
+                        var plantCol = plantGO.GetComponent<Collider>();
+                        if (plantCol == null) plantCol = plantGO.AddComponent<BoxCollider>();
+                        plantCol.isTrigger = true;
+                        var rb2 = plantGO.GetComponent<Rigidbody>();
+                        if (rb2 == null) rb2 = plantGO.AddComponent<Rigidbody>();
+                        rb2.isKinematic = true;
+                        rb2.useGravity = false;
+                        if (plant.item == null)
+                        {
+                            var harvest = GetHarvestItem(s.currentSeed);
+                            if (harvest != null) plant.item = harvest;
+                        }
+                        s.grownInstance = plantGO;
+                    }
+                }
+                DestroyCountdown(i);
+            }
+            else if (growing)
+            {
+                s.isGrowing = true;
+                s.requiresWater = false;
+                s.growthEndTime = Time.time + Mathf.Max(0.01f, remaining);
+                CreateOrUpdateCountdown(i, startTimer: true);
+                s.growthRoutine = StartCoroutine(GrowAndSpawn(i, remaining > 0f ? remaining : s.plannedGrowthTime));
+                // Show marker while growing
+                if (seedMarkerPrefab != null)
+                    s.seedMarkerInstance = Instantiate(seedMarkerPrefab, point.position + spawnOffset, seedMarkerPrefab.transform.rotation);
+            }
+            else if (waiting)
+            {
+                s.isGrowing = false;
+                s.requiresWater = true;
+                s.growthEndTime = 0f;
+                CreateOrUpdateCountdown(i, startTimer: false, customText: "Waiting");
+                // Show marker while waiting for water
+                if (seedMarkerPrefab != null)
+                    s.seedMarkerInstance = Instantiate(seedMarkerPrefab, point.position + spawnOffset, seedMarkerPrefab.transform.rotation);
+            }
+        }
+
+        UpdateStatusText();
+    }
+
+    private static bool GetBool(Dictionary<string, object> data, string key)
+    {
+        if (!data.TryGetValue(key, out var v) || v == null) return false;
+        bool.TryParse(v.ToString(), out bool b); return b;
+    }
+    private static float GetFloat(Dictionary<string, object> data, string key, float def)
+    {
+        if (!data.TryGetValue(key, out var v) || v == null) return def;
+        float.TryParse(v.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float f); return f;
+    }
+    private static string GetString(Dictionary<string, object> data, string key)
+    {
+        if (!data.TryGetValue(key, out var v) || v == null) return string.Empty;
+        return v.ToString();
+    }
+    private static SCItem FindItemByName(string itemName)
+    {
+        if (string.IsNullOrEmpty(itemName)) return null;
+        SCItem[] all = Resources.LoadAll<SCItem>("");
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] != null && all[i].itemName == itemName) return all[i];
+        }
+        return null;
+    }
+
+    private static Plant FindNearestPlant(Vector3 position, float maxDistance)
+    {
+        Plant[] plants = GameObject.FindObjectsOfType<Plant>();
+        Plant best = null;
+        float bestSqr = maxDistance * maxDistance;
+        for (int i = 0; i < plants.Length; i++)
+        {
+            var p = plants[i];
+            float sqr = (p.transform.position - position).sqrMagnitude;
+            if (sqr <= bestSqr)
+            {
+                bestSqr = sqr;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    // Remove duplicate Plant components in a hierarchy leaving only one
+    private static void CleanupDuplicatePlantComponents(GameObject root)
+    {
+        if (root == null) return;
+        var plants = root.GetComponentsInChildren<Plant>(true);
+        if (plants == null || plants.Length <= 1) return;
+        for (int i = 1; i < plants.Length; i++)
+        {
+            if (plants[i] != null)
+            {
+                Destroy(plants[i]);
+            }
+        }
     }
 
     // ------- Watering logic -------

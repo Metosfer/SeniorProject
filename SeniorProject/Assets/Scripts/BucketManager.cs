@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-public class BucketManager : MonoBehaviour
+public class BucketManager : MonoBehaviour, ISaveable
 {
     // Single-owner cursor control to prevent flicker
     private static BucketManager s_cursorOwner;
@@ -139,6 +139,10 @@ public class BucketManager : MonoBehaviour
 
     public bool IsFilled => isFilled;
     public bool IsCarried => isCarried;
+    
+    [Header("Save")]
+    [Tooltip("Persistent ID for save/load. Set a unique value per bucket in the scene.")]
+    public string saveId;
 
     private void Awake()
     {
@@ -155,8 +159,9 @@ public class BucketManager : MonoBehaviour
             if (playerGO != null) player = playerGO.transform;
         }
         ApplyVisual();
-        if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
-        if (fillPromptUI != null) fillPromptUI.SetActive(false);
+    if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
+    if (fillPromptUI != null) fillPromptUI.SetActive(false);
+    if (waterVisual != null && waterVisual.activeSelf != isFilled) waterVisual.SetActive(isFilled);
         _cursorDirty = true;
         
         // Cache camera reference to avoid FindObjectOfType calls
@@ -869,6 +874,8 @@ public class BucketManager : MonoBehaviour
             s_lastCursorChangeTime = Time.unscaledTime;
         }
     if (CurrentCarried == this) CurrentCarried = null;
+    if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
+    if (fillPromptUI != null) fillPromptUI.SetActive(false);
     }
 
     private void OnDestroy()
@@ -880,11 +887,67 @@ public class BucketManager : MonoBehaviour
             s_lastCursorChangeTime = Time.unscaledTime;
         }
     if (CurrentCarried == this) CurrentCarried = null;
+    if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
+    if (fillPromptUI != null) fillPromptUI.SetActive(false);
         if (_scaledGrabCursor != null)
         {
             Destroy(_scaledGrabCursor);
             _scaledGrabCursor = null;
         }
+    }
+
+    // ===== ISaveable =====
+    public Dictionary<string, object> GetSaveData()
+    {
+        var data = new Dictionary<string, object>();
+        data["saveId"] = string.IsNullOrEmpty(saveId) ? gameObject.name : saveId;
+        data["pos"] = transform.position;
+        data["rot"] = transform.eulerAngles;
+        data["scale"] = transform.localScale;
+        data["filled"] = isFilled;
+        data["carried"] = false; // We never restore as carried across scenes
+        return data;
+    }
+
+    public void LoadSaveData(Dictionary<string, object> data)
+    {
+        if (data == null) return;
+        // Helpers to parse values serialized as strings by GameSaveManager
+        Vector3 ParseVec(string key, Vector3 fallback)
+        {
+            if (!data.ContainsKey(key) || data[key] == null) return fallback;
+            string s = data[key].ToString();
+            var parts = s.Split(',');
+            if (parts.Length != 3) return fallback;
+            float x = 0, y = 0, z = 0;
+            float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out x);
+            float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out y);
+            float.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out z);
+            return new Vector3(x, y, z);
+        }
+
+    // Position/rotation/scale (keys are un-prefixed by type here)
+    Vector3 pos = ParseVec("pos", transform.position);
+    Vector3 rot = ParseVec("rot", transform.eulerAngles);
+    Vector3 scale = ParseVec("scale", transform.localScale);
+        bool filled = false;
+    if (data.TryGetValue("filled", out var f))
+        {
+            bool.TryParse(f?.ToString(), out filled);
+        }
+
+        // Apply restored state
+        // Disable carry and re-enable physics for world placement
+        isCarried = false;
+        if (CurrentCarried == this) CurrentCarried = null;
+        transform.SetParent(null);
+        transform.position = pos;
+        transform.eulerAngles = rot;
+        transform.localScale = scale;
+        SetCarriedPhysics(false);
+        isFilled = filled;
+        ApplyVisual();
+        RefreshCollidersAndPhysicsState();
     }
 
 #if UNITY_EDITOR
