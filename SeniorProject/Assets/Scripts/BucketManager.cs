@@ -46,6 +46,8 @@ public class BucketManager : MonoBehaviour, ISaveable
     public float pickupRange = 2.0f;
     [Tooltip("Max distance from player to a well to allow filling.")]
     public float fillRange = 2.0f;
+    [Tooltip("Max distance from player to allow mouse click pickup (0 = use pickupRange).")]
+    public float mousePickupRange = 3.0f;
 
     [Header("Well Detection")]
     [Tooltip("Preferred physics layer for well objects. If set (non-zero), used for range checks.")]
@@ -140,6 +142,10 @@ public class BucketManager : MonoBehaviour, ISaveable
     private Texture2D _scaledGrabCursor;
     private Vector2 _scaledHotspot;
     private bool _cursorDirty;
+    // Sticky/hysteresis for mouse pickup range to avoid hover flicker
+    private bool _mouseRangeSticky;
+    private float _lastMouseRangeCheckTime;
+    private const float MOUSE_RANGE_HYSTERESIS = 0.2f;
 
     // Water visual base scale cache for level scaling
     private Vector3 _waterBaseScale = Vector3.one;
@@ -243,7 +249,11 @@ public class BucketManager : MonoBehaviour, ISaveable
             }
             else if (IsThisBucketClicked())
             {
-                PickUp();
+                // Enforce player-to-bucket distance for mouse pickup
+                if (IsWithinMousePickupRange())
+                    PickUp();
+                else
+                    return;
             }
         }
 
@@ -430,8 +440,41 @@ public class BucketManager : MonoBehaviour, ISaveable
         
         _lastHoverCheckTime = currentTime;
         bool hovering = IsHoveringThisBucketOptimized();
+        // Suppress hover feedback if player is too far to interact
+        if (hovering && !IsWithinMousePickupRange())
+        {
+            hovering = false;
+        }
         _lastHoverState = hovering;
         UpdateCursorState(hovering);
+    }
+
+    private bool IsWithinMousePickupRange()
+    {
+        if (player == null) return false;
+        float allowed = Mathf.Max(0.01f, mousePickupRange > 0f ? mousePickupRange : pickupRange);
+
+        // Throttle checks to reduce oscillation
+        float now = Time.unscaledTime;
+        if (now - _lastMouseRangeCheckTime >= HOVER_CHECK_INTERVAL)
+        {
+            _lastMouseRangeCheckTime = now;
+            // Planar (XZ) distance to avoid Y jitter
+            Vector3 pp = player.position;
+            Vector3 bp = transform.position;
+            float dx = pp.x - bp.x;
+            float dz = pp.z - bp.z;
+            float sqr = dx * dx + dz * dz;
+            float enter = allowed + MOUSE_RANGE_HYSTERESIS;
+            float exit = allowed - MOUSE_RANGE_HYSTERESIS;
+            float enterSqr = enter * enter;
+            float exitSqr = Mathf.Max(0f, exit * exit);
+            if (!_mouseRangeSticky && sqr <= enterSqr)
+                _mouseRangeSticky = true;
+            else if (_mouseRangeSticky && sqr > exitSqr)
+                _mouseRangeSticky = false;
+        }
+        return _mouseRangeSticky;
     }
 
     private void UpdateCursorState(bool hovering)

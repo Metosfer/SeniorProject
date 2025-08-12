@@ -71524,6 +71524,9 @@ MonoBehaviour:
   useWateringAwareStatus: 1
   statusFormatWatering: 'Ready: {0} | Growing: {1} | Waiting: {2} | Empty: {3}'
   saveId: 
+  playerAnimation: {fileID: 0}
+  playerTransform: {fileID: 0}
+  harvestSpudingRange: 3
 --- !u!65 &4336936129418344988
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -132917,6 +132920,11 @@ PrefabInstance:
       propertyPath: pickupPromptUI
       value: 
       objectReference: {fileID: 61009161}
+    - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
+        type: 3}
+      propertyPath: mousePickupRange
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
         type: 3}
       propertyPath: enableKeyboardInteraction
