@@ -167,20 +167,13 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        // Zıplama kontrolü
+        // Zıplama kontrolü (animasyon kaldırıldı) — fiziksel zıplama devam edebilir
         if (Input.GetButtonDown("Jump") && isGrounded && !isJumping)
         {
             Jump();
         }
 
-        // "Spuding" kontrolü - sadece yerdeyken ve hareket etmiyorken
-        if (Input.GetKeyDown(KeyCode.E) && isGrounded && animController != null && !animController.IsSpuding())
-        {
-            // Spuding yaparken hareketi durdur
-            currentSpeed = 0f;
-            animController.TriggerSpuding();
-            Debug.Log("Spuding triggered!"); // Debug için
-        }
+    // "Spuding" E tetikleme iptal — ileride farklı plan uygulanacak
         
         // Debug için F tuşu ile animator durumunu kontrol et
         if (Input.GetKeyDown(KeyCode.F) && animController != null)
@@ -215,10 +208,7 @@ public class PlayerMovement : MonoBehaviour
         velocityY = Mathf.Sqrt(jumpForce * -2f * gravity);
         isJumping = true;
 
-        if (animController != null)
-        {
-            animController.TriggerJumpAnimation();
-        }
+    // Jump animasyonu kaldırıldı; tetikleyici çağrısı silindi
     }
 
     /// <summary>
@@ -248,7 +238,7 @@ public class PlayerMovement : MonoBehaviour
         float maxSpeed = isRunning ? runSpeed : walkSpeed;
         animController.UpdateSpeed(currentSpeed, maxSpeed, speedSmoothTime);
         animController.UpdateGrounded(isGrounded);
-        animController.UpdateJumping(isJumping || !isGrounded);
+    // Jump animasyonu kaldırıldı; IsJumping parametresi güncellenmiyor
     }
 
     /// <summary>

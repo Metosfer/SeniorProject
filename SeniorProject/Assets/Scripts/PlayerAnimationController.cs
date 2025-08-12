@@ -9,8 +9,6 @@ public class PlayerAnimationController : MonoBehaviour
     // Animasyon parametre hash'leri (Performans için)
     private int speedHash;
     private int groundedHash;
-    private int isJumpingHash;
-    private int jumpTriggerHash;
     private int spudingTriggerHash;
 
     private void Awake()
@@ -34,8 +32,6 @@ public class PlayerAnimationController : MonoBehaviour
     {
         speedHash = Animator.StringToHash("Speed");
         groundedHash = Animator.StringToHash("Grounded");
-        isJumpingHash = Animator.StringToHash("IsJumping");
-        jumpTriggerHash = Animator.StringToHash("JumpTrigger");
         spudingTriggerHash = Animator.StringToHash("SpudingTrigger");
     }
 
@@ -58,23 +54,7 @@ public class PlayerAnimationController : MonoBehaviour
         animator.SetBool(groundedHash, grounded);
     }
 
-    /// <summary>
-    /// Zıplama durumu animasyonunu günceller (Havada kalma durumu için bool).
-    /// </summary>
-    public void UpdateJumping(bool jumping)
-    {
-        if (animator == null) return;
-        animator.SetBool(isJumpingHash, jumping);
-    }
-
-    /// <summary>
-    /// Zıplama animasyonunu başlatmak için Trigger'ı ayarlar.
-    /// </summary>
-    public void TriggerJumpAnimation()
-    {
-        if (animator == null) return;
-        animator.SetTrigger(jumpTriggerHash);
-    }
+    // Jump animasyonu kaldırıldı: ilgili parametreler ve tetikleyiciler silindi.
 
     /// <summary>
     /// "Spuding" animasyonunu tetikler.
@@ -151,9 +131,8 @@ public class PlayerAnimationController : MonoBehaviour
         if (animator == null) return "No Animator";
         
         AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-        return stateInfo.IsName("CatSpuding") ? "CatSpuding" : 
-               stateInfo.IsName("CatJump") ? "CatJump" : 
-               stateInfo.IsName("MovementBlendTree") ? "MovementBlendTree" : "Unknown";
+    return stateInfo.IsName("CatSpuding") ? "CatSpuding" :
+           stateInfo.IsName("MovementBlendTree") ? "MovementBlendTree" : "Unknown";
     }
     
     /// <summary>

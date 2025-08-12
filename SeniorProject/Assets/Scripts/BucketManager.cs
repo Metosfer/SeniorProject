@@ -58,6 +58,10 @@ public class BucketManager : MonoBehaviour, ISaveable
     private bool isFilled = false;
     [SerializeField]
     private bool isCarried = false;
+    [Tooltip("How many crops can be watered per full bucket.")]
+    public int maxWaterCropsPerFill = 2;
+    [SerializeField]
+    private int waterCharges = 0; // remaining crops this fill can water
 
     [Header("Carry Pose (Local)")]
     public Vector3 carriedLocalPosition = new Vector3(0f, 0f, 0f);
@@ -137,6 +141,10 @@ public class BucketManager : MonoBehaviour, ISaveable
     private Vector2 _scaledHotspot;
     private bool _cursorDirty;
 
+    // Water visual base scale cache for level scaling
+    private Vector3 _waterBaseScale = Vector3.one;
+    private bool _hasWaterBaseScale = false;
+
     public bool IsFilled => isFilled;
     public bool IsCarried => isCarried;
     
@@ -149,6 +157,11 @@ public class BucketManager : MonoBehaviour, ISaveable
         _rb = GetComponent<Rigidbody>();
         _colliders = GetComponentsInChildren<Collider>(true);
         _originalLocalScale = transform.localScale;
+        if (waterVisual != null)
+        {
+            _waterBaseScale = waterVisual.transform.localScale;
+            _hasWaterBaseScale = true;
+        }
     }
 
     private void Start()
@@ -161,7 +174,6 @@ public class BucketManager : MonoBehaviour, ISaveable
         ApplyVisual();
     if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
     if (fillPromptUI != null) fillPromptUI.SetActive(false);
-    if (waterVisual != null && waterVisual.activeSelf != isFilled) waterVisual.SetActive(isFilled);
         _cursorDirty = true;
         
         // Cache camera reference to avoid FindObjectOfType calls
@@ -176,10 +188,28 @@ public class BucketManager : MonoBehaviour, ISaveable
 
     private void ApplyVisual()
     {
-        if (waterVisual != null)
+        if (waterVisual == null) return;
+
+        // Ensure base scale captured
+        if (!_hasWaterBaseScale)
         {
-            waterVisual.SetActive(isFilled);
+            _waterBaseScale = waterVisual.transform.localScale;
+            _hasWaterBaseScale = true;
         }
+
+    int capacity = Mathf.Max(1, maxWaterCropsPerFill);
+    int charges = Mathf.Clamp(waterCharges, 0, capacity);
+    // Visual is driven purely by remaining charges: show when charges > 0, hide when 0
+    float fraction = charges / (float)capacity;
+    bool shouldShow = charges > 0;
+        if (waterVisual.activeSelf != shouldShow)
+            waterVisual.SetActive(shouldShow);
+
+        // Scale the Y of the water visual proportionally to remaining charges
+        // Keep X/Z unchanged from base; clamp to a tiny positive to avoid zero-scale issues
+        float scaledY = Mathf.Max(0.001f, _waterBaseScale.y * Mathf.Clamp01(fraction));
+        var t = waterVisual.transform;
+        t.localScale = new Vector3(_waterBaseScale.x, scaledY, _waterBaseScale.z);
     }
 
     private void OnValidate()
@@ -330,23 +360,62 @@ public class BucketManager : MonoBehaviour, ISaveable
 
     private void Fill()
     {
+        // Set charges first, then flag filled. Visual depends on charges>0.
+        waterCharges = Mathf.Max(1, maxWaterCropsPerFill);
         isFilled = true;
         ApplyVisual();
-    // Refresh colliders in case waterVisual enabled additional colliders
-    RefreshCollidersAndPhysicsState();
+        // Refresh colliders in case waterVisual enabled additional colliders
+        RefreshCollidersAndPhysicsState();
         onFilled?.Invoke();
     }
 
     // Empties the bucket after watering; returns true if water was consumed
     public bool TryConsumeAllWater()
     {
-        if (!isFilled) return false;
+        if (!isFilled && waterCharges <= 0) return false;
         isFilled = false;
+        waterCharges = 0;
         ApplyVisual();
         RefreshCollidersAndPhysicsState();
         onEmptied?.Invoke();
         return true;
     }
+
+    // Try to consume up to 'count' water charges; returns how many were consumed
+    public int TryConsumeWaterCharges(int count)
+    {
+        if (count <= 0) return 0;
+        if (waterCharges <= 0)
+        {
+            // Already empty; ensure visual state consistent
+            if (isFilled)
+            {
+                isFilled = false;
+                ApplyVisual();
+                RefreshCollidersAndPhysicsState();
+                onEmptied?.Invoke();
+            }
+            return 0;
+        }
+        int used = Mathf.Min(count, waterCharges);
+        waterCharges -= used;
+    // Update visuals to reflect new water level
+    ApplyVisual();
+        if (waterCharges <= 0)
+        {
+            waterCharges = 0;
+            if (isFilled)
+            {
+                isFilled = false;
+        ApplyVisual();
+                RefreshCollidersAndPhysicsState();
+                onEmptied?.Invoke();
+            }
+        }
+        return used;
+    }
+
+    public int RemainingWaterCharges => Mathf.Max(0, waterCharges);
 
     private void UpdateCursorFeedbackThrottled()
     {
@@ -919,6 +988,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         data["rot"] = transform.eulerAngles;
         data["scale"] = transform.localScale;
         data["filled"] = isFilled;
+    data["waterCharges"] = waterCharges;
         data["carried"] = false; // We never restore as carried across scenes
         return data;
     }
@@ -949,6 +1019,11 @@ public class BucketManager : MonoBehaviour, ISaveable
         {
             bool.TryParse(f?.ToString(), out filled);
         }
+        int charges = 0;
+        if (data.TryGetValue("waterCharges", out var wcObj))
+        {
+            int.TryParse(wcObj?.ToString(), out charges);
+        }
 
         // Apply restored state
         // Disable carry and re-enable physics for world placement
@@ -960,6 +1035,8 @@ public class BucketManager : MonoBehaviour, ISaveable
         transform.localScale = scale;
         SetCarriedPhysics(false);
         isFilled = filled;
+        // If charges not present in save, infer from filled state
+        waterCharges = (charges > 0) ? charges : (isFilled ? Mathf.Max(1, maxWaterCropsPerFill) : 0);
         ApplyVisual();
         RefreshCollidersAndPhysicsState();
     }

@@ -50,6 +50,18 @@ public class WellManager : MonoBehaviour
     private static int s_contextMenuOpenCount = 0;
     public static bool AnyContextMenuOpen => s_contextMenuOpenCount > 0;
 
+    [Header("Context Menu Layout")]
+    [Tooltip("Context menu total width in pixels.")]
+    public float contextMenuWidth = 160f;
+    [Tooltip("Context menu total height in pixels. Leave 0 to auto-calc from button height.")]
+    public float contextMenuHeight = 0f;
+    [Tooltip("Button height in pixels.")]
+    public float contextMenuButtonHeight = 24f;
+    [Tooltip("Content padding inside the menu box in pixels.")]
+    public float contextMenuPadding = 8f;
+    [Tooltip("Button label font size. Set 0 to use default skin size.")]
+    public int contextMenuFontSize = 0;
+
     private void OnEnable()
     {
         s_wells.Add(this);
@@ -169,9 +181,18 @@ public class WellManager : MonoBehaviour
         if (bucket == null) return false;
         if (bucket.IsFilled) return false; // Already filled, ignore
 
-        // Validate through stabilized interact state to avoid flicker
-        if (!GetStableCanInteract())
-            return false;
+        // Prefer stabilized interact state, but allow immediate fill if click is within enter range in planar distance
+        bool canInteractStable = GetStableCanInteract();
+        if (!canInteractStable)
+        {
+            // Immediate planar range check to reduce rare multi-click requirement
+            Vector3 a = transform.position; a.y = 0f;
+            Vector3 b = bucket.transform.position; b.y = 0f;
+            float baseRange = Mathf.Max(0.1f, Mathf.Min(bucket.fillRange, detectRange));
+            float enterRange = baseRange + RANGE_HYSTERESIS;
+            if (Vector3.Distance(a, b) > enterRange)
+                return false;
+        }
 
         // Additional checks can go here (cooldowns, water remaining, etc.)
         if (fillVFX != null)
@@ -238,33 +259,32 @@ public class WellManager : MonoBehaviour
         guiPos.y = Screen.height - guiPos.y;
 
         // Simple menu rect
-        float width = 160f;
-        float height = 70f;
-        Rect rect = new Rect(guiPos.x, guiPos.y, width, height);
-        rect.x = Mathf.Clamp(rect.x, 0, Screen.width - width);
-        rect.y = Mathf.Clamp(rect.y, 0, Screen.height - height);
+    float width = Mathf.Max(100f, contextMenuWidth);
+    float autoHeight = (contextMenuButtonHeight * 2f) + (contextMenuPadding * 2f) + 22f; // header approx 22
+    float height = contextMenuHeight > 0f ? contextMenuHeight : autoHeight;
+    Rect rect = new Rect(guiPos.x, guiPos.y, width, height);
+    rect.x = Mathf.Clamp(rect.x, 0, Screen.width - width);
+    rect.y = Mathf.Clamp(rect.y, 0, Screen.height - height);
         _lastMenuRect = rect;
 
         GUI.Box(rect, "Well");
-        GUILayout.BeginArea(new Rect(rect.x + 8, rect.y + 22, rect.width - 16, rect.height - 30));
-        if (GUILayout.Button(rightClickPrimaryLabel, GUILayout.Height(22)))
+    float pad = Mathf.Max(0f, contextMenuPadding);
+    GUILayout.BeginArea(new Rect(rect.x + pad, rect.y + 22, rect.width - (pad * 2f), rect.height - (22f + pad)));
+    GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+    if (contextMenuFontSize > 0) btnStyle.fontSize = contextMenuFontSize;
+        if (GUILayout.Button(rightClickPrimaryLabel, btnStyle, GUILayout.Height(contextMenuButtonHeight)))
         {
             var bucket = BucketManager.CurrentCarried;
             if (bucket != null && bucket.IsCarried && !bucket.IsFilled)
             {
-                Vector3 center = bucket.player != null ? bucket.player.position : bucket.transform.position;
-                float r = Mathf.Min(bucket.fillRange, detectRange);
-                if (Vector3.SqrMagnitude(transform.position - center) <= r * r)
+                if (FillBucket(bucket))
                 {
-                    if (FillBucket(bucket))
-                    {
-                        bucket.SendMessage("Fill", SendMessageOptions.DontRequireReceiver);
-                        CloseContextMenu();
-                    }
+                    bucket.SendMessage("Fill", SendMessageOptions.DontRequireReceiver);
+                    CloseContextMenu();
                 }
             }
         }
-        if (GUILayout.Button(rightClickSecondaryLabel, GUILayout.Height(22)))
+    if (GUILayout.Button(rightClickSecondaryLabel, btnStyle, GUILayout.Height(contextMenuButtonHeight)))
         {
             CloseContextMenu();
         }

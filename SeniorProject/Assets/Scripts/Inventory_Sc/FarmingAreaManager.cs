@@ -68,6 +68,14 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Tooltip("Persistent ID for save/load. Set a unique value if you have multiple farming areas.")]
     public string saveId;
 
+    [Header("Player/Harvest Animation")]
+    [Tooltip("Optional: PlayerAnimationController to trigger 'Spuding' when harvesting.")]
+    public PlayerAnimationController playerAnimation;
+    [Tooltip("Optional: Player transform used for range checks before triggering harvest animation.")]
+    public Transform playerTransform;
+    [Tooltip("Max distance from plot to player to play spuding on harvest.")]
+    public float harvestSpudingRange = 3f;
+
     // Internal state tracking
     private readonly List<PlotState> _plots = new List<PlotState>();
 
@@ -87,6 +95,14 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             wateringPromptUI.SetActive(false);
         if (wateringVFX != null && wateringVFX.activeSelf)
             wateringVFX.SetActive(false);
+
+        // Cache player animation/transform if not assigned
+        if (playerAnimation == null)
+        {
+            playerAnimation = FindObjectOfType<PlayerAnimationController>();
+            if (playerAnimation != null && playerTransform == null)
+                playerTransform = playerAnimation.transform;
+        }
     }
 
     private void OnValidate()
@@ -275,8 +291,11 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         var state = _plots[plotIndex];
         while (state.grownInstance != null)
         {
-            yield return new WaitForSeconds(0.5f);
+            // Frame-accurate harvest detection for timely animation
+            yield return null;
         }
+        // Trigger spuding animation on harvest (player picked up the plant)
+        TryTriggerHarvestSpuding(plotIndex);
         // Harvested: ensure seed marker is removed if still present
         if (state.seedMarkerInstance != null)
         {
@@ -285,6 +304,22 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
         state.Reset();
         UpdateStatusText();
+    }
+
+    private void TryTriggerHarvestSpuding(int plotIndex)
+    {
+        if (playerAnimation == null) return;
+        Transform point = (plotIndex >= 0 && plotIndex < plotPoints.Count) ? plotPoints[plotIndex] : null;
+        if (point == null) return;
+        // Optional range check
+        if (playerTransform != null && harvestSpudingRange > 0f)
+        {
+            float dist = Vector3.Distance(playerTransform.position, point.position);
+            if (dist > harvestSpudingRange) return;
+        }
+        // Trigger if not already spuding
+        if (!playerAnimation.IsSpuding())
+            playerAnimation.TriggerSpuding();
     }
 
     private int GetBestFreePlotIndex(Vector3? worldHint)
@@ -717,6 +752,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                     }
                 }
                 DestroyCountdown(i);
+                // Ensure harvest monitoring for loaded ready plants
+                StartCoroutine(WatchForHarvest(i));
             }
             else if (growing)
             {
@@ -854,12 +891,10 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             // Handle input
             if (shouldShow && Input.GetKeyDown(waterKey))
             {
+                // Watering logic also deducts charges internally (or falls back to empty when no API),
+                // so we must not consume again here to avoid double-deduction.
                 int started = WaterAllWaiting(bucket);
-                if (started > 0)
-                {
-                    // Consume the bucket's water (compatible even if method is absent)
-                    ConsumeBucketWater(bucket);
-                }
+                // No extra consumption here; WaterAllWaiting handles it.
             }
         }
         else
@@ -878,11 +913,26 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             wateringVFX.SetActive(false);
             wateringVFX.SetActive(true);
         }
+        // Determine how many plots we can water based on bucket charges
+        int maxToWater = int.MaxValue;
+        var chargesProp = typeof(BucketManager).GetProperty("RemainingWaterCharges", BindingFlags.Public | BindingFlags.Instance);
+        if (chargesProp != null)
+        {
+            try
+            {
+                maxToWater = Mathf.Max(0, (int)chargesProp.GetValue(bucket));
+                if (maxToWater == 0) return 0; // no water available
+            }
+            catch { maxToWater = int.MaxValue; }
+        }
+
+        int startedThisPass = 0;
         for (int i = 0; i < _plots.Count; i++)
         {
             var s = _plots[i];
             if (s == null) continue;
             if (!s.isOccupied || s.isGrowing || s.grownInstance != null) continue;
+            if (startedThisPass >= maxToWater) break;
 
             // Start growth for this plot
             s.isGrowing = true;
@@ -892,8 +942,23 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             CreateOrUpdateCountdown(i, startTimer: true);
             s.growthRoutine = StartCoroutine(GrowAndSpawn(i, s.plannedGrowthTime));
             count++;
+            startedThisPass++;
         }
-        if (count > 0) UpdateStatusText();
+        if (count > 0)
+        {
+            // Deduct charges if API available; else consume whole water once
+            var miConsume = typeof(BucketManager).GetMethod("TryConsumeWaterCharges", BindingFlags.Public | BindingFlags.Instance);
+            if (miConsume != null)
+            {
+                try { miConsume.Invoke(bucket, new object[] { startedThisPass }); }
+                catch { ConsumeBucketWater(bucket); }
+            }
+            else
+            {
+                ConsumeBucketWater(bucket);
+            }
+            UpdateStatusText();
+        }
         return count;
     }
 
