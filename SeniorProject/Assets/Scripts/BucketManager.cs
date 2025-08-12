@@ -260,7 +260,27 @@ public class BucketManager : MonoBehaviour, ISaveable
         // Cursor feedback while hovering (throttled)
         if (enableMouseInteraction && enableCursorFeedback)
         {
-            UpdateCursorFeedbackThrottled();
+            // Suppress hover cursor while carried or when any context menu is open to avoid flicker
+            bool anyMenuOpen = false;
+            var wmType2 = System.Type.GetType("WellManager");
+            if (wmType2 != null)
+            {
+                var prop = wmType2.GetProperty("AnyContextMenuOpen", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (prop != null)
+                {
+                    object val2 = prop.GetValue(null, null);
+                    anyMenuOpen = (val2 is bool b && b);
+                }
+            }
+            if (!isCarried && !anyMenuOpen)
+            {
+                UpdateCursorFeedbackThrottled();
+            }
+            else
+            {
+                // Ensure cursor resets if we own it
+                UpdateCursorState(false);
+            }
         }
 
     // Prompts and keyboard (optional)
@@ -401,27 +421,27 @@ public class BucketManager : MonoBehaviour, ISaveable
             if (isFilled)
             {
                 isFilled = false;
-                ApplyVisual();
-                RefreshCollidersAndPhysicsState();
+        // Single refresh at end
                 onEmptied?.Invoke();
             }
             return 0;
         }
         int used = Mathf.Min(count, waterCharges);
         waterCharges -= used;
-    // Update visuals to reflect new water level
-    ApplyVisual();
+    // Defer visual update until after potential empty transition
         if (waterCharges <= 0)
         {
             waterCharges = 0;
             if (isFilled)
             {
                 isFilled = false;
-        ApplyVisual();
-                RefreshCollidersAndPhysicsState();
+        // will apply visuals below
                 onEmptied?.Invoke();
             }
         }
+    // Single visual/physics refresh to minimize UI flicker
+    ApplyVisual();
+    RefreshCollidersAndPhysicsState();
         return used;
     }
 

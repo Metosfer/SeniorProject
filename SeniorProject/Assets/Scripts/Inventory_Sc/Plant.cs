@@ -13,6 +13,8 @@ public class Plant : MonoBehaviour
     private bool playerInRange = false;
     private Inventory playerInventory;
     private bool pickedUp = false; // guard against multiple awards
+    private bool pendingPickup = false; // waiting for spuding to finish
+    private PlayerAnimationController playerAnimation;
 
     private void Start()
     {
@@ -40,14 +42,17 @@ public class Plant : MonoBehaviour
             col = gameObject.AddComponent<BoxCollider>();
         }
         col.isTrigger = true;
+
+    // Find player animation controller (optional)
+    playerAnimation = FindObjectOfType<PlayerAnimationController>();
     }
 
     private void Update()
     {
         // Player range'de ise pickup kontrolü
-    if (!pickedUp && playerInRange && Input.GetKeyDown(pickupKey))
+        if (!pickedUp && !pendingPickup && playerInRange && Input.GetKeyDown(pickupKey))
         {
-            TryPickup();
+            BeginHarvestSequence();
         }
     }
 
@@ -69,6 +74,54 @@ public class Plant : MonoBehaviour
         }
     }
 
+    private void BeginHarvestSequence()
+    {
+        if (pickedUp || pendingPickup) return;
+        // Hide prompt before any action
+        ShowPickupUI(false);
+
+        // If this Plant represents a seed item, don't play Spuding; pickup immediately
+        if (item != null && item.isSeed)
+        {
+            TryPickup();
+            return;
+        }
+        if (playerAnimation != null)
+        {
+            pendingPickup = true;
+            if (!playerAnimation.IsSpuding())
+            {
+                playerAnimation.TriggerSpuding();
+            }
+            StartCoroutine(WaitSpudingThenPickup());
+        }
+        else
+        {
+            // Fallback: no animation controller found, pickup immediately
+            TryPickup();
+        }
+    }
+
+    private System.Collections.IEnumerator WaitSpudingThenPickup()
+    {
+        // Small delay to allow trigger to register
+        yield return new WaitForEndOfFrame();
+        // Wait until spuding starts (with a timeout just in case)
+        float t = 0f;
+        while (playerAnimation != null && !playerAnimation.IsSpuding() && t < 1.0f)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        // Wait while spuding is playing
+        while (playerAnimation != null && playerAnimation.IsSpuding())
+        {
+            yield return null;
+        }
+        pendingPickup = false;
+        TryPickup();
+    }
+
     private void TryPickup()
     {
     if (pickedUp) return;
@@ -88,8 +141,8 @@ public class Plant : MonoBehaviour
                 {
                     GameSaveManager.Instance.OnPlantCollected(this);
                 }
-        // Plant'ı yok et
-        Destroy(gameObject);
+                // Plant'ı yok et
+                Destroy(gameObject);
             }
             else
             {

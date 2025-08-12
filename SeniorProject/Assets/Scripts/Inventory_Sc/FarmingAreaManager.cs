@@ -68,13 +68,6 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Tooltip("Persistent ID for save/load. Set a unique value if you have multiple farming areas.")]
     public string saveId;
 
-    [Header("Player/Harvest Animation")]
-    [Tooltip("Optional: PlayerAnimationController to trigger 'Spuding' when harvesting.")]
-    public PlayerAnimationController playerAnimation;
-    [Tooltip("Optional: Player transform used for range checks before triggering harvest animation.")]
-    public Transform playerTransform;
-    [Tooltip("Max distance from plot to player to play spuding on harvest.")]
-    public float harvestSpudingRange = 3f;
 
     // Internal state tracking
     private readonly List<PlotState> _plots = new List<PlotState>();
@@ -96,13 +89,6 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         if (wateringVFX != null && wateringVFX.activeSelf)
             wateringVFX.SetActive(false);
 
-        // Cache player animation/transform if not assigned
-        if (playerAnimation == null)
-        {
-            playerAnimation = FindObjectOfType<PlayerAnimationController>();
-            if (playerAnimation != null && playerTransform == null)
-                playerTransform = playerAnimation.transform;
-        }
     }
 
     private void OnValidate()
@@ -294,8 +280,6 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             // Frame-accurate harvest detection for timely animation
             yield return null;
         }
-        // Trigger spuding animation on harvest (player picked up the plant)
-        TryTriggerHarvestSpuding(plotIndex);
         // Harvested: ensure seed marker is removed if still present
         if (state.seedMarkerInstance != null)
         {
@@ -304,22 +288,6 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
         state.Reset();
         UpdateStatusText();
-    }
-
-    private void TryTriggerHarvestSpuding(int plotIndex)
-    {
-        if (playerAnimation == null) return;
-        Transform point = (plotIndex >= 0 && plotIndex < plotPoints.Count) ? plotPoints[plotIndex] : null;
-        if (point == null) return;
-        // Optional range check
-        if (playerTransform != null && harvestSpudingRange > 0f)
-        {
-            float dist = Vector3.Distance(playerTransform.position, point.position);
-            if (dist > harvestSpudingRange) return;
-        }
-        // Trigger if not already spuding
-        if (!playerAnimation.IsSpuding())
-            playerAnimation.TriggerSpuding();
     }
 
     private int GetBestFreePlotIndex(Vector3? worldHint)

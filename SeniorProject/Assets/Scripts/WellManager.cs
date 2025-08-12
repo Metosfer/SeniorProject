@@ -200,7 +200,16 @@ public class WellManager : MonoBehaviour
             fillVFX.SetActive(false);
             fillVFX.SetActive(true);
         }
-        onBucketFilled?.Invoke();
+    onBucketFilled?.Invoke();
+    // Debounce prompt immediately after fill to avoid brief flicker while state propagates
+    _stableInRange = false;
+    _desiredInRange = false;
+    _lastInteractEvalTime = Time.unscaledTime;
+    _lastUIUpdateTime = Time.unscaledTime;
+    _lastPromptState = false;
+    if (fillPromptUI != null && fillPromptUI.activeSelf) fillPromptUI.SetActive(false);
+    // Close any open context menu
+    if (_showContextMenu) CloseContextMenu();
         return true;
     }
 
@@ -224,7 +233,8 @@ public class WellManager : MonoBehaviour
         {
             // Use bucket transform to avoid player animation jitter; compute planar (XZ) distance only
             Vector3 a = transform.position; a.y = 0f;
-            Vector3 b = bucket.transform.position; b.y = 0f;
+            // Prefer player's position (more stable than carried hand) to reduce jitter near threshold
+            Vector3 b = (bucket.player != null ? bucket.player.position : bucket.transform.position); b.y = 0f;
             float baseRange = Mathf.Max(0.1f, Mathf.Min(bucket.fillRange, detectRange));
             float enterRange = baseRange + RANGE_HYSTERESIS;
             float exitRange  = baseRange - RANGE_HYSTERESIS;
