@@ -13,48 +13,96 @@ public class DoorManager : MonoBehaviour
     public TMP_Text doorText;
     public float range = 5f;
     public Transform playerTransform;
+    [Header("Prompt Stability")]
+    public bool usePlanarDistance = true;
+    public float promptUpdateInterval = 0.1f;
+    public float rangeHysteresis = 0.3f;
+    public float promptMinOnDuration = 0.25f;
+    public float promptMinOffDuration = 0.2f;
+    public float inputGraceWindow = 0.25f;
+
+    private float _lastUIUpdateTime;
+    private bool _inRangeSticky;
+    private bool _lastPromptShown;
+    private float _lastPromptChangeTime;
+    private float _lastInRangeTime;
     // Start is called before the first frame update
     void Start()
     {
-        doorText.fontSize = 0f;
+        if (doorText != null) doorText.fontSize = 0f;
         if (playerTransform == null)
         {
             playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
         }
     }
-private void FixedUpdate() {
-    CheckTextDistance();
-}
+    // Remove per-physics flicker; throttle in Update instead
     // Update is called once per frame
     void Update()
     {
-
-        
+        UpdateDoorPromptThrottled();
         // T tuşuna basıldığında kontrol et
         if (Input.GetKeyDown(KeyCode.T))
         {
             CheckPlayerDistance();
         }
     }
-    void CheckTextDistance()
+    void UpdateDoorPromptThrottled()
     {
-    float distance = Vector3.Distance(playerTransform.position, transform.position);
-    if (distance <= range)
-    {
-        doorText.fontSize = 36f;
+        if (playerTransform == null || doorText == null) return;
+        float now = Time.unscaledTime;
+        bool timeToUpdate = now - _lastUIUpdateTime >= promptUpdateInterval;
+
+        // Distance with optional planar mode
+        Vector3 a = transform.position;
+        Vector3 b = playerTransform.position;
+        if (usePlanarDistance)
+        {
+            a.y = 0f; b.y = 0f;
+        }
+        float baseRange = Mathf.Max(0.1f, range);
+        float enter = baseRange + Mathf.Max(0f, rangeHysteresis);
+        float exit = baseRange - Mathf.Max(0f, rangeHysteresis);
+        float dist = Vector3.Distance(a, b);
+
+        if (!_inRangeSticky && dist <= enter) _inRangeSticky = true;
+        else if (_inRangeSticky && dist > exit) _inRangeSticky = false;
+
+        if (_inRangeSticky)
+        {
+            _lastInRangeTime = now;
+        }
+
+        if (timeToUpdate)
+        {
+            _lastUIUpdateTime = now;
+            bool desired = _inRangeSticky;
+            bool target = desired;
+            float since = now - _lastPromptChangeTime;
+            if (_lastPromptShown && !desired && since < promptMinOnDuration)
+                target = true; // keep on briefly
+            else if (!_lastPromptShown && desired && since < promptMinOffDuration)
+                target = false; // keep off briefly to avoid blink
+
+            float size = target ? 36f : 0f;
+            if ((_lastPromptShown && !target) || (!_lastPromptShown && target))
+            {
+                _lastPromptChangeTime = now;
+            }
+            _lastPromptShown = target;
+            if (!Mathf.Approximately(doorText.fontSize, size))
+                doorText.fontSize = size;
+        }
+        else
+        {
+            // hold current visual state; no action
+        }
     }
-    else
-    {
-        doorText.fontSize = 0f;
-    }
-   }
     void CheckPlayerDistance()
     {
-        // Oyuncu ile kapı arasındaki mesafeyi hesapla
-        float distance = Vector3.Distance(playerTransform.position, transform.position);
-        
-
-        if (distance <= range)
+        if (playerTransform == null) return;
+        // Allow interaction if currently in range or very recently in range
+        bool canInteract = _inRangeSticky || (Time.unscaledTime - _lastInRangeTime <= inputGraceWindow);
+        if (canInteract)
         {
             
             Vector3 tempRot = new Vector3(0, -90, 0f);
@@ -72,6 +120,12 @@ private void FixedUpdate() {
             
             Debug.Log("Kapıya çok uzaksın!");
         }
+    }
+    private void OnDisable()
+    {
+        if (doorText != null) doorText.fontSize = 0f;
+        _inRangeSticky = false;
+        _lastPromptShown = false;
     }
     
     void AutoSaveBeforeSceneChange()
