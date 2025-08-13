@@ -8,6 +8,16 @@ public class WorldItemSpawner : MonoBehaviour
     public static Transform itemContainer; // Spawn edilen itemları organize etmek için
     public static WorldItemSpawner instance; // Singleton referans
 
+    [Header("Ground Clamp Settings")]
+    [Tooltip("World item'ları sabit bir yer seviyesine (Y) sıkıştır.")]
+    public bool clampToGroundY = true;
+    [Tooltip("World item'ların spawn olacağı yer seviyesi (Y).")]
+    public float defaultGroundY = 0.05f;
+
+    // Statik cache (static method'larda erişim için)
+    private static bool sClampToGroundY = true;
+    private static float sDefaultGroundY = 0.05f;
+
     private void Awake()
     {
         // Singleton pattern
@@ -27,6 +37,10 @@ public class WorldItemSpawner : MonoBehaviour
         {
             worldItemPrefab = defaultWorldItemPrefab;
         }
+
+    // Statik ground clamp ayarlarını cache'le
+    sClampToGroundY = clampToGroundY;
+    sDefaultGroundY = defaultGroundY;
     }
 
     private void Start()
@@ -76,6 +90,12 @@ public class WorldItemSpawner : MonoBehaviour
         {
             Debug.LogWarning("WorldItemSpawner: Item null!");
             return;
+        }
+
+        // Yer seviyesine sıkıştır (opsiyonel)
+        if (sClampToGroundY)
+        {
+            position.y = sDefaultGroundY;
         }
 
         // World item prefab'ını oluştur
@@ -178,6 +198,14 @@ public class WorldItemSpawner : MonoBehaviour
 
         // Tag ekle
         worldItem.tag = "WorldItem";
+
+        // Ek güvenlik: Spawn sonrası da ground Y'yi uygula (prefab içinde farklı pozisyon verilmişse)
+        if (sClampToGroundY)
+        {
+            Vector3 p = worldItem.transform.position;
+            p.y = sDefaultGroundY;
+            worldItem.transform.position = p;
+        }
 
         return worldItem;
     }

@@ -78,6 +78,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     private float _lastUIUpdateTime;
     private bool _inRangeSticky;
     private bool _lastPromptState;
+    // Anti-flicker and input-grace controls
+    private const float PROMPT_MIN_ON_DURATION = 0.25f;
+    private const float PROMPT_MIN_OFF_DURATION = 0.2f;
+    private const float INPUT_GRACE_WINDOW = 0.2f;
+    private float _lastPromptStateChangeTime;
+    private float _pendingWaterPressUntil;
 
     private void Awake()
     {
@@ -823,12 +829,21 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     {
         // Get carried bucket (if any)
         var bucket = BucketManager.CurrentCarried;
-        bool canWater = bucket != null && bucket.IsCarried && bucket.IsFilled && HasAnyWaiting();
+        bool baseCanWater = bucket != null && bucket.IsCarried && bucket.IsFilled && HasAnyWaiting();
 
-        bool shouldShow = false;
-        if (canWater)
+        // Buffer input so a quick flicker won't drop the press
+        if (Input.GetKeyDown(waterKey))
         {
-            Vector3 center = bucket.player != null ? bucket.player.position : bucket.transform.position;
+            _pendingWaterPressUntil = Time.unscaledTime + INPUT_GRACE_WINDOW;
+        }
+
+        bool desiredShow = false;
+        if (baseCanWater)
+        {
+            // Use planar distance (ignore Y) to reduce jitter
+            Vector3 pA = new Vector3(transform.position.x, 0f, transform.position.z);
+            Vector3 src = bucket.player != null ? bucket.player.position : bucket.transform.position;
+            Vector3 pB = new Vector3(src.x, 0f, src.z);
             float baseRange = Mathf.Max(0.1f, wateringRange);
 
             // Throttle prompt updates
@@ -837,39 +852,70 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             float enter = baseRange + RANGE_HYSTERESIS;
             float exit = baseRange - RANGE_HYSTERESIS;
 
-            float sqr = (transform.position - center).sqrMagnitude;
+            float sqr = (pA - pB).sqrMagnitude;
             if (!_inRangeSticky && sqr <= enter * enter) _inRangeSticky = true;
             else if (_inRangeSticky && sqr > exit * exit) _inRangeSticky = false;
 
-            shouldShow = _inRangeSticky;
+            desiredShow = _inRangeSticky;
 
+            // Anti-flicker: enforce minimum on/off durations for the prompt
             if (timeToUpdate)
             {
                 _lastUIUpdateTime = currentTime;
-                if (wateringPromptUI != null && wateringPromptUI.activeSelf != shouldShow)
-                    wateringPromptUI.SetActive(shouldShow);
-                _lastPromptState = shouldShow;
+                if (wateringPromptUI != null)
+                {
+                    bool target = desiredShow;
+                    float since = currentTime - _lastPromptStateChangeTime;
+                    if (_lastPromptState && !target && since < PROMPT_MIN_ON_DURATION)
+                    {
+                        target = true; // keep on until min on duration
+                    }
+                    else if (!_lastPromptState && target && since < PROMPT_MIN_OFF_DURATION)
+                    {
+                        target = false; // keep off until min off duration
+                    }
+
+                    if (wateringPromptUI.activeSelf != target)
+                    {
+                        wateringPromptUI.SetActive(target);
+                        _lastPromptState = target;
+                        _lastPromptStateChangeTime = currentTime;
+                    }
+                }
             }
             else
             {
                 if (wateringPromptUI != null && wateringPromptUI.activeSelf != _lastPromptState)
+                {
                     wateringPromptUI.SetActive(_lastPromptState);
+                }
             }
 
-            // Handle input
-            if (shouldShow && Input.GetKeyDown(waterKey))
+            // Handle input with grace window
+            if (_lastPromptState || desiredShow)
             {
-                // Watering logic also deducts charges internally (or falls back to empty when no API),
-                // so we must not consume again here to avoid double-deduction.
-                int started = WaterAllWaiting(bucket);
-                // No extra consumption here; WaterAllWaiting handles it.
+                if (Time.unscaledTime <= _pendingWaterPressUntil)
+                {
+                    _pendingWaterPressUntil = 0f;
+                    // Watering logic also deducts charges internally (or falls back to empty when no API),
+                    // so we must not consume again here to avoid double-deduction.
+                    int started = WaterAllWaiting(bucket);
+                    // No extra consumption here; WaterAllWaiting handles it.
+                }
             }
         }
         else
         {
             _inRangeSticky = false;
-            if (wateringPromptUI != null && wateringPromptUI.activeSelf)
-                wateringPromptUI.SetActive(false);
+            if (wateringPromptUI != null)
+            {
+                if (wateringPromptUI.activeSelf)
+                {
+                    wateringPromptUI.SetActive(false);
+                    _lastPromptState = false;
+                    _lastPromptStateChangeTime = Time.unscaledTime;
+                }
+            }
         }
     }
 
