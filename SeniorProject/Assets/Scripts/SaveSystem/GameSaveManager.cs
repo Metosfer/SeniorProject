@@ -152,7 +152,11 @@ public class GameSaveManager : MonoBehaviour
     public void SaveGame()
     {
         string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        currentSaveData = new GameSaveData();
+        // Reuse existing save data to preserve cross-scene state (e.g., collected plants)
+        if (currentSaveData == null)
+        {
+            currentSaveData = new GameSaveData();
+        }
         currentSaveData.saveTime = saveTime;
         currentSaveData.sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         
@@ -171,7 +175,7 @@ public class GameSaveManager : MonoBehaviour
         // Scene objects'leri kaydet
         SaveSceneObjects();
         
-        // Save data'yı JSON'a çevir ve PlayerPrefs'e kaydet
+    // Save data'yı JSON'a çevir ve PlayerPrefs'e kaydet
         string jsonData = JsonUtility.ToJson(currentSaveData, true);
         PlayerPrefs.SetString(SAVE_PREFIX + saveTime, jsonData);
         
@@ -236,6 +240,11 @@ public class GameSaveManager : MonoBehaviour
         {
             if (worldItem.item != null)
             {
+                // Skip if this world item is actually a plant container
+                if (worldItem.GetComponent<Plant>() != null || worldItem.GetComponentInParent<Plant>() != null)
+                {
+                    continue;
+                }
                 WorldItemSaveData itemData = new WorldItemSaveData();
                 itemData.itemName = worldItem.item.itemName;
                 itemData.position = worldItem.transform.position;
@@ -293,12 +302,19 @@ public class GameSaveManager : MonoBehaviour
         {
             if (plant.item != null)
             {
-                // Compute plantId and skip if this plant was already collected earlier
-                string thisPlantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+                // Compute plantId with rounded position to reduce drift issues
+                string thisPlantId = $"{plant.item.itemName}_{Mathf.Round(plant.transform.position.x * 100f) / 100f}_{Mathf.Round(plant.transform.position.y * 100f) / 100f}_{Mathf.Round(plant.transform.position.z * 100f) / 100f}";
                 var alreadyCollected = currentSaveData.plants.Any(p => p.sceneName == currentScene && p.plantId == thisPlantId && p.isCollected);
+                // Also skip if an identical non-collected entry already exists (avoid duplicates on repeated saves)
+                var alreadySaved = currentSaveData.plants.Any(p => p.sceneName == currentScene && p.plantId == thisPlantId && !p.isCollected);
                 if (alreadyCollected)
                 {
                     // Don’t re-add this plant to save list
+                    continue;
+                }
+                if (alreadySaved)
+                {
+                    // Already tracked as present; avoid duplicate entries
                     continue;
                 }
 
@@ -424,17 +440,14 @@ public class GameSaveManager : MonoBehaviour
         // World item'ları restore et
         RestoreWorldItems();
         
-        // Mevcut plant'ları temizle
-        ClearExistingPlants();
+        // Scene object'leri restore et (FarmingAreaManager gibi ISaveable'lar önce kendi durumunu kursun)
+        RestoreSceneObjects();
         
-        // Plant'ları restore et
+        // Plant'ları en son restore et; böylece sahnede mevcut bitkileri görüp tekrar oluşturmayız
         RestorePlants();
         
         // Inventory'yi restore et (biraz gecikme ile)
         Invoke(nameof(DelayedInventoryRestore), 0.2f);
-        
-        // Scene object'leri restore et
-        RestoreSceneObjects();
         
         Debug.Log("Scene data restoration completed");
     }
@@ -487,11 +500,33 @@ public class GameSaveManager : MonoBehaviour
     private void RestoreWorldItems()
     {
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        // Build a set of plant signatures to avoid restoring overlapping world items
+        var plantKeys = new HashSet<string>();
+        if (currentSaveData.plants != null)
+        {
+            foreach (var p in currentSaveData.plants)
+            {
+                if (p.sceneName != currentScene || p.isCollected) continue;
+                var rx = Mathf.Round(p.position.x * 100f) / 100f;
+                var ry = Mathf.Round(p.position.y * 100f) / 100f;
+                var rz = Mathf.Round(p.position.z * 100f) / 100f;
+                plantKeys.Add($"{p.itemName}_{rx}_{ry}_{rz}");
+            }
+        }
         
         foreach (WorldItemSaveData itemData in currentSaveData.worldItems)
         {
             if (itemData.sceneName == currentScene)
             {
+                // Skip if this world item overlaps a saved plant (same item and near-same position)
+                var kx = Mathf.Round(itemData.position.x * 100f) / 100f;
+                var ky = Mathf.Round(itemData.position.y * 100f) / 100f;
+                var kz = Mathf.Round(itemData.position.z * 100f) / 100f;
+                string key = $"{itemData.itemName}_{kx}_{ky}_{kz}";
+                if (plantKeys.Contains(key))
+                {
+                    continue;
+                }
                 // Item'ı SCResources'dan bul
                 SCItem item = FindItemByName(itemData.itemName);
                 if (item != null)
@@ -529,7 +564,7 @@ public class GameSaveManager : MonoBehaviour
         
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         
-        // Mevcut sahnedeki bitkilerin ID'lerini topla
+    // Mevcut sahnedeki bitkilerin ID'lerini topla
         Plant[] existingPlants = FindObjectsOfType<Plant>();
         HashSet<string> existingPlantIds = new HashSet<string>();
         
@@ -537,7 +572,7 @@ public class GameSaveManager : MonoBehaviour
         {
             if (plant.item != null)
             {
-                string plantId = $"{plant.item.itemName}_{plant.transform.position.x:F2}_{plant.transform.position.y:F2}_{plant.transform.position.z:F2}";
+        string plantId = $"{plant.item.itemName}_{Mathf.Round(plant.transform.position.x * 100f) / 100f}_{Mathf.Round(plant.transform.position.y * 100f) / 100f}_{Mathf.Round(plant.transform.position.z * 100f) / 100f}";
                 existingPlantIds.Add(plantId);
             }
         }
@@ -574,6 +609,11 @@ public class GameSaveManager : MonoBehaviour
                                 rb.useGravity = false; // Yerçekimini kapat
                                 Debug.Log($"Made rigidbody kinematic for restored plant: {plantData.itemName}");
                             }
+                            // Remove WorldItem/DroppedItem components so this plant won't be saved as a world item later
+                            var wis = plantObject.GetComponentsInChildren<WorldItem>(true);
+                            foreach (var wi in wis) Destroy(wi);
+                            var drops = plantObject.GetComponentsInChildren<DroppedItem>(true);
+                            foreach (var d in drops) Destroy(d);
                         }
                         
                         if (plantObject != null)
@@ -585,6 +625,12 @@ public class GameSaveManager : MonoBehaviour
                             if (plantComponent == null)
                             {
                                 plantComponent = plantObject.AddComponent<Plant>();
+                            }
+                            else
+                            {
+                                // Ensure there is exactly one Plant component
+                                var extras = plantObject.GetComponents<Plant>();
+                                for (int i = 1; i < extras.Length; i++) Destroy(extras[i]);
                             }
                             plantComponent.item = item;
                             

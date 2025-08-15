@@ -61,7 +61,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -6478536213147159724, guid: 145379b74873fd14d80782ee652ea4c6, type: 3}
+  - {fileID: 2100000, guid: 0a3e71106c28647dd951307a84b7b242, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -254,12 +254,15 @@ MonoBehaviour:
   fillKey: 121
   pickupRange: 2
   fillRange: 2
+  mousePickupRange: 3
   wellLayer:
     serializedVersion: 2
     m_Bits: 256
   wellTag: Well
   isFilled: 0
   isCarried: 0
+  maxWaterCropsPerFill: 2
+  waterCharges: 0
   carriedLocalPosition: {x: 0, y: -0.1, z: 0.15}
   carriedLocalEuler: {x: 0, y: 0, z: 0}
   carriedLocalScale: {x: 0.2, y: 0.2, z: 0.2}
@@ -301,6 +304,7 @@ MonoBehaviour:
   minYOnDrop: 0.1
   forceFixedDropY: 1
   fixedDropY: 0.05
+  saveId: 
 --- !u!65 &6183028190482254251
 BoxCollider:
   m_ObjectHideFlags: 0

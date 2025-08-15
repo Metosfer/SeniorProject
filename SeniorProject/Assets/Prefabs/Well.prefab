@@ -100,10 +100,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 858dcea475354470d851f7478eece056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  detectRange: 2.5
+  fillPromptUI: {fileID: 0}
   fillVFX: {fileID: 339158821923109191, guid: 108ca465382c11742bd2c91fe4fdb13f, type: 3}
   onBucketFilled:
     m_PersistentCalls:
       m_Calls: []
+  enableRightClickMenu: 1
+  rightClickPrimaryLabel: Fill Bucket
+  rightClickSecondaryLabel: Cancel
+  contextMenuWidth: 160
+  contextMenuHeight: 0
+  contextMenuButtonHeight: 24
+  contextMenuPadding: 8
+  contextMenuFontSize: 0
 --- !u!1 &3780721161931738609
 GameObject:
   m_ObjectHideFlags: 0
@@ -165,7 +175,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 6694312389017904013, guid: 8321d624631eae14b890be289328884f, type: 3}
+  - {fileID: 2100000, guid: b5fd8997a2daa45f7a648cef72a562e1, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -642,7 +652,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -6478536213147159724, guid: 8321d624631eae14b890be289328884f, type: 3}
+  - {fileID: 2100000, guid: 20a4772ceffa342d780aba2a660136fa, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
