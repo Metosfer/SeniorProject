@@ -6,7 +6,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float walkSpeed = 6f;
     [SerializeField] private float runSpeed = 12f;
-    [SerializeField] private float jumpForce = 7f;
+    
     [SerializeField] private float turnSmoothTime = 0.1f;
     [SerializeField] private float speedSmoothTime = 0.1f;
     [SerializeField] private float gravity = -30f;
@@ -167,11 +167,6 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        // Zıplama kontrolü (animasyon kaldırıldı) — fiziksel zıplama devam edebilir
-        if (Input.GetButtonDown("Jump") && isGrounded && !isJumping)
-        {
-            Jump();
-        }
 
     // "Spuding" E tetikleme iptal — ileride farklı plan uygulanacak
         
@@ -203,13 +198,7 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>
     /// Zıplama eylemini gerçekleştirir.
     /// </summary>
-    private void Jump()
-    {
-        velocityY = Mathf.Sqrt(jumpForce * -2f * gravity);
-        isJumping = true;
 
-    // Jump animasyonu kaldırıldı; tetikleyici çağrısı silindi
-    }
 
     /// <summary>
     /// Yerçekimini uygular ve dikey hareketi yönetir.
