@@ -15,9 +15,17 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundDistance = 0.4f;
     [SerializeField] private LayerMask groundMask;
+    [Tooltip("Yürünebilir kabul etmek için Ground tag'ı da zorunlu olsun")] 
+    [SerializeField] private bool requireGroundTag = true;
 
     [Header("Camera")]
     [SerializeField] private Transform cameraTransform;
+
+    [Header("Controller Constraints")] 
+    [Tooltip("Daha yüksek yüzeylere tırmanmayı engellemek için önerilen düşük değer (ör. 0-0.1).")]
+    [SerializeField] private float controllerStepOffset = 0.0f; // 0 = basamak çıkma kapalı
+    [Tooltip("Tırmanılabilir maksimum eğim (derece). Daha düşük değer daha az tırmanır.")]
+    [SerializeField] private float controllerSlopeLimit = 40f;
 
     // Private variables
     private CharacterController controller;
@@ -30,6 +38,9 @@ public class PlayerMovement : MonoBehaviour
     private bool wasGrounded; // Önceki frame'deki ground durumu
     private bool isRunning;
     private bool isJumping;
+    private float lastY; // frame başındaki Y
+    private bool nonWalkableLiftBlocked; // bu framede non-walkable yüzeye yükselme oldu mu
+    [SerializeField] private float nonWalkableStepEpsilon = 0.02f; // ayak referans toleransı
 
     private void Awake()
     {
@@ -58,10 +69,21 @@ public class PlayerMovement : MonoBehaviour
             groundCheck.SetParent(transform);
             groundCheck.localPosition = new Vector3(0, -controller.height / 2, 0);
         }
+
+        // Controller kısıtlarını uygula (yükseltideki objelere tırmanmayı engelle)
+        if (controller != null)
+        {
+            controller.stepOffset = Mathf.Max(0f, controllerStepOffset);
+            controller.slopeLimit = Mathf.Clamp(controllerSlopeLimit, 0f, 89f);
+        }
     }
 
     private void Update()
     {
+    // Başlangıç yüksekliğini kaydet
+    lastY = transform.position.y;
+    nonWalkableLiftBlocked = false;
+
         // Yerde olma kontrolü
         CheckGrounded();
 
@@ -73,6 +95,16 @@ public class PlayerMovement : MonoBehaviour
 
         // Animasyonları güncelle
         UpdateAnimations();
+
+        // Non-walkable yüzeylere çıkmayı engelle: bu framede yukarı doğru yer değiştirdiysek geri al
+        if (nonWalkableLiftBlocked)
+        {
+            float dy = transform.position.y - lastY;
+            if (dy > 0f)
+            {
+                controller.Move(new Vector3(0f, -dy, 0f));
+            }
+        }
     }
 
     /// <summary>
@@ -239,6 +271,25 @@ public class PlayerMovement : MonoBehaviour
         {
             Gizmos.color = isGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(groundCheck.position, groundDistance);
+        }
+    }
+
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (hit == null || hit.collider == null) return;
+        // Yürünebilir mi? Layer mask + opsiyonel tag şartı
+        bool inMask = (groundMask.value & (1 << hit.collider.gameObject.layer)) != 0;
+        bool tagOk = !requireGroundTag || hit.collider.CompareTag("Ground");
+        bool isWalkable = inMask && tagOk;
+
+        if (!isWalkable)
+        {
+            // Temas noktası ayak seviyesinin üzerinde mi? (yukarı tırmanma davranışı)
+            float feetY = controller.bounds.min.y; // skinWidth zaten bounds'a dahildir
+            if (hit.point.y > feetY + nonWalkableStepEpsilon)
+            {
+                nonWalkableLiftBlocked = true;
+            }
         }
     }
 
