@@ -171,7 +171,14 @@ public class DemoController : MonoBehaviour
         {
             if (Input.anyKeyDown)
             {
-                Application.LoadLevel(Application.loadedLevelName);
+                // Auto-save before reloading the level if a save system exists
+                var gsm = GameSaveManager.Instance ?? UnityEngine.Object.FindObjectOfType<GameSaveManager>();
+                if (gsm != null)
+                {
+                    gsm.SaveGame();
+                }
+                var sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
                 yield break;
             }
             else

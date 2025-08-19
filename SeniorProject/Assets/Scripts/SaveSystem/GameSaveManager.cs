@@ -93,6 +93,7 @@ public class SceneObjectSaveData
     public Vector3 position;
     public Vector3 rotation;
     public Vector3 scale;
+    public string sceneName; // which scene this object belongs to
     // Dictionary yerine List kullanarak JSON serialization problemini çözüyoruz
     public List<string> componentDataKeys;
     public List<string> componentDataValues;
@@ -371,7 +372,9 @@ public class GameSaveManager : MonoBehaviour
     
     private void SaveSceneObjects()
     {
-        currentSaveData.sceneObjects.Clear();
+    // Remove only entries belonging to current scene (keep others)
+    var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+    currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
         
         // Collect all ISaveable components in the scene and group by GameObject
         var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
@@ -399,6 +402,7 @@ public class GameSaveManager : MonoBehaviour
             sod.position = go.transform.position;
             sod.rotation = go.transform.eulerAngles;
             sod.scale = go.transform.localScale;
+            sod.sceneName = currentScene;
 
             foreach (var comp in comps)
             {
@@ -770,46 +774,124 @@ public class GameSaveManager : MonoBehaviour
     
     private void RestoreSceneObjects()
     {
-        // Index saved scene-objects by objectId for quick lookup
+        // Index saved scene-objects by objectId for quick lookup (only for current scene)
         var map = new Dictionary<string, SceneObjectSaveData>();
+        var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         foreach (var sod in currentSaveData.sceneObjects)
         {
             if (string.IsNullOrEmpty(sod.objectId)) continue;
+            // Legacy entries may have empty sceneName; accept them for any scene
+            if (!string.IsNullOrEmpty(sod.sceneName) && sod.sceneName != currentScene) continue;
             map[sod.objectId] = sod;
         }
 
-        var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
-        foreach (var comp in saveableComponents)
+        // Group live ISaveable components by GameObject (mirror save-time grouping)
+        var liveComps = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>();
+        var byObject = new Dictionary<GameObject, List<ISaveable>>();
+        foreach (var comp in liveComps)
         {
             var mb = comp as MonoBehaviour;
             if (mb == null) continue;
             var go = mb.gameObject;
-
-            // Compute stable id same way as in save
-            string objectId = TryGetStableObjectId(go, new List<ISaveable> { comp });
-            if (string.IsNullOrEmpty(objectId) || !map.TryGetValue(objectId, out var sod))
+            if (!byObject.TryGetValue(go, out var list))
             {
-                continue; // Nothing saved for this object
+                list = new List<ISaveable>();
+                byObject[go] = list;
+            }
+            list.Add(comp);
+        }
+
+        // Track which saved entries were applied
+        var usedSaved = new HashSet<string>();
+
+        // For each GameObject, compute objectId using ALL its ISaveable comps just like in SaveSceneObjects
+        foreach (var kvp in byObject)
+        {
+            var go = kvp.Key;
+            var comps = kvp.Value;
+
+            string objectId = TryGetStableObjectId(go, comps);
+            SceneObjectSaveData sod = null;
+            if (!string.IsNullOrEmpty(objectId) && map.TryGetValue(objectId, out sod))
+            {
+                usedSaved.Add(objectId);
+            }
+            else
+            {
+                // Fallback: find closest unused saved entry (same object type likely) within a small radius
+                float best = float.MaxValue;
+                SceneObjectSaveData bestSod = null;
+                bool targetIsFarming = go.GetComponent<FarmingAreaManager>() != null;
+
+                // First pass: try to match by component signature when possible
+                foreach (var entry in map)
+                {
+                    if (usedSaved.Contains(entry.Key)) continue;
+                    var candidate = entry.Value;
+                    if (targetIsFarming)
+                    {
+                        bool hasFAKeys = candidate.componentDataKeys != null && candidate.componentDataKeys.Exists(k => k.StartsWith("FarmingAreaManager.", StringComparison.Ordinal));
+                        if (!hasFAKeys) continue;
+                    }
+                    float d = (candidate.position - go.transform.position).sqrMagnitude;
+                    if (d < best)
+                    {
+                        best = d;
+                        bestSod = candidate;
+                    }
+                }
+                // If nothing found in typed pass, allow any entry
+                if (bestSod == null)
+                {
+                    foreach (var entry in map)
+                    {
+                        if (usedSaved.Contains(entry.Key)) continue;
+                        var candidate = entry.Value;
+                        float d = (candidate.position - go.transform.position).sqrMagnitude;
+                        if (d < best)
+                        {
+                            best = d;
+                            bestSod = candidate;
+                        }
+                    }
+                }
+                // Accept if within threshold (e.g., 5m)
+                if (bestSod != null && best <= 5f * 5f)
+                {
+                    sod = bestSod;
+                    // Try to find its key to mark used
+                    foreach (var kv in map)
+                    {
+                        if (kv.Value == sod) { usedSaved.Add(kv.Key); break; }
+                    }
+                    Debug.Log($"RestoreSceneObjects: Fallback matched '{go.name}' by proximity.");
+                }
+                else
+                {
+                    continue; // No match for this object
+                }
             }
 
-            // Apply saved transform
+            // Apply saved transform once per object
             ApplyTransform(go.transform, sod.position, sod.rotation, sod.scale);
 
-            // Extract this component's namespaced data and pass it back
-            var typeName = comp.GetType().Name;
-            var dict = new Dictionary<string, object>();
-            for (int i = 0; i < sod.componentDataKeys.Count; i++)
+            // Dispatch component-specific data
+            foreach (var comp in comps)
             {
-                string key = sod.componentDataKeys[i];
-                if (!key.StartsWith(typeName + ".", StringComparison.Ordinal)) continue;
-                string shortKey = key.Substring(typeName.Length + 1);
-                dict[shortKey] = sod.componentDataValues[i];
-            }
-
-            try { comp.LoadSaveData(dict); }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Load error in {typeName} on {go.name}: {ex.Message}");
+                var typeName = comp.GetType().Name;
+                var dict = new Dictionary<string, object>();
+                for (int i = 0; i < sod.componentDataKeys.Count; i++)
+                {
+                    string key = sod.componentDataKeys[i];
+                    if (!key.StartsWith(typeName + ".", StringComparison.Ordinal)) continue;
+                    string shortKey = key.Substring(typeName.Length + 1);
+                    dict[shortKey] = sod.componentDataValues[i];
+                }
+                try { comp.LoadSaveData(dict); }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Load error in {typeName} on {go.name}: {ex.Message}");
+                }
             }
         }
 

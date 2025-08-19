@@ -55,6 +55,12 @@ public class MainMenuController : MonoBehaviour
 
     void StartGame()
     {
+        // Auto-save (if a save manager exists) before changing scenes
+        var saveManager = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
+        if (saveManager != null)
+        {
+            saveManager.SaveGame();
+        }
         UnityEngine.SceneManagement.SceneManager.LoadScene("FarmScene");
     }
 
@@ -117,6 +123,12 @@ public class MainMenuController : MonoBehaviour
         string savedScene = PlayerPrefs.GetString("SavedScene_" + saveTime);
         if (!string.IsNullOrEmpty(savedScene))
         {
+            // Auto-save current state (if any) before scene change
+            var saveManager2 = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
+            if (saveManager2 != null)
+            {
+                saveManager2.SaveGame();
+            }
             UnityEngine.SceneManagement.SceneManager.LoadScene(savedScene);
             if (loadPanel != null) loadPanel.SetActive(false);
         }

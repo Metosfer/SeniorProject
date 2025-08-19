@@ -280,6 +280,12 @@ public class PauseMenuController : MonoBehaviour
         if (pendingAction == "MainMenu")
         {
             Time.timeScale = 1;
+            // Auto-save before leaving to MainMenu if a save system exists
+            var saveManager = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
+            if (saveManager != null)
+            {
+                saveManager.SaveGame();
+            }
             UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
         }
         else if (pendingAction == "Quit")
