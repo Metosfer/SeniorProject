@@ -6,6 +6,8 @@ public class WorldItemSpawner : MonoBehaviour
     [Header("World Item Settings")]
     public GameObject defaultWorldItemPrefab; // Inspector'da atanacak varsayılan prefab
     public static GameObject worldItemPrefab; // Statik referans
+    [Tooltip("Varsayılan prefab yoksa kullanılacak ek fallback prefab'lar (ilk geçerli olan seçilir)")]
+    public List<GameObject> extraDefaultPrefabs = new List<GameObject>();
     [Header("Lifetime")]
     [Tooltip("Bu spawner'ı sahne geçişlerinde koru.")]
     public bool dontDestroyOnLoad = false;
@@ -15,14 +17,28 @@ public class WorldItemSpawner : MonoBehaviour
     public static WorldItemSpawner instance; // Singleton referans
 
     [Header("Ground Clamp Settings")]
-    [Tooltip("World item'ları sabit bir yer seviyesine (Y) sıkıştır.")]
+    [Tooltip("World item'ları zemine hizala (raycast ile). Kapatılırsa sadece defaultGroundY uygulanır.")]
     public bool clampToGroundY = true;
-    [Tooltip("World item'ların spawn olacağı yer seviyesi (Y).")]
+    [Tooltip("Raycast bulunamazsa kullanılacak varsayılan yer seviyesi (Y).")]
     public float defaultGroundY = 0.05f;
+    [Header("Ground Raycast Settings")]
+    [Tooltip("Zemin olarak kabul edilecek katmanlar.")]
+    public LayerMask groundMask = ~0; // tüm katmanlar
+    [Tooltip("Raycast başlangıç yüksekliği (groundCheck noktasının üstünden).")]
+    public float rayStartHeight = 0.5f;
+    [Tooltip("Raycast maksimum mesafesi.")]
+    public float rayMaxDistance = 5f;
+    [Tooltip("Zeminden çok hafif yukarıda dursun (0 = tam temas).")]
+    public float groundClearance = 0.0f;
 
     // Statik cache (static method'larda erişim için)
     private static bool sClampToGroundY = true;
     private static float sDefaultGroundY = 0.05f;
+    private static LayerMask sGroundMask = ~0;
+    private static float sRayStartHeight = 0.5f;
+    private static float sRayMaxDistance = 5f;
+    private static float sGroundClearance = 0.0f;
+    private static List<GameObject> sExtraDefaultPrefabs = new List<GameObject>();
 
     [Header("Auto Spawn Settings")]
     [Tooltip("Belirli aralıklarla otomatik world item spawn et.")]
@@ -82,10 +98,16 @@ public class WorldItemSpawner : MonoBehaviour
         {
             worldItemPrefab = defaultWorldItemPrefab;
         }
+            // Ek fallback listesi cache
+            sExtraDefaultPrefabs = extraDefaultPrefabs != null ? new List<GameObject>(extraDefaultPrefabs) : new List<GameObject>();
 
         // Statik ground clamp ayarlarını cache'le
         sClampToGroundY = clampToGroundY;
         sDefaultGroundY = defaultGroundY;
+    sGroundMask = groundMask;
+    sRayStartHeight = rayStartHeight;
+    sRayMaxDistance = rayMaxDistance;
+    sGroundClearance = groundClearance;
 
         // Apply optional persistence
         if (dontDestroyOnLoad)
@@ -130,7 +152,7 @@ public class WorldItemSpawner : MonoBehaviour
         {
             Vector3 pos = GetRandomPointInArea();
             // Y seviyesini (opsiyonel) clamp politikası zaten uygulayacak
-            GameObject go = CreateWorldItemObject(autoSpawnItem, pos, Mathf.Max(1, autoSpawnQuantity));
+            GameObject go = CreateWorldItemObject(autoSpawnItem, pos, Mathf.Max(1, autoSpawnQuantity), preferDropPrefab: false);
             if (go != null)
             {
                 var tag = go.AddComponent<AutoSpawnTag>();
@@ -174,77 +196,54 @@ public class WorldItemSpawner : MonoBehaviour
             return;
         }
 
-        // Yer seviyesine sıkıştır (opsiyonel)
-        if (sClampToGroundY)
-        {
-            position.y = sDefaultGroundY;
-        }
-
-        // World item prefab'ını oluştur
-        GameObject worldItem = CreateWorldItemObject(item, position, quantity);
+        // Envanterden yere atma senaryosu: dropPrefab tercih edilir
+        GameObject worldItem = CreateWorldItemObject(item, position, quantity, preferDropPrefab: true);
         
         if (worldItem != null)
         {
             Debug.Log($"World'e spawn edildi: {item.itemName} x{quantity} at {position}");
         }
-    }    private static GameObject CreateWorldItemObject(SCItem item, Vector3 position, int quantity)
+    }
+
+    private static GameObject CreateWorldItemObject(SCItem item, Vector3 position, int quantity, bool preferDropPrefab)
     {
         GameObject worldItem;
         
-        // Önce itemPrefab'ı dene, yoksa dropPrefab'a düş
-        if (item.itemPrefab != null)
+        // Prefab seçimi modu
+        if (preferDropPrefab)
         {
-            worldItem = Instantiate(item.itemPrefab, position, Quaternion.identity);
-            worldItem.name = $"WorldItem_{item.itemName}";
-        }
-        else if (item.dropPrefab != null)
-        {
-            worldItem = Instantiate(item.dropPrefab, position, Quaternion.identity);
-            worldItem.name = $"WorldItem_{item.itemName}";
-        }
-        // Eğer ikisi de yoksa ama varsayılan prefab varsa onu kullan
-        else if (worldItemPrefab != null)
-        {
-            worldItem = Instantiate(worldItemPrefab, position, Quaternion.identity);
-            worldItem.name = $"WorldItem_{item.itemName}";
+            // Envanterden atılan: dropPrefab -> itemPrefab -> fallback
+            if (item.dropPrefab != null)
+            {
+                worldItem = Instantiate(item.dropPrefab, position, Quaternion.identity);
+                worldItem.name = $"WorldItem_{item.itemName}";
+            }
+            else if (item.itemPrefab != null)
+            {
+                worldItem = Instantiate(item.itemPrefab, position, Quaternion.identity);
+                worldItem.name = $"WorldItem_{item.itemName}";
+            }
+            else
+            {
+                worldItem = InstantiateFallback(item, position);
+            }
         }
         else
         {
-            // Fallback: Basit bir cube oluştur
-            worldItem = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            worldItem.name = $"WorldItem_{item.itemName}";
-            worldItem.transform.position = position;
-            worldItem.transform.localScale = Vector3.one * 0.5f; // Küçük boyut
-            
-            // Material ve renk ayarla (sadece primitive cube için)
-            Renderer renderer = worldItem.GetComponent<Renderer>();
-            if (renderer != null)
+            // Spawner: itemPrefab -> dropPrefab -> fallback
+            if (item.itemPrefab != null)
             {
-                Material mat = new Material(Shader.Find("Standard"));
-                
-                // Item türüne göre renk ver
-                if (item.itemName.ToLower().Contains("seed"))
-                {
-                    mat.color = Color.yellow;
-                }
-                else if (item.itemName.ToLower().Contains("fruit"))
-                {
-                    mat.color = Color.red;
-                }
-                else if (item.itemName.ToLower().Contains("vegetable"))
-                {
-                    mat.color = Color.green;
-                }
-                else if (item.itemName.ToLower().Contains("aloe"))
-                {
-                    mat.color = Color.green;
-                }
-                else
-                {
-                    mat.color = Color.gray;
-                }
-                
-                renderer.material = mat;
+                worldItem = Instantiate(item.itemPrefab, position, Quaternion.identity);
+                worldItem.name = $"WorldItem_{item.itemName}";
+            }
+            else if (item.dropPrefab != null)
+            {
+                worldItem = Instantiate(item.dropPrefab, position, Quaternion.identity);
+                worldItem.name = $"WorldItem_{item.itemName}";
+            }
+            else
+            {
+                worldItem = InstantiateFallback(item, position);
             }
         }
 
@@ -275,7 +274,7 @@ public class WorldItemSpawner : MonoBehaviour
         triggerCollider.isTrigger = true;
         triggerCollider.size = Vector3.one * 2f; // Pickup range için büyük trigger
 
-        // Rigidbody ekle (eğer yoksa)
+    // Rigidbody ekle (eğer yoksa)
         Rigidbody rb = worldItem.GetComponent<Rigidbody>();
         if (rb == null)
         {
@@ -286,13 +285,8 @@ public class WorldItemSpawner : MonoBehaviour
         // Tag ekle
         worldItem.tag = "WorldItem";
 
-        // Ek güvenlik: Spawn sonrası da ground Y'yi uygula (prefab içinde farklı pozisyon verilmişse)
-        if (sClampToGroundY)
-        {
-            Vector3 p = worldItem.transform.position;
-            p.y = sDefaultGroundY;
-            worldItem.transform.position = p;
-        }
+    // Zemin hizalaması
+    AlignToGround(worldItem);
 
         return worldItem;
     }
@@ -300,6 +294,43 @@ public class WorldItemSpawner : MonoBehaviour
     public static void SetWorldItemPrefab(GameObject prefab)
     {
         worldItemPrefab = prefab;
+    }
+
+    // Default/extra fallback oluşturucu
+    private static GameObject InstantiateFallback(SCItem item, Vector3 position)
+    {
+        GameObject basePrefab = worldItemPrefab;
+        if (basePrefab == null)
+        {
+            for (int i = 0; i < sExtraDefaultPrefabs.Count; i++)
+            {
+                if (sExtraDefaultPrefabs[i] != null) { basePrefab = sExtraDefaultPrefabs[i]; break; }
+            }
+        }
+        if (basePrefab != null)
+        {
+            var go = Instantiate(basePrefab, position, Quaternion.identity);
+            go.name = $"WorldItem_{item.itemName}";
+            return go;
+        }
+
+        // Fallback: primitive cube
+        var worldItem = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        worldItem.name = $"WorldItem_{item.itemName}";
+        worldItem.transform.position = position;
+        worldItem.transform.localScale = Vector3.one * 0.5f;
+        var renderer = worldItem.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            Material mat = new Material(Shader.Find("Standard"));
+            string lower = item.itemName != null ? item.itemName.ToLower() : string.Empty;
+            if (lower.Contains("seed")) mat.color = Color.yellow;
+            else if (lower.Contains("fruit")) mat.color = Color.red;
+            else if (lower.Contains("vegetable") || lower.Contains("aloe")) mat.color = Color.green;
+            else mat.color = Color.gray;
+            renderer.material = mat;
+        }
+        return worldItem;
     }
 
     // --- Helpers for auto spawn ---
@@ -322,38 +353,138 @@ public class WorldItemSpawner : MonoBehaviour
     private int GetAliveCountInArea()
     {
         var b = GetAreaBounds();
-        // Clean list and count tagged
+        string nameFilter = autoSpawnItem != null ? autoSpawnItem.itemName : null;
         int count = 0;
+
+        // Kendi spawn ettiklerimiz
         for (int i = _autoSpawned.Count - 1; i >= 0; i--)
         {
-            var t = _autoSpawned[i];
-            if (t == null || t.gameObject == null)
+            var tag = _autoSpawned[i];
+            if (tag == null || tag.gameObject == null)
             {
                 _autoSpawned.RemoveAt(i);
                 continue;
             }
-            if (t.owner != this) { _autoSpawned.RemoveAt(i); continue; }
-            if (b.Contains(t.transform.position)) count++;
+            if (tag.owner != this) { _autoSpawned.RemoveAt(i); continue; }
+            var wi = tag.GetComponent<WorldItem>();
+            if (wi == null) continue;
+            if (!string.IsNullOrEmpty(nameFilter) && wi.item != null && wi.item.itemName != nameFilter) continue;
+            if (b.Contains(tag.transform.position)) count++;
         }
+
         if (includeExistingWorldItemsInCount)
         {
-            // Count any matching WorldItem in bounds to avoid over-spawn after loads
-            WorldItem[] all = FindObjectsOfType<WorldItem>();
-            string name = autoSpawnItem != null ? autoSpawnItem.itemName : null;
+            var all = GameObject.FindGameObjectsWithTag("WorldItem");
             for (int i = 0; i < all.Length; i++)
             {
-                var wi = all[i];
-                if (wi == null || wi.item == null) continue;
-                if (name != null && wi.item.itemName != name) continue;
-                // Skip ones already tagged as ours (counted above)
-                var tag = wi.GetComponent<AutoSpawnTag>();
+                var go = all[i];
+                if (go == null) continue;
+                // Bizim etiketlediklerimizi zaten saydık
+                var tag = go.GetComponent<AutoSpawnTag>();
                 if (tag != null && tag.owner == this) continue;
-                if (b.Contains(wi.transform.position)) count++;
+                var wi = go.GetComponent<WorldItem>();
+                if (wi == null) continue;
+                if (!string.IsNullOrEmpty(nameFilter) && wi.item != null && wi.item.itemName != nameFilter) continue;
+                if (b.Contains(go.transform.position)) count++;
             }
         }
         return count;
     }
 
+    // --- Ground Helpers ---
+    private static Transform FindChildByName(GameObject root, string name)
+    {
+        if (root == null || string.IsNullOrEmpty(name)) return null;
+        var trs = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < trs.Length; i++)
+        {
+            if (trs[i] != null && trs[i].name == name) return trs[i];
+        }
+        return null;
+    }
+
+    private static bool TryGetGroundY(Vector3 pos, out float groundY)
+    {
+        Vector3 start = pos + Vector3.up * Mathf.Max(0.01f, sRayStartHeight);
+        if (Physics.Raycast(start, Vector3.down, out var hit, sRayMaxDistance, sGroundMask))
+        {
+            groundY = hit.point.y;
+            return true;
+        }
+        groundY = sDefaultGroundY;
+        return false;
+    }
+
+    private static void AlignToGround(GameObject go)
+    {
+        if (!sClampToGroundY || go == null) return;
+        var t = go.transform;
+        var pos = t.position;
+
+        // PlantManager.groundCheck öncelik, yoksa isimle arama
+        Transform groundCheck = null;
+        var pm = go.GetComponentInChildren<PlantManager>();
+        if (pm != null && pm.groundCheck != null) groundCheck = pm.groundCheck;
+        if (groundCheck == null) groundCheck = FindChildByName(go, "groundCheck");
+        if (groundCheck != null)
+        {
+            Vector3 start = groundCheck.position + Vector3.up * Mathf.Max(0.01f, sRayStartHeight);
+            // RaycastAll ile kendi collider'ını ayıkla ve en yakın geçerli zemini bul
+            var hits = Physics.RaycastAll(start, Vector3.down, sRayMaxDistance, sGroundMask);
+            float bestDist = float.MaxValue;
+            Vector3 bestPoint = Vector3.negativeInfinity;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var h = hits[i];
+                if (h.collider == null) continue;
+                // Kendi hiyerarşindeki collider'ları atla
+                if (h.collider.transform.IsChildOf(go.transform)) continue;
+                float d = h.distance;
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    bestPoint = h.point;
+                }
+            }
+            if (!float.IsNegativeInfinity(bestPoint.x))
+            {
+                Vector3 desired = bestPoint + Vector3.up * sGroundClearance;
+                Vector3 delta = desired - groundCheck.position;
+                t.position += delta;
+                return;
+            }
+        }
+
+        // Aksi halde collider bounds tabanına göre hizala
+        float ground;
+        TryGetGroundY(pos, out ground);
+        var colliders = go.GetComponentsInChildren<Collider>();
+        if (colliders != null && colliders.Length > 0)
+        {
+            bool hasNonTrigger = false;
+            Bounds b = new Bounds(go.transform.position, Vector3.zero);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                var c = colliders[i];
+                if (c == null || c.isTrigger) continue;
+                if (!hasNonTrigger) { b = c.bounds; hasNonTrigger = true; }
+                else b.Encapsulate(c.bounds);
+            }
+            if (!hasNonTrigger)
+            {
+                b = colliders[0].bounds;
+                for (int i = 1; i < colliders.Length; i++) b.Encapsulate(colliders[i].bounds);
+            }
+            float bottomOffset = pos.y - b.min.y;
+            pos.y = ground + bottomOffset + sGroundClearance;
+            t.position = pos;
+        }
+        else
+        {
+            pos.y = ground + sGroundClearance;
+            t.position = pos;
+        }
+    }
     private void OnDrawGizmosSelected()
     {
         if (!drawAreaGizmos) return;

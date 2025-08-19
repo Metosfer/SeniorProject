@@ -44,6 +44,7 @@ Transform:
   - {fileID: 6021177863493229122}
   - {fileID: 5767810892376155058}
   - {fileID: 6692197517015946739}
+  - {fileID: 3355146173856052872}
   - {fileID: 3437162526065816460}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -110,6 +111,7 @@ MonoBehaviour:
   range: 2
   playerPos: {fileID: 0}
   plantName: AloeDry
+  groundCheck: {fileID: 3355146173856052872}
   text: {fileID: 7621818845574464851}
 --- !u!114 &613044189333151020
 MonoBehaviour:
@@ -946,6 +948,37 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &5141472417634013203
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3355146173856052872}
+  m_Layer: 0
+  m_Name: groundCheck
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3355146173856052872
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5141472417634013203}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.1, y: -0.9, z: 0.18}
+  m_LocalScale: {x: 4.6873536, y: 4.6873536, z: 4.6873536}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4951745205909434589}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6147863921772987924
 GameObject:
   m_ObjectHideFlags: 0

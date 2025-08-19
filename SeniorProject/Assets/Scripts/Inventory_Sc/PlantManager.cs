@@ -10,6 +10,10 @@ public class PlantManager : MonoBehaviour
 
     public string plantName;
 
+    [Header("Ground Stick Settings")]
+    [Tooltip("Yere temas ettirilecek referans nokta (alt uç).")] 
+    public Transform groundCheck;
+
 
     public TMPro.TextMeshProUGUI text;
 
