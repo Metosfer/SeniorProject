@@ -147,7 +147,7 @@ public class DoorManager : MonoBehaviour
             if (playerTransform != null)
             {
                 PlayerPrefs.SetFloat("PlayerPosX", playerTransform.position.x);
-                PlayerPrefs.SetFloat("PlayerPosY", playerTransform.position.y);
+                PlayerPrefs.SetFloat("PlayerPosY", playerTransform.position.y + 0.5f);
                 PlayerPrefs.SetFloat("PlayerPosZ", playerTransform.position.z);
                 Debug.Log("Oyuncu pozisyonu kaydedildi (eski sistem): " + playerTransform.position);
             }
