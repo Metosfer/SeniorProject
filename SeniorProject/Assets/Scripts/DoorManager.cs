@@ -105,9 +105,9 @@ public class DoorManager : MonoBehaviour
         if (canInteract)
         {
             
-            Vector3 tempRot = new Vector3(0, -90, 0f);
-            
-            transform.rotation = Quaternion.Euler(tempRot);
+            // Kapı açılma rotasyonu: (-90, 0, -90)
+            Vector3 openEuler = new Vector3(-90f, 0f, -90f);
+            transform.rotation = Quaternion.Euler(openEuler);
             Debug.Log("Kapı Açıldı");
             
             // Sahne değişmeden önce otomatik save
