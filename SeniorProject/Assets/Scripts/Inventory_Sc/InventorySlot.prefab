@@ -224,7 +224,7 @@ GameObject:
   - component: {fileID: 5609571188796096153}
   - component: {fileID: 753666630044819064}
   m_Layer: 5
-  m_Name: Slot
+  m_Name: InventorySlot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -301,12 +301,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 07ad00a689033e44da32e94d25c3cf98, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  itemIcon: {fileID: 0}
-  itemCountText: {fileID: 0}
-  slotBackground: {fileID: 0}
+  itemIcon: {fileID: 4900399165841707179}
+  itemCountText: {fileID: 1232649819776742335}
+  slotBackground: {fileID: 7018711468844013168}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
-  occupiedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  occupiedColor: {r: 0.6886792, g: 0.6886792, b: 0.6886792, a: 1}
   readyColor: {r: 0, g: 1, b: 0, a: 1}
+  hoverColor: {r: 1, g: 0.59888166, b: 0.4009434, a: 1}
+  hoverCursor: {fileID: 2800000, guid: 552731339a84c437cab98a333e733118, type: 3}
+  cursorHotspot: {x: 0, y: 0}
+  cursorSize: {x: 16, y: 16}
 --- !u!114 &753666630044819064
 MonoBehaviour:
   m_ObjectHideFlags: 0

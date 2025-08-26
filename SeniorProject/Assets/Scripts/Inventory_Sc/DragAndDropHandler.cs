@@ -4,6 +4,10 @@ using UnityEngine.EventSystems;
 
 public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    // Static tracking for current drag
+    public static DragAndDropHandler CurrentDragHandler { get; private set; }
+    public static bool IsDragging => CurrentDragHandler != null;
+    
     private Canvas canvas;
     private CanvasGroup canvasGroup;
     private RectTransform rectTransform;
@@ -15,6 +19,16 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     public int slotIndex { get; set; }
     public SCInventory inventory { get; set; }
     public InventoryUIManager uiManager { get; set; }
+    
+    public Slot CurrentDraggedItem 
+    {
+        get 
+        {
+            if (inventory != null && slotIndex < inventory.inventorySlots.Count)
+                return inventory.inventorySlots[slotIndex];
+            return null;
+        }
+    }
 
     private void Awake()
     {
@@ -40,6 +54,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         {
             return;
         }
+
+        // Set static drag tracking
+        CurrentDragHandler = this;
 
         originalPosition = rectTransform.anchoredPosition;
         originalParent = transform.parent;
@@ -131,6 +148,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        // Clear static drag tracking
+        CurrentDragHandler = null;
+        
         if (canvasGroup != null && !canvasGroup.interactable)
         {
             // DragIcon'u kesin destroy et

@@ -17,11 +17,11 @@ MonoBehaviour:
     itemCount: 3
     item: {fileID: 11400000, guid: 558dc3863de201a47ae3f5779c55fa22, type: 2}
   - isFull: 0
-    itemCount: 0
-    item: {fileID: 0}
+    itemCount: 2
+    item: {fileID: 11400000, guid: 39db70c71a104bf4f9027dbddfd9dd1d, type: 2}
   - isFull: 0
-    itemCount: 0
-    item: {fileID: 0}
+    itemCount: 3
+    item: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
   - isFull: 0
     itemCount: 0
     item: {fileID: 0}
