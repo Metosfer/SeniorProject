@@ -17,6 +17,8 @@ public class GameSaveData
     public List<PlayerInventoryItemData> playerInventoryData;
     // Dictionary yerine List kullanarak JSON serialization problemini çözüyoruz
     public List<SceneObjectSaveData> sceneObjects;
+    // Flask save data
+    public FlaskSaveData flaskData;
     
     public GameSaveData()
     {
@@ -24,6 +26,7 @@ public class GameSaveData
         plants = new List<PlantSaveData>();
         sceneObjects = new List<SceneObjectSaveData>();
         playerInventoryData = new List<PlayerInventoryItemData>();
+        flaskData = new FlaskSaveData();
     }
 }
 
@@ -86,6 +89,39 @@ public class InventorySlotSaveData
 }
 
 [System.Serializable]
+public class FlaskSaveData
+{
+    public List<FlaskSlotSaveData> slots;
+    
+    public FlaskSaveData()
+    {
+        slots = new List<FlaskSlotSaveData>();
+    }
+}
+
+[System.Serializable]
+public class FlaskSlotSaveData
+{
+    public string itemName;
+    public int count;
+    public int slotIndex;
+    
+    public FlaskSlotSaveData()
+    {
+        itemName = "";
+        count = 0;
+        slotIndex = -1;
+    }
+    
+    public FlaskSlotSaveData(string name, int cnt, int index)
+    {
+        itemName = name;
+        count = cnt;
+        slotIndex = index;
+    }
+}
+
+[System.Serializable]
 public class SceneObjectSaveData
 {
     public string objectId;
@@ -137,6 +173,8 @@ public class GameSaveManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+            // Sahne değişimi öncesi auto-save için sceneUnloaded event'ini dinle
+            UnityEngine.SceneManagement.SceneManager.sceneUnloaded += OnSceneUnloaded;
         }
         else
         {
@@ -148,6 +186,28 @@ public class GameSaveManager : MonoBehaviour
     {
         // Sahne yüklendiğinde biraz bekle, sonra restore et
         Invoke(nameof(RestoreSceneData), 0.1f);
+    }
+    
+    private void OnSceneUnloaded(Scene scene)
+    {
+        Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}, auto-saving Flask and game data...");
+        try
+        {
+            // Defensive: capture Flask state if its object is still alive
+            var flask = FindObjectOfType<FlaskManager>();
+            if (flask != null)
+            {
+                CaptureFlaskState(flask);
+            }
+            // Defensive: snapshot plants in the current scene
+            SavePlants();
+            SaveGame();
+            Debug.Log("[GameSaveManager] Auto-save completed successfully before scene unload");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[GameSaveManager] Auto-save failed during scene unload: {e.Message}");
+        }
     }
     
     public void SaveGame()
@@ -172,6 +232,9 @@ public class GameSaveManager : MonoBehaviour
         
         // Inventory'yi kaydet
         SaveInventoryData();
+        
+        // Flask data'sını kaydet
+        SaveFlaskData();
         
         // Scene objects'leri kaydet
         SaveSceneObjects();
@@ -370,6 +433,68 @@ public class GameSaveManager : MonoBehaviour
         }
     }
     
+    private void SaveFlaskData()
+    {
+        Debug.Log("Saving Flask data...");
+        // Find FlaskManager in the scene
+        FlaskManager flaskManager = FindObjectOfType<FlaskManager>();
+        if (flaskManager != null)
+        {
+            Debug.Log($"Found FlaskManager, saving {flaskManager.storedSlots.Count} slots");
+            if (currentSaveData.flaskData == null)
+            {
+                currentSaveData.flaskData = new FlaskSaveData();
+            }
+            if (currentSaveData.flaskData.slots == null)
+            {
+                currentSaveData.flaskData.slots = new List<FlaskSlotSaveData>();
+            }
+            // Clear only when we are about to populate with fresh data
+            currentSaveData.flaskData.slots.Clear();
+            
+            for (int i = 0; i < flaskManager.storedSlots.Count; i++)
+            {
+                var slot = flaskManager.storedSlots[i];
+                if (slot != null && slot.item != null && slot.count > 0)
+                {
+                    FlaskSlotSaveData slotData = new FlaskSlotSaveData(
+                        slot.item.itemName, 
+                        slot.count, 
+                        i
+                    );
+                    currentSaveData.flaskData.slots.Add(slotData);
+                    Debug.Log($"Saved Flask slot {i}: {slot.item.itemName} x{slot.count}");
+                }
+            }
+            
+            Debug.Log($"Total Flask slots saved: {currentSaveData.flaskData.slots.Count}");
+        }
+        else
+        {
+            Debug.LogWarning("FlaskManager not found in scene, keeping previous Flask data snapshot");
+        }
+    }
+
+    // Write-only API for components (like FlaskManager) to push their state before destruction
+    public void CaptureFlaskState(FlaskManager flaskManager)
+    {
+        if (flaskManager == null) return;
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        if (currentSaveData.flaskData == null) currentSaveData.flaskData = new FlaskSaveData();
+        if (currentSaveData.flaskData.slots == null) currentSaveData.flaskData.slots = new List<FlaskSlotSaveData>();
+
+        currentSaveData.flaskData.slots.Clear();
+        for (int i = 0; i < flaskManager.storedSlots.Count; i++)
+        {
+            var slot = flaskManager.storedSlots[i];
+            if (slot != null && slot.item != null && slot.count > 0)
+            {
+                currentSaveData.flaskData.slots.Add(new FlaskSlotSaveData(slot.item.itemName, slot.count, i));
+            }
+        }
+        Debug.Log($"[GameSaveManager] Captured Flask state with {currentSaveData.flaskData.slots.Count} filled slots");
+    }
+
     private void SaveSceneObjects()
     {
     // Remove only entries belonging to current scene (keep others)
@@ -453,12 +578,20 @@ public class GameSaveManager : MonoBehaviour
         // Inventory'yi restore et (biraz gecikme ile)
         Invoke(nameof(DelayedInventoryRestore), 0.2f);
         
+        // Flask data'sını restore et (inventory'den sonra)
+        Invoke(nameof(DelayedFlaskRestore), 0.3f);
+        
         Debug.Log("Scene data restoration completed");
     }
     
     private void DelayedInventoryRestore()
     {
         RestoreInventoryData();
+    }
+    
+    private void DelayedFlaskRestore()
+    {
+        RestoreFlaskData();
     }
     
     private void RestorePlayerData()
@@ -487,17 +620,23 @@ public class GameSaveManager : MonoBehaviour
     
     private void ClearExistingWorldItems()
     {
-        // Mevcut world item'ları sil
+        // Mevcut world item'ları sil (Plant hiyerarşisine ait olanları asla silme)
         WorldItem[] existingWorldItems = FindObjectsOfType<WorldItem>();
-        foreach (WorldItem item in existingWorldItems)
+        foreach (WorldItem wi in existingWorldItems)
         {
-            DestroyImmediate(item.gameObject);
+            if (wi == null) continue;
+            bool isPlantRelated = wi.GetComponent<Plant>() != null || wi.GetComponentInParent<Plant>() != null || wi.GetComponentInChildren<Plant>() != null;
+            if (isPlantRelated) continue; // Bitkiler korunmalı
+            DestroyImmediate(wi.gameObject);
         }
         
         DroppedItem[] existingDroppedItems = FindObjectsOfType<DroppedItem>();
-        foreach (DroppedItem item in existingDroppedItems)
+        foreach (DroppedItem di in existingDroppedItems)
         {
-            DestroyImmediate(item.gameObject);
+            if (di == null) continue;
+            bool isPlantRelated = di.GetComponent<Plant>() != null || di.GetComponentInParent<Plant>() != null || di.GetComponentInChildren<Plant>() != null;
+            if (isPlantRelated) continue; // Bitkiler korunmalı
+            DestroyImmediate(di.gameObject);
         }
     }
     
@@ -772,6 +911,62 @@ public class GameSaveManager : MonoBehaviour
         }
     }
     
+    private void RestoreFlaskData()
+    {
+        Debug.Log("=== STARTING FLASK RESTORATION ===");
+        
+        if (currentSaveData?.flaskData == null || 
+            currentSaveData.flaskData.slots == null || 
+            currentSaveData.flaskData.slots.Count == 0)
+        {
+            Debug.LogWarning("No Flask data to restore");
+            return;
+        }
+        
+        // Find FlaskManager in the scene
+        FlaskManager flaskManager = FindObjectOfType<FlaskManager>();
+        if (flaskManager == null)
+        {
+            Debug.LogError("FlaskManager not found in scene, cannot restore Flask data");
+            return;
+        }
+        
+        Debug.Log($"Found FlaskManager, restoring {currentSaveData.flaskData.slots.Count} Flask slots");
+        
+        // Clear existing Flask data
+        flaskManager.ResetFlaskData();
+        
+        // Restore each Flask slot
+        foreach (FlaskSlotSaveData slotData in currentSaveData.flaskData.slots)
+        {
+            // Find the item by name
+            SCItem item = FindItemByName(slotData.itemName);
+            if (item != null)
+            {
+                // Ensure slot index is valid
+                if (slotData.slotIndex >= 0 && slotData.slotIndex < flaskManager.storedSlots.Count)
+                {
+                    var slot = flaskManager.storedSlots[slotData.slotIndex];
+                    slot.item = item;
+                    slot.count = slotData.count;
+                    Debug.Log($"Restored Flask slot {slotData.slotIndex}: {item.itemName} x{slotData.count}");
+                }
+                else
+                {
+                    Debug.LogError($"Invalid Flask slot index: {slotData.slotIndex}");
+                }
+            }
+            else
+            {
+                Debug.LogError($"Could not find item for Flask: {slotData.itemName}");
+            }
+        }
+        
+        // Refresh Flask UI
+        flaskManager.RefreshUI();
+        Debug.Log("=== FLASK RESTORATION COMPLETED ===");
+    }
+
     private void RestoreSceneObjects()
     {
         // Index saved scene-objects by objectId for quick lookup (only for current scene)
@@ -1070,8 +1265,42 @@ public class GameSaveManager : MonoBehaviour
         }
     }
     
+    // Auto-save on application focus/pause events
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+        {
+            Debug.Log("Application paused, auto-saving...");
+            AutoSave();
+        }
+    }
+    
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus)
+        {
+            Debug.Log("Application lost focus, auto-saving...");
+            AutoSave();
+        }
+    }
+    
+    // Auto-save method
+    private void AutoSave()
+    {
+        try
+        {
+            SaveGame();
+            Debug.Log("Auto-save completed successfully");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Auto-save failed: {e.Message}");
+        }
+    }
+    
     private void OnDestroy()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        UnityEngine.SceneManagement.SceneManager.sceneUnloaded -= OnSceneUnloaded;
     }
 }

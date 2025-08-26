@@ -272,6 +272,59 @@ public class FlaskManager : MonoBehaviour
         }
     }
 
+    // Public method for auto-transfer from inventory
+    public bool TryAddToAnySlot(SCItem item)
+    {
+        Debug.Log($"TryAddToAnySlot called for item: {item?.itemName}");
+        
+        if (item == null) return false;
+
+        // First, try to stack with existing same items (smart stacking)
+        if (item.canStackable)
+        {
+            for (int i = 0; i < storedSlots.Count; i++)
+            {
+                var slot = storedSlots[i];
+                if (slot.item == item && slot.count > 0 && slot.count < stackLimit)
+                {
+                    Debug.Log($"Auto-stacking {item.itemName} in existing slot {i}");
+                    slot.count++;
+                    RefreshUI();
+                    return true;
+                }
+            }
+        }
+
+        // If no existing stack available, find first empty slot
+        for (int i = 0; i < storedSlots.Count; i++)
+        {
+            var slot = storedSlots[i];
+            if (slot.item == null)
+            {
+                Debug.Log($"Auto-placing {item.itemName} in empty slot {i}");
+                slot.item = item;
+                slot.count = 1;
+                RefreshUI();
+                return true;
+            }
+        }
+
+        Debug.Log($"No available slots for {item.itemName}");
+        return false; // No available slots
+    }
+
+    // Public method for save system to reset Flask data
+    public void ResetFlaskData()
+    {
+        Debug.Log("Resetting Flask data for save restoration");
+        for (int i = 0; i < storedSlots.Count; i++)
+        {
+            storedSlots[i].item = null;
+            storedSlots[i].count = 0;
+        }
+        RefreshUI();
+    }
+
     public bool TryTakeOneFromSlotToInventory(int slotIndex, SCInventory targetInventory)
     {
         Debug.Log($"TryTakeOneFromSlotToInventory called: slotIndex={slotIndex}");
@@ -339,5 +392,15 @@ public class FlaskManager : MonoBehaviour
             }
         }
         Debug.Log("========================");
+    }
+
+    private void OnDisable()
+    {
+        // Scene değişiminde veya disable olurken mevcut durumu kaydetmek için GameSaveManager'a push et
+        var gsm = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>(true);
+        if (gsm != null)
+        {
+            gsm.CaptureFlaskState(this);
+        }
     }
 }

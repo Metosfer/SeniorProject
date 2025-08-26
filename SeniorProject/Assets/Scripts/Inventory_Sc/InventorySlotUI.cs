@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
-public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     public Image itemIcon;
     public TextMeshProUGUI itemCountText;
@@ -140,6 +140,72 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
         
         return scaledTexture;
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        // Don't auto-transfer if user is dragging
+        if (DragAndDropHandler.IsDragging)
+        {
+            return;
+        }
+        
+        // Check if Flask panel is open
+        var flaskManager = FindObjectOfType<FlaskManager>();
+        if (flaskManager == null || !flaskManager.IsPanelActive())
+        {
+            return; // Flask panel not open, do nothing
+        }
+
+        // Get this slot's item info
+        var dragHandler = GetComponent<DragAndDropHandler>();
+        if (dragHandler == null || dragHandler.inventory == null)
+        {
+            return;
+        }
+
+        int slotIndex = dragHandler.slotIndex;
+        var inventory = dragHandler.inventory;
+        if (slotIndex < 0 || slotIndex >= inventory.inventorySlots.Count)
+        {
+            return;
+        }
+
+        var slot = inventory.inventorySlots[slotIndex];
+        if (slot == null || slot.item == null || slot.itemCount <= 0)
+        {
+            return; // No item to transfer
+        }
+
+        Debug.Log($"Auto-transferring {slot.item.itemName} from inventory slot {slotIndex} to Flask");
+
+        // Try to add item to Flask using the smart stacking system
+        bool success = flaskManager.TryAddToAnySlot(slot.item);
+        if (success)
+        {
+            // Store item name for logging before removal
+            string itemName = slot.item.itemName;
+            
+            // Remove one from inventory
+            if (slot.itemCount > 1)
+            {
+                slot.itemCount--;
+                if (slot.isFull) slot.isFull = false;
+            }
+            else
+            {
+                slot.item = null;
+                slot.itemCount = 0;
+                slot.isFull = false;
+            }
+            
+            inventory.TriggerInventoryChanged();
+            Debug.Log($"Successfully auto-transferred {itemName} to Flask");
+        }
+        else
+        {
+            Debug.Log($"Failed to auto-transfer {slot.item.itemName} to Flask - no available slots");
+        }
     }
 
     private Texture2D MakeTextureReadable(Texture2D texture)

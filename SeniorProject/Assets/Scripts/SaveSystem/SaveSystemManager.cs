@@ -33,7 +33,12 @@ public class SaveSystemManager : MonoBehaviour
         // Scene change events'leri dinle
         if (autoSaveOnSceneChange)
         {
+            Debug.Log("[SaveSystemManager] Auto-save on scene change enabled, subscribing to sceneUnloaded event");
             UnityEngine.SceneManagement.SceneManager.sceneUnloaded += OnSceneUnloaded;
+        }
+        else
+        {
+            Debug.LogWarning("[SaveSystemManager] Auto-save on scene change is DISABLED!");
         }
     }
     
@@ -51,10 +56,18 @@ public class SaveSystemManager : MonoBehaviour
     
     private void OnSceneUnloaded(Scene scene)
     {
+        Debug.Log($"[SaveSystemManager] Scene unloading: {scene.name}, triggering auto-save...");
+        
         // Sahne değişmeden önce save et
         if (GameSaveManager.Instance != null)
         {
+            Debug.Log("[SaveSystemManager] GameSaveManager found, calling SaveGame()");
             GameSaveManager.Instance.SaveGame();
+            Debug.Log("[SaveSystemManager] Auto-save completed before scene unload");
+        }
+        else
+        {
+            Debug.LogError("[SaveSystemManager] GameSaveManager.Instance is null, cannot auto-save!");
         }
     }
     

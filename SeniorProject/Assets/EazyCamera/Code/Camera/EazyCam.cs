@@ -128,9 +128,11 @@ namespace EazyCamera
             Vector3 position = _focalPoint + ((rotation * Vector3.forward) * _settings.Distance);
             _transform.SetPositionAndRotation(position, Quaternion.LookRotation(_focalPoint - position));
 
+            // Cursor görünür olsun - UI etkileşimi için gerekli
             if (Application.isPlaying)
             {
-                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
             }
         }
 
