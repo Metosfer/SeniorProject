@@ -11,37 +11,61 @@ namespace EazyCamera
         [System.Serializable]
         public struct Settings
         {
+            [Header("Temel")]
+            [Tooltip("Kameranın hedefe olan başlangıç uzaklığı (negatif değer kamerayı hedefin arkasına alır).")]
             public float Distance;
+            [Tooltip("Kameranın varsayılan dönüşü (X = dikey, Y = yatay derece).")]
             public Vector2 DefaultRotation;
             public float DefaultDistance { get; set; }
 
             [Header("Orbit")]
+            [Tooltip("Fareyle hedef etrafında dönmeyi (orbit) etkinleştir.")]
             public bool OrbitEnabled;
 
             [Header("Movement")]
+            [Tooltip("Kameranın odak noktasına doğru hareket hızı.")]
             public float MoveSpeed;
+            [Tooltip("Odak noktasına yaklaşırken kullanılan yaklaştırma katsayısı (1 = anında).")]
             [Range(.1f, 1f)] public float SnapFactor;
+            [Tooltip("Kameranın odak noktası gerisinde kalmasına izin verilen maksimum mesafe.")]
             [Range(0f, 10f)] public float MaxLagDistance;
 
             [Header("Rotation")]
+            [Tooltip("Orbit sırasında dönüş hızı.")]
             public float RotationSpeed;
+            [Tooltip("Dikey dönüş (pitch) için minimum ve maksimum açı sınırı (derece). Burayı kısıtlayarak kameranın zeminin altını görmesini engelleyebilirsiniz.")]
             public FloatRange VerticalRotation;
+            [Tooltip("Hareket yumuşatma için kullanılan eğri (0..1 arası ilerleme → hız katsayısı).")]
             public AnimationCurve EaseCurve;
+            [Space]
+            [Tooltip("Yatay dönüşü (yaw) belirtilen aralıkta sınırla.")]
+            public bool LimitHorizontalRotation;
+            [Tooltip("Yatay dönüş (yaw) için minimum ve maksimum açı sınırı (derece). Sadece LimitHorizontalRotation açıkken uygulanır.")]
+            public FloatRange HorizontalRotation;
 
             [Header("Input")]
             [Tooltip("Fare hassasiyeti katsayısı (1 = varsayılan).")]
             public float MouseSensitivity;
             [Tooltip("Yatay (Mouse X) girişini ters çevir.")]
             public bool InvertX;
+            [Tooltip("Dikey (Mouse Y) girişini ters çevir.")]
             public bool InvertY;
 
             [Header("Collision")]
+            [Tooltip("Kamera ile çevre arasındaki çarpışmayı kontrol et (duvarın içine girmeyi engeller).")]
             public bool EnableCollision;
+            [Tooltip("Kamera çarpışması için dikkate alınacak katman maskesi.")]
             public LayerMask CollisionLayer;
+            [Tooltip("Çarpışma algılandığında kameranın hedef mesafeye daha pürüzsüz yaklaşmasını sağlar.")]
+            public bool CollisionSmoothingEnabled;
+            [Tooltip("Çarpışma sırasında kamera mesafesinin hedef değere yumuşatılarak yaklaşma süresi (sn). 0 = anında.")]
+            [Min(0f)] public float CollisionSmoothTime;
 
             [Header("Zoom")]
+            [Tooltip("Fare tekeri vb. ile yakınlaştırmayı etkinleştir.")]
             public bool EnableZoom;
             public float ZoomDistance { get; set; }
+            [Tooltip("Yakınlaştırma için izin verilen mesafe aralığı (negatif değerler hedefin arkasını ifade eder).")]
             public FloatRange ZoomRange;
 
             [Header("Target Offset")]
@@ -49,11 +73,15 @@ namespace EazyCamera
             public Vector3 TargetOffset;
 
             [Header("Targeting")]
+            [Tooltip("Hedef kilitleme (lock-on) sistemini etkinleştir.")]
             public bool EnableTargetLock;
+            [Tooltip("Hedef kilit ikonu (opsiyonel).")]
             public EazyTargetReticle TargetLockIcon;
         }
 
-        [SerializeField] private Transform _followTarget = null;
+    [SerializeField]
+    [Tooltip("Kameranın takip edeceği hedef (genellikle oyuncu karakterinin transformu).")]
+    private Transform _followTarget = null;
 
         public Settings CameraSettings => _settings;
         [SerializeField] private Settings _settings = new Settings()
@@ -67,9 +95,13 @@ namespace EazyCamera
             RotationSpeed = 30f,
             VerticalRotation = new FloatRange(-89f, 89f),
             EaseCurve = AnimationCurve.Linear(0f, 1f, 1f, 1f),
+            LimitHorizontalRotation = false,
+            HorizontalRotation = new FloatRange(-360f, 360f),
             MouseSensitivity = 1f,
             InvertX = false,
             EnableCollision = true,
+            CollisionSmoothingEnabled = true,
+            CollisionSmoothTime = 0.15f,
             EnableZoom = true,
             ZoomDistance = -5,
             ZoomRange = new FloatRange(-10f, -1f),
@@ -91,6 +123,10 @@ namespace EazyCamera
 
         private EazyCollider _collider = null;
         private EazyTargetManager _targetManager = null;
+        
+    // Dahili: çarpışma ve zoom kaynaklı mesafe değişimlerini pürüzsüzleştirmek için
+    private float _currentDistance = 0f;
+    private float _distanceDampVelocity = 0f;
 
         private bool IsTargetLockAllowed => _settings.EnableTargetLock && _targetManager != null;
 
@@ -125,7 +161,8 @@ namespace EazyCamera
             _rotation = _settings.DefaultRotation;
             Quaternion rotation = CalculateRotationFromVector(_rotation);
             _focalPoint = _followTarget.position + _settings.TargetOffset;
-            Vector3 position = _focalPoint + ((rotation * Vector3.forward) * _settings.Distance);
+            _currentDistance = GetDistance();
+            Vector3 position = _focalPoint + ((rotation * Vector3.forward) * _currentDistance);
             _transform.SetPositionAndRotation(position, Quaternion.LookRotation(_focalPoint - position));
 
             // Cursor görünür olsun - UI etkileşimi için gerekli
@@ -172,7 +209,8 @@ namespace EazyCamera
             Quaternion rotation = CalculateRotationFromVector(_rotation);
 #endif // UNITY_EDITOR
 
-            Vector3 position = _focalPoint + ((rotation * Vector3.forward) * _settings.Distance);
+            float effectiveDistance = GetEffectiveDistance(deltaTime);
+            Vector3 position = _focalPoint + ((rotation * Vector3.forward) * effectiveDistance);
 
             _transform.SetPositionAndRotation(position, Quaternion.LookRotation(_focalPoint - position));
         }
@@ -182,7 +220,8 @@ namespace EazyCamera
             UpdatePosition(deltaTime);
             Vector3 lookDirection = _lookTargetOverride.LookAtPosition - CameraTransform.position;
             Quaternion rotation = Quaternion.LookRotation(lookDirection);
-            Vector3 position = _focalPoint + ((rotation * Vector3.forward) * _settings.Distance);
+            float effectiveDistance = GetEffectiveDistance(deltaTime);
+            Vector3 position = _focalPoint + ((rotation * Vector3.forward) * effectiveDistance);
             _transform.SetPositionAndRotation(position, rotation);
         }
 
@@ -259,13 +298,21 @@ namespace EazyCamera
 
         private void ClampHorizontalRotation()
         {
-            if (_rotation.y > 360f)
+            if (_settings.LimitHorizontalRotation)
             {
-                _rotation.y -= 360f;
+                _rotation.y = Mathf.Clamp(_rotation.y, _settings.HorizontalRotation.Min, _settings.HorizontalRotation.Max);
             }
-            else if (_rotation.y < -360f)
+            else
             {
-                _rotation.y += 360f;
+                // Yalnızca sayıyı sınırlı aralıkta tutmak için wrap uygula
+                if (_rotation.y > 360f)
+                {
+                    _rotation.y -= 360f;
+                }
+                else if (_rotation.y < -360f)
+                {
+                    _rotation.y += 360f;
+                }
             }
         }
 
@@ -278,6 +325,31 @@ namespace EazyCamera
         {
             float distance = _settings.EnableZoom ? _settings.ZoomDistance : _settings.Distance;
             return _focalPoint + ((CalculateRotationFromVector(_rotation) * Vector3.forward) * distance);
+        }
+
+        private float GetEffectiveDistance(float deltaTime)
+        {
+            // Hedef mesafe (zoom ve çarpışma sonrası değerlere göre)
+            float targetDistance = GetDistance();
+
+            if (Application.isPlaying && _settings.EnableCollision && _settings.CollisionSmoothingEnabled && _settings.CollisionSmoothTime > 0f)
+            {
+                _currentDistance = Mathf.SmoothDamp(
+                    _currentDistance,
+                    targetDistance,
+                    ref _distanceDampVelocity,
+                    _settings.CollisionSmoothTime,
+                    Mathf.Infinity,
+                    deltaTime
+                );
+            }
+            else
+            {
+                _currentDistance = targetDistance;
+                _distanceDampVelocity = 0f;
+            }
+
+            return _currentDistance;
         }
 
         private Quaternion CalculateRotationFromVector(Vector3 rotation)
