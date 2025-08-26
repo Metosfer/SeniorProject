@@ -121,7 +121,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
                 cam,
                 out localPointerPosition);
             dragIcon.GetComponent<RectTransform>().anchoredPosition = localPointerPosition;
-            Debug.Log($"OnDrag: Moving dragIcon to position: {localPointerPosition}");
+            
         }
         else
         {
@@ -183,8 +183,56 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             return;
         }
 
-        // UI DropZone kontrolü
+        // UI Drop hedefi kontrolü (genel): IDropHandler var mı?
         GameObject hitObject = eventData.pointerCurrentRaycast.gameObject;
+        if (hitObject != null)
+        {
+            var genericDrop = hitObject.GetComponentInParent<IDropHandler>();
+            // Eğer bir UI drop hedefi varsa (ör. FlaskSlotUI, DryingSlotUI), o hedef OnDrop ile işlemi yapacaktır.
+            // Bu durumda dünyaya bırakma fallbacklerini ÇALIŞTIRMAYIN.
+            if (genericDrop != null)
+            {
+                ResetPosition();
+                return;
+            }
+        }
+
+        // Ek güvence: Bazı durumlarda pointerCurrentRaycast boş olabilir; tüm GraphicRaycaster'lar üzerinden explicit raycast yap
+        var raycasters = GameObject.FindObjectsOfType<GraphicRaycaster>();
+        if (raycasters != null && raycasters.Length > 0)
+        {
+            PointerEventData ped = new PointerEventData(EventSystem.current) { position = eventData.position, pointerDrag = eventData.pointerDrag };
+            var allResults = new System.Collections.Generic.List<RaycastResult>();
+            foreach (var gr in raycasters)
+            {
+                if (gr == null || !gr.isActiveAndEnabled) continue;
+                var results = new System.Collections.Generic.List<RaycastResult>();
+                gr.Raycast(ped, results);
+                if (results != null && results.Count > 0)
+                {
+                    allResults.AddRange(results);
+                }
+            }
+            // En üstteki sonuçlara öncelik vermek için sortingOrder'a göre zaten GraphicRaycaster sıralar; biz ilk uygun hedefi alalım
+            foreach (var rr in allResults)
+            {
+                var go = rr.gameObject;
+                if (go == null) continue;
+                var drop = go.GetComponentInParent<IDropHandler>();
+                if (drop != null)
+                {
+                    try
+                    {
+                        drop.OnDrop(eventData);
+                    }
+                    catch { }
+                    ResetPosition();
+                    return;
+                }
+            }
+        }
+
+        // Özel UI DropZone kontrolü (varsa eski mantık)
         DropZone dropZone = null;
         if (hitObject != null)
         {
@@ -201,7 +249,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
             RemoveSingleItemFromInventory();
         }
-        else if (hitObject == null || (!IsUIElement(hitObject)))
+    else if (hitObject == null || (!IsUIElement(hitObject)))
         {
             Vector3 worldPosition = GetWorldDropPosition(eventData);
             WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
