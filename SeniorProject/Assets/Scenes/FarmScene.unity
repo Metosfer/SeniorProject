@@ -1155,7 +1155,7 @@ PrefabInstance:
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _settings.MouseSensitivity
-      value: 2.5
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
