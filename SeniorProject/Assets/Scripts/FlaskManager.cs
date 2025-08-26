@@ -15,6 +15,8 @@ public class FlaskManager : MonoBehaviour
     [Tooltip("Flask deposundaki slot sayısı")] public int slotCount = 3;
     [Tooltip("Slot UI referansları (FlaskPanel altındaki slot objeleri)")]
     public Transform[] slotUIs = new Transform[3];
+    [Tooltip("Her slot'ta item stack limiti")]
+    public int stackLimit = 4;
 
     // Depo verisi
     [System.Serializable]
@@ -210,6 +212,30 @@ public class FlaskManager : MonoBehaviour
             return false;
         }
 
+        // NEW FEATURE: Check if same item exists in any other slot and can stack
+        if (item.canStackable)
+        {
+            for (int i = 0; i < storedSlots.Count; i++)
+            {
+                var existingSlot = storedSlots[i];
+                if (existingSlot.item == item && existingSlot.count > 0)
+                {
+                    // Found same item in slot i, check if it can stack more
+                    if (existingSlot.count < stackLimit)
+                    {
+                        Debug.Log($"Found same item {item.itemName} in slot {i}, stacking there instead of slot {slotIndex}");
+                        existingSlot.count++;
+                        RefreshUI();
+                        return true;
+                    }
+                    else
+                    {
+                        Debug.Log($"Same item {item.itemName} in slot {i} is at max stack ({stackLimit})");
+                    }
+                }
+            }
+        }
+
         var slot = storedSlots[slotIndex];
         Debug.Log($"Target slot {slotIndex}: item={slot.item?.itemName}, count={slot.count}");
         
@@ -225,10 +251,18 @@ public class FlaskManager : MonoBehaviour
         else if (slot.item == item && item.canStackable)
         {
             // Aynı item ve stacklenebilir: sayıyı artır
-            Debug.Log($"Stacking item {item.itemName} in slot {slotIndex}, new count: {slot.count + 1}");
-            slot.count++;
-            RefreshUI();
-            return true;
+            if (slot.count < stackLimit)
+            {
+                Debug.Log($"Stacking item {item.itemName} in slot {slotIndex}, new count: {slot.count + 1}");
+                slot.count++;
+                RefreshUI();
+                return true;
+            }
+            else
+            {
+                Debug.Log($"Slot {slotIndex} is at max stack limit ({stackLimit}) for {item.itemName}");
+                return false;
+            }
         }
         else
         {
