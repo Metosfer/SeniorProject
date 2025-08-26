@@ -4941,7 +4941,7 @@ MonoBehaviour:
   autoFindPlayerByTag: 1
   useTransformAsCenter: 1
   areaCenter: {x: 0, y: 4.41, z: 0}
-  areaSize: {x: 31.5, y: 20, z: 29.4}
+  areaSize: {x: 69.8, y: 24.1, z: 42.4}
   respawnPoint: {fileID: 1305175762}
   killY: -50
   snapToGround: 0
