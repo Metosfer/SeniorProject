@@ -7218,17 +7218,27 @@ PrefabInstance:
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: moveSpeed
-      value: 0.5
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: turnSpeed
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: roamRadius
-      value: 20
+      value: 9.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayWidth
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayHeight
+      value: 0.21
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -7237,8 +7247,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: obstacleRayDistance
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: alternativeRouteAngle
-      value: 90
+      value: 360
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: alternativeRouteAttempts
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7402009758359158996, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -7248,17 +7268,17 @@ PrefabInstance:
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 1.8977432
+      value: -17.8
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: -14.899742
+      value: -9.92
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -6.0324574
+      value: 8.76
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -7307,6 +7327,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 7922649801668778604, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
+    - {fileID: 3791174428861287569, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -18840,13 +18861,18 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 548742842}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: moveSpeed
-      value: 0.5
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: turnSpeed
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -18855,13 +18881,33 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: obstacleRayWidth
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayHeight
+      value: 0.21
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: obstacleMask.m_Bits
       value: 7489
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: obstacleRayDistance
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: alternativeRouteAngle
-      value: 90
+      value: 360
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: alternativeRouteAttempts
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7402009758359158996, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -18930,6 +18976,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 7922649801668778604, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
+    - {fileID: 3791174428861287569, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -19984,18 +20031,33 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 548742842}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: moveSpeed
-      value: 0.5
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: turnSpeed
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: roamRadius
-      value: 20
+      value: 12.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayWidth
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayHeight
+      value: 0.21
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20004,8 +20066,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: obstacleRayDistance
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: alternativeRouteAngle
-      value: 90
+      value: 360
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: alternativeRouteAttempts
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7402009758359158996, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20015,7 +20087,7 @@ PrefabInstance:
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 14.287744
+      value: 11.47
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20025,7 +20097,7 @@ PrefabInstance:
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -13.682457
+      value: -14.44
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20074,6 +20146,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 7922649801668778604, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
+    - {fileID: 3791174428861287569, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -20395,18 +20468,48 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 548742842}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: moveSpeed
-      value: 0.5
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: turnSpeed
-      value: 3
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: roamRadius
+      value: 16.96
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayWidth
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayHeight
+      value: 0.21
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayDistance
+      value: 2.5
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: alternativeRouteAngle
-      value: 90
+      value: 360
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: alternativeRouteAttempts
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7402009758359158996, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20416,7 +20519,7 @@ PrefabInstance:
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 13.304744
+      value: 20.72
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20426,7 +20529,7 @@ PrefabInstance:
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 34.139137
+      value: 44.27
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20463,7 +20566,8 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3791174428861287569, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -20674,18 +20778,33 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 548742842}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: moveSpeed
-      value: 0.5
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: turnSpeed
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: roamRadius
-      value: 20
+      value: 11
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayWidth
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: obstacleRayHeight
+      value: 0.21
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20694,8 +20813,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
+      propertyPath: obstacleRayDistance
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
       propertyPath: alternativeRouteAngle
-      value: 90
+      value: 360
+      objectReference: {fileID: 0}
+    - target: {fileID: 3972749738912491059, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
+        type: 3}
+      propertyPath: alternativeRouteAttempts
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7402009758359158996, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20705,17 +20834,17 @@ PrefabInstance:
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -17.112259
+      value: 38.29
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: -10.5397415
+      value: -14.19
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 7.977543
+      value: 21.18
       objectReference: {fileID: 0}
     - target: {fileID: 7922649801668778606, guid: 4ecab060b0afb5d4db61f7f1311b9e24,
         type: 3}
@@ -20764,6 +20893,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 7922649801668778604, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
+    - {fileID: 3791174428861287569, guid: 4ecab060b0afb5d4db61f7f1311b9e24, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
