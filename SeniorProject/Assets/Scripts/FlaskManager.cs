@@ -89,6 +89,11 @@ public class FlaskManager : MonoBehaviour
     // Mouse tıklaması algılandığında çağrılır
     private void OnMouseDown()
     {
+        // If Market or another modal UI is open, ignore world clicks
+        if (MarketManager.IsAnyOpen)
+        {
+            return;
+        }
         OpenPanel();
     }
     

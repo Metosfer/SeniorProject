@@ -586,42 +586,42 @@ public class GameSaveManager : MonoBehaviour
         if (currentSaveData.marketData == null) currentSaveData.marketData = new MarketSaveData();
 
         var market = FindObjectOfType<MarketManager>();
-        if (market == null)
-        {
-            // No market in this scene; keep previous marketData to persist across scenes
-            return;
-        }
-
-        // Prefer shared MoneyManager if available, fallback to market's local value
+        // Always save money even if there's no Market component in this scene
         if (MoneyManager.Instance != null)
             currentSaveData.marketData.playerMoney = MoneyManager.Instance.Balance;
-        else
+        else if (market != null)
             currentSaveData.marketData.playerMoney = market.playerMoney;
+        // else keep previous value if neither exists
 
-        // Offers: reflect what’s currently displayed so reopen shows same items
+        // Offers only if a Market is present
         currentSaveData.marketData.offers.Clear();
-        var offers = GetActiveOffers(market);
-        if (offers != null)
+        if (market != null)
         {
-            foreach (var o in offers)
+            var offers = GetActiveOffers(market);
+            if (offers != null)
             {
-                var save = new OfferSaveData { itemName = o.item?.itemName ?? string.Empty, price = o.price, stock = o.stock };
-                currentSaveData.marketData.offers.Add(save);
+                foreach (var o in offers)
+                {
+                    var save = new OfferSaveData { itemName = o.item?.itemName ?? string.Empty, price = o.price, stock = o.stock };
+                    currentSaveData.marketData.offers.Add(save);
+                }
             }
         }
     }
 
     private void RestoreMarketData()
     {
-        var market = FindObjectOfType<MarketManager>();
-        if (market == null) return; // Not present in this scene
         if (currentSaveData?.marketData == null) return;
+        var market = FindObjectOfType<MarketManager>();
 
         // Restore shared MoneyManager if available; also set market fallback to keep UI consistent
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.SetBalance(currentSaveData.marketData.playerMoney);
-        market.playerMoney = currentSaveData.marketData.playerMoney;
-        market.ApplySavedOffers(currentSaveData.marketData.offers);
+        if (market != null)
+        {
+            market.playerMoney = currentSaveData.marketData.playerMoney;
+            market.ApplySavedOffers(currentSaveData.marketData.offers);
+        }
     }
 
     // Reflection helpers to avoid tight coupling with MarketManager's internal Offer type

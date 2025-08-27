@@ -38,6 +38,9 @@ public class MarketManager : MonoBehaviour
 
     [Header("Economy")]
     public int playerMoney = 1000; // fallback when MoneyManager is not available
+    // Global flag so world interactables can respect market-open state
+    private static bool s_isAnyOpen = false;
+    public static bool IsAnyOpen => s_isAnyOpen;
 
     [Serializable]
     public class ProductEntry
@@ -75,6 +78,11 @@ public class MarketManager : MonoBehaviour
         {
             openMarketButton.onClick.RemoveListener(OpenMarket);
             openMarketButton.onClick.AddListener(OpenMarket);
+        }
+        // Sync local fallback money with MoneyManager if present
+        if (MoneyManager.Instance != null)
+        {
+            playerMoney = MoneyManager.Instance.Balance;
         }
         RefreshMoneyText();
     }
@@ -128,6 +136,8 @@ public class MarketManager : MonoBehaviour
 
         // Additionally, disable other CanvasGroups (in all canvases) to block clicks outside market
         DisableOtherCanvasGroups();
+    // Mark globally open so world-click interactables (Flask/Book etc.) can ignore input
+    s_isAnyOpen = true;
     }
 
     public void CloseMarket()
@@ -138,6 +148,7 @@ public class MarketManager : MonoBehaviour
         if (cam != null) cam.SetZoomEnabled(EazyCamera.EnabledState.Enabled);
     if (inputBlockerOverlay != null) inputBlockerOverlay.SetActive(false);
     RestoreOtherCanvasGroups();
+    s_isAnyOpen = false;
     }
 
     private void GenerateOffers()
@@ -227,6 +238,22 @@ public class MarketManager : MonoBehaviour
         if (InventoryManager.Instance != null)
         {
             InventoryManager.Instance.RefreshInventoryUI();
+        }
+        else
+        {
+            // Fallback: refresh any InventoryUI directly using the persistent inventory
+            var persistent = SCInventory.GetPersistentInventory();
+            var uiManagers = FindObjectsOfType<InventoryUIManager>();
+            foreach (var ui in uiManagers)
+            {
+                if (ui == null) continue;
+                if (ui.inventory != persistent)
+                {
+                    ui.SetInventoryReference(persistent);
+                }
+                ui.RefreshUI();
+            }
+            if (persistent != null) persistent.TriggerInventoryChanged();
         }
     }
 
