@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using EazyCamera;
 using UnityEngine.EventSystems;
 
 public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
@@ -15,6 +16,11 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     private Transform originalParent;
     private InventorySlotUI inventorySlot;
     private GameObject dragIcon;
+    
+    // Camera orbit control during drag
+    private EazyCam _cam;
+    private bool _prevOrbitEnabled;
+    private bool _camStateCaptured;
     
     public int slotIndex { get; set; }
     public SCInventory inventory { get; set; }
@@ -57,6 +63,18 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         // Set static drag tracking
         CurrentDragHandler = this;
+
+        // Disable camera orbit while dragging (preserve previous state)
+        if (_cam == null)
+        {
+            _cam = GameObject.FindObjectOfType<EazyCam>();
+        }
+        if (_cam != null && !_camStateCaptured)
+        {
+            _prevOrbitEnabled = _cam.CameraSettings.OrbitEnabled;
+            _camStateCaptured = true;
+            _cam.SetOrbitEnabled(EnabledState.Disabled);
+        }
 
         originalPosition = rectTransform.anchoredPosition;
         originalParent = transform.parent;
@@ -150,6 +168,13 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     {
         // Clear static drag tracking
         CurrentDragHandler = null;
+
+        // Restore camera orbit if we disabled it
+        if (_cam != null && _camStateCaptured)
+        {
+            _cam.SetOrbitEnabled(_prevOrbitEnabled ? EnabledState.Enabled : EnabledState.Disabled);
+            _camStateCaptured = false;
+        }
         
         if (canvasGroup != null && !canvasGroup.interactable)
         {
@@ -275,7 +300,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
             RemoveSingleItemFromInventory();
         }
-        else
+    else
         {
             ResetPosition();
         }
