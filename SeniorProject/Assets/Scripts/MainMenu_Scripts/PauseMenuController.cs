@@ -81,6 +81,11 @@ public class PauseMenuController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            // If Market consumed ESC this frame, do nothing
+            if (MarketManager.DidConsumeEscapeThisFrame())
+            {
+                return;
+            }
             // Önce diğer panellerin açık olup olmadığını kontrol et
             if (IsAnyOtherPanelActive())
             {
@@ -113,6 +118,7 @@ public class PauseMenuController : MonoBehaviour
         // FlaskManager ve BookManager scriptlerini bul
         FlaskManager flaskManager = FindObjectOfType<FlaskManager>();
         BookManager bookManager = FindObjectOfType<BookManager>();
+        MarketManager marketManager = FindObjectOfType<MarketManager>();
 
         // Flask paneli açık mı kontrol et
         if (flaskManager != null && flaskManager.IsPanelActive())
@@ -122,6 +128,12 @@ public class PauseMenuController : MonoBehaviour
 
         // Book paneli açık mı kontrol et
         if (bookManager != null && bookManager.IsPanelActive())
+        {
+            return true;
+        }
+
+        // Market paneli açık mı kontrol et
+        if (marketManager != null && marketManager.IsPanelActive())
         {
             return true;
         }

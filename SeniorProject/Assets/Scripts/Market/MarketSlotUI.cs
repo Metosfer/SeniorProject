@@ -23,6 +23,11 @@ public class MarketSlotUI : MonoBehaviour
         if (priceText != null) priceText.text = price.ToString();
         if (iconImage != null) iconImage.sprite = icon;
         if (stockText != null) stockText.text = stock.ToString();
+        if (buyButton == null)
+        {
+            // Fallback: child hiyerarşideki ilk Button'u bul
+            buyButton = GetComponentInChildren<Button>(true);
+        }
         if (buyButton != null) buyButton.interactable = stock > 0;
 
         if (buyButton != null)

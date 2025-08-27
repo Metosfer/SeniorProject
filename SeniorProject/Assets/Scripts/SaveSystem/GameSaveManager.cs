@@ -592,7 +592,11 @@ public class GameSaveManager : MonoBehaviour
             return;
         }
 
-        currentSaveData.marketData.playerMoney = market.playerMoney;
+        // Prefer shared MoneyManager if available, fallback to market's local value
+        if (MoneyManager.Instance != null)
+            currentSaveData.marketData.playerMoney = MoneyManager.Instance.Balance;
+        else
+            currentSaveData.marketData.playerMoney = market.playerMoney;
 
         // Offers: reflect what’s currently displayed so reopen shows same items
         currentSaveData.marketData.offers.Clear();
@@ -613,6 +617,9 @@ public class GameSaveManager : MonoBehaviour
         if (market == null) return; // Not present in this scene
         if (currentSaveData?.marketData == null) return;
 
+        // Restore shared MoneyManager if available; also set market fallback to keep UI consistent
+        if (MoneyManager.Instance != null)
+            MoneyManager.Instance.SetBalance(currentSaveData.marketData.playerMoney);
         market.playerMoney = currentSaveData.marketData.playerMoney;
         market.ApplySavedOffers(currentSaveData.marketData.offers);
     }
