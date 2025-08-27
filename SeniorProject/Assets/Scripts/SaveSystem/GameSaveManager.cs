@@ -19,6 +19,8 @@ public class GameSaveData
     public List<SceneObjectSaveData> sceneObjects;
     // Flask save data
     public FlaskSaveData flaskData;
+    // Market save data
+    public MarketSaveData marketData;
     
     public GameSaveData()
     {
@@ -27,6 +29,7 @@ public class GameSaveData
         sceneObjects = new List<SceneObjectSaveData>();
         playerInventoryData = new List<PlayerInventoryItemData>();
         flaskData = new FlaskSaveData();
+    marketData = new MarketSaveData();
     }
 }
 
@@ -119,6 +122,26 @@ public class FlaskSlotSaveData
         count = cnt;
         slotIndex = index;
     }
+}
+
+[System.Serializable]
+public class MarketSaveData
+{
+    public int playerMoney;
+    public List<OfferSaveData> offers;
+
+    public MarketSaveData()
+    {
+        offers = new List<OfferSaveData>();
+    }
+}
+
+[System.Serializable]
+public class OfferSaveData
+{
+    public string itemName;
+    public int price;
+    public int stock;
 }
 
 [System.Serializable]
@@ -235,6 +258,9 @@ public class GameSaveManager : MonoBehaviour
         
         // Flask data'sını kaydet
         SaveFlaskData();
+
+    // Market data'sını kaydet
+    SaveMarketData();
         
         // Scene objects'leri kaydet
         SaveSceneObjects();
@@ -553,6 +579,70 @@ public class GameSaveManager : MonoBehaviour
 
         Debug.Log($"Scene objects saved via ISaveable: {currentSaveData.sceneObjects.Count}");
     }
+
+    private void SaveMarketData()
+    {
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        if (currentSaveData.marketData == null) currentSaveData.marketData = new MarketSaveData();
+
+        var market = FindObjectOfType<MarketManager>();
+        if (market == null)
+        {
+            // No market in this scene; keep previous marketData to persist across scenes
+            return;
+        }
+
+        currentSaveData.marketData.playerMoney = market.playerMoney;
+
+        // Offers: reflect what’s currently displayed so reopen shows same items
+        currentSaveData.marketData.offers.Clear();
+        var offers = GetActiveOffers(market);
+        if (offers != null)
+        {
+            foreach (var o in offers)
+            {
+                var save = new OfferSaveData { itemName = o.item?.itemName ?? string.Empty, price = o.price, stock = o.stock };
+                currentSaveData.marketData.offers.Add(save);
+            }
+        }
+    }
+
+    private void RestoreMarketData()
+    {
+        var market = FindObjectOfType<MarketManager>();
+        if (market == null) return; // Not present in this scene
+        if (currentSaveData?.marketData == null) return;
+
+        market.playerMoney = currentSaveData.marketData.playerMoney;
+        market.ApplySavedOffers(currentSaveData.marketData.offers);
+    }
+
+    // Reflection helpers to avoid tight coupling with MarketManager's internal Offer type
+    private class OfferShim { public SCItem item; public int price; public int stock; }
+    private List<OfferShim> GetActiveOffers(MarketManager market)
+    {
+        try
+        {
+            var fi = typeof(MarketManager).GetField("_activeOffers", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var list = fi?.GetValue(market) as System.Collections.IEnumerable;
+            if (list == null) return null;
+            var result = new List<OfferShim>();
+            foreach (var it in list)
+            {
+                var t = it.GetType();
+                var item = t.GetField("item", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(it) as SCItem;
+                var price = (int)(t.GetField("price", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(it) ?? 0);
+                var stock = (int)(t.GetField("stock", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(it) ?? 0);
+                result.Add(new OfferShim { item = item, price = price, stock = stock });
+            }
+            return result;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"GetActiveOffers reflection failed: {e.Message}");
+            return null;
+        }
+    }
     
     private void RestoreSceneData()
     {
@@ -580,6 +670,9 @@ public class GameSaveManager : MonoBehaviour
         
         // Flask data'sını restore et (inventory'den sonra)
         Invoke(nameof(DelayedFlaskRestore), 0.3f);
+
+    // Market data'sını restore et (UI & camera hazırken)
+    Invoke(nameof(DelayedMarketRestore), 0.35f);
         
         Debug.Log("Scene data restoration completed");
     }
@@ -592,6 +685,11 @@ public class GameSaveManager : MonoBehaviour
     private void DelayedFlaskRestore()
     {
         RestoreFlaskData();
+    }
+
+    private void DelayedMarketRestore()
+    {
+        RestoreMarketData();
     }
     
     private void RestorePlayerData()

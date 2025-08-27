@@ -44,6 +44,7 @@ public class MarketManager : MonoBehaviour
     public Transform slotsRoot;
     [Tooltip("Opsiyonel: oyuncu parasını gösteren Text.")]
     public TextMeshProUGUI moneyText;
+        private int _lastMoneyShown = int.MinValue;
 
     [Header("Economy (Demo)")]
     [Tooltip("Oyuncu bakiyesi (demo). Kendi para sistemin varsa onunla değiştir.")]
@@ -69,6 +70,7 @@ public class MarketManager : MonoBehaviour
     private bool _inRange;
     private float _lastToggle;
     private Inventory _inventory;
+    private bool _offersRestoredFromSave = false;
 
     private class Offer
     {
@@ -86,6 +88,7 @@ public class MarketManager : MonoBehaviour
 
         if (marketPanel != null) marketPanel.SetActive(false);
         if (interactionHintUI != null) { interactionHintUI.SetActive(false); MakeNonBlocking(interactionHintUI); }
+        RefreshMoneyText(); // Para metnini başlangıçta güncelle
     }
 
     private void Update()
@@ -101,6 +104,11 @@ public class MarketManager : MonoBehaviour
         {
             ToggleMarket();
         }
+            // Market kapalıyken de para metnini güncel tut
+            if (_lastMoneyShown != playerMoney)
+            {
+                RefreshMoneyText();
+            }
     }
 
     private void HandleProximity()
@@ -139,7 +147,7 @@ public class MarketManager : MonoBehaviour
     {
         if (marketPanel == null) return;
         marketPanel.SetActive(true);
-        if (refreshOffersOnOpen || _activeOffers.Count == 0) GenerateOffers();
+    if (((refreshOffersOnOpen && !_offersRestoredFromSave)) || _activeOffers.Count == 0) GenerateOffers();
         BuildSlotUI();
         RefreshMoneyText();
         if (interactionHintUI != null) interactionHintUI.SetActive(false);
@@ -186,6 +194,9 @@ public class MarketManager : MonoBehaviour
                 stock = Mathf.Max(0, entry.initialStock)
             });
         }
+
+    // Artık rastgele üretildi, restore bayrağını sıfırla
+    _offersRestoredFromSave = false;
     }
 
     private void BuildSlotUI()
@@ -294,7 +305,8 @@ public class MarketManager : MonoBehaviour
 
     private void RefreshMoneyText()
     {
-        if (moneyText != null) moneyText.text = $"Para: {playerMoney}";
+        _lastMoneyShown = playerMoney;
+        if (moneyText != null) moneyText.text = $"Money: {playerMoney}";
     }
 
     private void MakeNonBlocking(GameObject go)
@@ -303,6 +315,66 @@ public class MarketManager : MonoBehaviour
         if (cg == null) cg = go.AddComponent<CanvasGroup>();
         cg.blocksRaycasts = false; cg.interactable = false;
         foreach (var g in go.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = false;
+    }
+
+    // SaveSystem entegrasyonu: dışarıdan kaydedilmiş teklifleri uygula
+    public void ApplySavedOffers(System.Collections.Generic.List<OfferSaveData> saved)
+    {
+        _activeOffers.Clear();
+        if (saved == null) { RefreshMoneyText(); return; }
+
+        foreach (var s in saved)
+        {
+            if (string.IsNullOrEmpty(s.itemName)) continue;
+            var item = FindItemByName(s.itemName);
+            if (item == null) continue;
+            // productPool'da metadata var ise kullan
+            ProductEntry meta = null;
+            if (productPool != null)
+                meta = productPool.Find(pe => pe != null && pe.item == item);
+            var display = (meta != null && !string.IsNullOrEmpty(meta.displayNameOverride)) ? meta.displayNameOverride : (string.IsNullOrEmpty(item.itemName) ? s.itemName : item.itemName);
+            var icon = meta != null ? meta.icon : null;
+            _activeOffers.Add(new Offer
+            {
+                item = item,
+                price = Mathf.Max(1, s.price),
+                displayName = display,
+                icon = icon,
+                stock = Mathf.Max(0, s.stock)
+            });
+        }
+
+        // UI’ı güncelle
+        if (marketPanel != null && marketPanel.activeSelf)
+        {
+            BuildSlotUI();
+            RefreshMoneyText();
+        }
+        else
+        {
+            // Panel kapalı olsa bile para metnini güncelle
+            RefreshMoneyText();
+        }
+
+    // Bir sonraki açılışta random generate’i bastır
+    _offersRestoredFromSave = _activeOffers.Count > 0;
+    }
+
+    private SCItem FindItemByName(string itemName)
+    {
+        // GameSaveManager’ın metodunu kullan
+        var gsm = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
+        var mi = typeof(GameSaveManager).GetMethod("FindItemByName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (gsm != null && mi != null)
+        {
+            return (SCItem)mi.Invoke(gsm, new object[] { itemName });
+        }
+        // Fallback: Resources’dan ara
+        foreach (var it in Resources.LoadAll<SCItem>(""))
+        {
+            if (it != null && it.itemName == itemName) return it;
+        }
+        return null;
     }
 }
 
