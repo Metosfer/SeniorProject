@@ -712,10 +712,13 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             var s = _plots[i];
             string prefix = $"Plot{i}.";
 
+            // Restore prepared state and visuals regardless of occupancy
+            s.isPrepared = GetBool(data, prefix + "prepared");
+            UpdateSoilPlaceVisual(i);
+
             bool occupied = GetBool(data, prefix + "occupied");
             if (!occupied) continue;
 
-            s.isPrepared = GetBool(data, prefix + "prepared");
             bool waiting = GetBool(data, prefix + "waiting");
             bool growing = GetBool(data, prefix + "growing");
             bool ready = GetBool(data, prefix + "ready");
@@ -1135,7 +1138,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
 
         // Require rake equipped
-            if (!IsRakeEquipped() || !HasAnyUnpreparedEmpty())
+        if (!IsRakeEquipped() || !HasAnyUnpreparedEmpty())
         {
             _inPrepareRangeSticky = false;
             if (preparePromptUI != null && preparePromptUI.activeSelf) preparePromptUI.SetActive(false);

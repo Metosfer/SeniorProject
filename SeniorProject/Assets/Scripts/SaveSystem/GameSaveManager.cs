@@ -523,11 +523,8 @@ public class GameSaveManager : MonoBehaviour
 
     private void SaveSceneObjects()
     {
-    // Remove only entries belonging to current scene (keep others)
-    var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-    currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
-        
-        // Collect all ISaveable components in the scene and group by GameObject
+        // Collect all ISaveable components first
+        var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
         var byObject = new Dictionary<GameObject, List<ISaveable>>();
         foreach (var comp in saveableComponents)
@@ -543,6 +540,7 @@ public class GameSaveManager : MonoBehaviour
             list.Add(comp);
         }
 
+        var newEntries = new List<SceneObjectSaveData>();
         foreach (var kvp in byObject)
         {
             var go = kvp.Key;
@@ -581,10 +579,20 @@ public class GameSaveManager : MonoBehaviour
                 }
             }
 
-            currentSaveData.sceneObjects.Add(sod);
+            newEntries.Add(sod);
         }
 
-    Debug.Log($"Scene objects saved via ISaveable: {currentSaveData.sceneObjects.Count}");
+        if (newEntries.Count > 0)
+        {
+            // Replace only if we actually found something; prevents wiping on scene unload
+            int removed = currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
+            currentSaveData.sceneObjects.AddRange(newEntries);
+            Debug.Log($"[SaveSceneObjects] Replaced {removed} entries for scene '{currentScene}' with {newEntries.Count} new entries. Total now: {currentSaveData.sceneObjects.Count}");
+        }
+        else
+        {
+            Debug.LogWarning($"[SaveSceneObjects] Found 0 ISaveable objects for scene '{currentScene}'. Keeping previous saved entries to avoid data loss.");
+        }
     }
 
     private void SaveMarketData()

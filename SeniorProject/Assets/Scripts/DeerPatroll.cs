@@ -376,14 +376,14 @@ public class DeerPatroll : MonoBehaviour
                         _agent.SetDestination(_targetPos);
                     }
                     
-                    Debug.Log($"Alternative route found at angle {angle}° to position {newTarget}");
+//                    Debug.Log($"Alternative route found at angle {angle}° to position {newTarget}");
                     return true;
                 }
             }
         }
         
         // Hiçbir alternatif bulunamadı
-        Debug.Log("No alternative route found");
+      //  Debug.Log("No alternative route found");
         return false;
     }
 
