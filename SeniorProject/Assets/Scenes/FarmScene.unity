@@ -3330,7 +3330,7 @@ GameObject:
   - component: {fileID: 214609180}
   - component: {fileID: 214609179}
   m_Layer: 0
-  m_Name: "SoilPla\u0441e (3)"
+  m_Name: "SoilPla\u0441e5"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10708,7 +10708,7 @@ GameObject:
   - component: {fileID: 836090274}
   - component: {fileID: 836090273}
   m_Layer: 0
-  m_Name: "SoilPla\u0441e (2)"
+  m_Name: "SoilPla\u0441e4"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -11102,7 +11102,7 @@ GameObject:
   - component: {fileID: 870631712}
   - component: {fileID: 870631711}
   m_Layer: 0
-  m_Name: "SoilPla\u0441e (4)"
+  m_Name: "SoilPla\u0441e3"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -22373,7 +22373,7 @@ GameObject:
   - component: {fileID: 1754486628}
   - component: {fileID: 1754486627}
   m_Layer: 0
-  m_Name: "SoilPla\u0441e (1)"
+  m_Name: "SoilPla\u0441e2"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -22911,7 +22911,7 @@ GameObject:
   - component: {fileID: 1785098037}
   - component: {fileID: 1785098036}
   m_Layer: 0
-  m_Name: "SoilPla\u0441e (5)"
+  m_Name: "SoilPla\u0441e1"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -28268,11 +28268,11 @@ Transform:
   - {fileID: 1776769860}
   - {fileID: 2029056113}
   - {fileID: 6535219787589121164}
+  - {fileID: 1785098038}
   - {fileID: 1754486626}
+  - {fileID: 870631710}
   - {fileID: 836090272}
   - {fileID: 214609178}
-  - {fileID: 870631710}
-  - {fileID: 1785098038}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: -85.01, y: -93.527, z: 92.022}
 --- !u!1 &742465745631942692
@@ -28516,6 +28516,11 @@ PrefabInstance:
         type: 3}
       propertyPath: groundLayer.m_Bits
       value: 128
+      objectReference: {fileID: 0}
+    - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
+        type: 3}
+      propertyPath: dropForwardDistance
+      value: 0.3
       objectReference: {fileID: 0}
     - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
         type: 3}
@@ -29259,11 +29264,11 @@ MonoBehaviour:
   - {fileID: 316443344}
   soilPlaceRoots:
   - {fileID: 5907055203125440054}
+  - {fileID: 1785098035}
   - {fileID: 1754486625}
+  - {fileID: 870631709}
   - {fileID: 836090271}
   - {fileID: 214609177}
-  - {fileID: 870631709}
-  - {fileID: 1785098035}
   unpreparedAlpha: 0.5
   preparedAlpha: 1
   autoAssignSoilPlace: 1

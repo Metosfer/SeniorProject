@@ -213,7 +213,7 @@ public class GameSaveManager : MonoBehaviour
     
     private void OnSceneUnloaded(Scene scene)
     {
-        Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}, auto-saving Flask and game data...");
+    Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}, auto-saving Flask and game data...");
         try
         {
             // Defensive: capture Flask state if its object is still alive
@@ -420,11 +420,11 @@ public class GameSaveManager : MonoBehaviour
                 plantData.isCollected = false;
                 
                 currentSaveData.plants.Add(plantData);
-                Debug.Log($"Saved plant: {plantData.itemName} at {plantData.position} with ID: {plantData.plantId}");
+//                Debug.Log($"Saved plant: {plantData.itemName} at {plantData.position} with ID: {plantData.plantId}");
             }
         }
         
-        Debug.Log($"Total plants in current scene: {plants.Length}, Total plants saved across all scenes: {currentSaveData.plants.Count}");
+   //     Debug.Log($"Total plants in current scene: {plants.Length}, Total plants saved across all scenes: {currentSaveData.plants.Count}");
     }
     
     private void SaveInventoryData()
@@ -555,6 +555,13 @@ public class GameSaveManager : MonoBehaviour
             sod.scale = go.transform.localScale;
             sod.sceneName = currentScene;
 
+            bool isHarrow = go.GetComponent<HarrowManager>() != null;
+            bool isFarming = go.GetComponent<FarmingAreaManager>() != null;
+            if (isHarrow || isFarming)
+            {
+                Debug.Log($"[SaveSceneObjects] {go.name} -> id={sod.objectId}, pos={sod.position}, comps={string.Join(",", comps.Select(c=>c.GetType().Name))}");
+            }
+
             foreach (var comp in comps)
             {
                 var typeName = comp.GetType().Name;
@@ -577,7 +584,7 @@ public class GameSaveManager : MonoBehaviour
             currentSaveData.sceneObjects.Add(sod);
         }
 
-        Debug.Log($"Scene objects saved via ISaveable: {currentSaveData.sceneObjects.Count}");
+    Debug.Log($"Scene objects saved via ISaveable: {currentSaveData.sceneObjects.Count}");
     }
 
     private void SaveMarketData()
@@ -666,7 +673,7 @@ public class GameSaveManager : MonoBehaviour
         // World item'ları restore et
         RestoreWorldItems();
         
-        // Scene object'leri restore et (FarmingAreaManager gibi ISaveable'lar önce kendi durumunu kursun)
+    // Scene object'leri restore et (FarmingAreaManager/HarrowManager gibi ISaveable'lar önce kendi durumunu kursun)
         RestoreSceneObjects();
         
         // Plant'ları en son restore et; böylece sahnede mevcut bitkileri görüp tekrar oluşturmayız
@@ -681,7 +688,19 @@ public class GameSaveManager : MonoBehaviour
     // Market data'sını restore et (UI & camera hazırken)
     Invoke(nameof(DelayedMarketRestore), 0.35f);
         
+        // Bazı renderer'lar için MPB uygulaması ilk frame'de gecikebilir; görselleri nudge et
+        Invoke(nameof(PostRestoreNudge), 0.1f);
         Debug.Log("Scene data restoration completed");
+    }
+
+    private void PostRestoreNudge()
+    {
+        // Soil görsellerini tekrar tetikleyelim
+        foreach (var fam in FindObjectsOfType<FarmingAreaManager>())
+        {
+            var mi = typeof(FarmingAreaManager).GetMethod("UpdateAllSoilPlaceVisuals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            try { mi?.Invoke(fam, null); } catch {}
+        }
     }
     
     private void DelayedInventoryRestore()
@@ -1074,6 +1093,8 @@ public class GameSaveManager : MonoBehaviour
 
     private void RestoreSceneObjects()
     {
+        Debug.Log($"[RestoreSceneObjects] Starting restoration for scene: {UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
+        
         // Index saved scene-objects by objectId for quick lookup (only for current scene)
         var map = new Dictionary<string, SceneObjectSaveData>();
         var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -1083,7 +1104,10 @@ public class GameSaveManager : MonoBehaviour
             // Legacy entries may have empty sceneName; accept them for any scene
             if (!string.IsNullOrEmpty(sod.sceneName) && sod.sceneName != currentScene) continue;
             map[sod.objectId] = sod;
+            Debug.Log($"[RestoreSceneObjects] Indexed saved object: {sod.objectId} at {sod.position}");
         }
+
+        Debug.Log($"[RestoreSceneObjects] Found {map.Count} saved objects for current scene");
 
         // Group live ISaveable components by GameObject (mirror save-time grouping)
         var liveComps = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>();
@@ -1100,6 +1124,8 @@ public class GameSaveManager : MonoBehaviour
             }
             list.Add(comp);
         }
+        
+        Debug.Log($"[RestoreSceneObjects] Found {byObject.Count} live GameObjects with ISaveable components");
 
         // Track which saved entries were applied
         var usedSaved = new HashSet<string>();
@@ -1115,6 +1141,10 @@ public class GameSaveManager : MonoBehaviour
             if (!string.IsNullOrEmpty(objectId) && map.TryGetValue(objectId, out sod))
             {
                 usedSaved.Add(objectId);
+                if (go.GetComponent<HarrowManager>() != null || go.GetComponent<FarmingAreaManager>() != null)
+                {
+                    Debug.Log($"[RestoreSceneObjects] direct match for {go.name} id={objectId} at savedPos={(sod!=null?sod.position:Vector3.zero)}");
+                }
             }
             else
             {
@@ -1164,7 +1194,7 @@ public class GameSaveManager : MonoBehaviour
                     {
                         if (kv.Value == sod) { usedSaved.Add(kv.Key); break; }
                     }
-                    Debug.Log($"RestoreSceneObjects: Fallback matched '{go.name}' by proximity.");
+                    Debug.Log($"RestoreSceneObjects: Fallback matched '{go.name}' by proximity (id={objectId} ~ savedPos={sod.position}).");
                 }
                 else
                 {
@@ -1174,6 +1204,10 @@ public class GameSaveManager : MonoBehaviour
 
             // Apply saved transform once per object
             ApplyTransform(go.transform, sod.position, sod.rotation, sod.scale);
+            if (go.GetComponent<HarrowManager>() != null || go.GetComponent<FarmingAreaManager>() != null)
+            {
+                Debug.Log($"[RestoreSceneObjects] applied transform to {go.name}: pos={sod.position}, rot={sod.rotation}");
+            }
 
             // Dispatch component-specific data
             foreach (var comp in comps)
@@ -1187,7 +1221,10 @@ public class GameSaveManager : MonoBehaviour
                     string shortKey = key.Substring(typeName.Length + 1);
                     dict[shortKey] = sod.componentDataValues[i];
                 }
-                try { comp.LoadSaveData(dict); }
+                try { 
+                    Debug.Log($"[GameSaveManager] Calling LoadSaveData on {typeName} for {go.name}");
+                    comp.LoadSaveData(dict); 
+                }
                 catch (Exception ex)
                 {
                     Debug.LogError($"Load error in {typeName} on {go.name}: {ex.Message}");
