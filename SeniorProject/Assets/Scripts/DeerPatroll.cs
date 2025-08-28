@@ -441,11 +441,11 @@ public class DeerPatroll : MonoBehaviour
                 validPos = navHit.position;
             }
             
-            Debug.Log($"Valid position found: {validPos}");
+//            Debug.Log($"Valid position found: {validPos}");
             return true;
         }
         
-        Debug.Log($"No valid ground found for direction {direction}");
+       // Debug.Log($"No valid ground found for direction {direction}");
         validPos = Vector3.zero;
         return false;
     }

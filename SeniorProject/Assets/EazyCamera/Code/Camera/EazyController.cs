@@ -12,6 +12,9 @@ namespace EazyCamera
     public class EazyController : MonoBehaviour
     {
         [SerializeField] private EazyCam _controlledCamera = null;
+    [Header("Input Options")]
+    [Tooltip("Sadece sağ tık basılıyken kamerayı fare ile döndür")] 
+    [SerializeField] private bool _rotateOnlyWhileRightMouse = false;
 
         private void Start()
         {
@@ -76,7 +79,18 @@ namespace EazyCamera
 
         public void HandleInput(float dt)
         {
-            _controlledCamera.IncreaseRotation(_rotation.x, _rotation.y, dt);
+            Vector2 rot = _rotation;
+            if (_rotateOnlyWhileRightMouse)
+            {
+#if ENABLE_INPUT_SYSTEM
+                // If a mouse is present, require RMB to be pressed to rotate
+                if (UnityEngine.InputSystem.Mouse.current != null && !UnityEngine.InputSystem.Mouse.current.rightButton.isPressed)
+                {
+                    rot = Vector2.zero;
+                }
+#endif
+            }
+            _controlledCamera.IncreaseRotation(rot.x, rot.y, dt);
             
         }
 
@@ -184,9 +198,13 @@ namespace EazyCamera
                 _controlledCamera.IncreaseZoomDistance(scrollDelta, dt);
             }
 
-            float horz = Input.GetAxis(Util.MouseX);
-            float vert = Input.GetAxis(Util.MouseY);
-            _controlledCamera.IncreaseRotation(horz, vert, dt);
+            // Rotate only if RMB pressed when the option is enabled
+            if (!_rotateOnlyWhileRightMouse || Input.GetMouseButton(1))
+            {
+                float horz = Input.GetAxis(Util.MouseX);
+                float vert = Input.GetAxis(Util.MouseY);
+                _controlledCamera.IncreaseRotation(horz, vert, dt);
+            }
 
             if (Input.GetKeyDown(KeyCode.R))
             {
