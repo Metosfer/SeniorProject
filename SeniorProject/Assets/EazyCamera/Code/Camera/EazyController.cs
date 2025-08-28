@@ -15,6 +15,24 @@ namespace EazyCamera
     [Header("Input Options")]
     [Tooltip("Sadece sağ tık basılıyken kamerayı fare ile döndür")] 
     [SerializeField] private bool _rotateOnlyWhileRightMouse = false;
+    [Tooltip("Sağ tık ile döndürürken özel imleç göster")] 
+    [SerializeField] private bool _changeCursorWhileRotating = true;
+    [Tooltip("Döndürme sırasında gösterilecek imleç görseli (opsiyonel)")] 
+    [SerializeField] private Texture2D _rotateCursor = null;
+    [SerializeField] private Vector2 _rotateCursorHotspot = new Vector2(8,8);
+    [SerializeField] private CursorMode _rotateCursorMode = CursorMode.Auto;
+    [Header("Cursor Sizing")]
+    [Tooltip("İmleci hedef boyuta yeniden ölçekle")] 
+    [SerializeField] private bool _resizeRotateCursor = false;
+    [Tooltip("Hedef imleç boyutu (px)")] 
+    [SerializeField] private int _rotateCursorSize = 32;
+    [Tooltip("Ekran DPI değerine göre otomatik boyutlandır")] 
+    [SerializeField] private bool _autoAdjustRotateCursorForDPI = true;
+
+    private bool _cursorOwned = false;
+    private Texture2D _scaledRotateCursor = null;
+    private Vector2 _scaledRotateCursorHotspot = Vector2.zero;
+    private bool _cursorDirty = true;
 
         private void Start()
         {
@@ -80,16 +98,19 @@ namespace EazyCamera
         public void HandleInput(float dt)
         {
             Vector2 rot = _rotation;
+            bool rmb = false;
             if (_rotateOnlyWhileRightMouse)
             {
 #if ENABLE_INPUT_SYSTEM
                 // If a mouse is present, require RMB to be pressed to rotate
-                if (UnityEngine.InputSystem.Mouse.current != null && !UnityEngine.InputSystem.Mouse.current.rightButton.isPressed)
+                if (UnityEngine.InputSystem.Mouse.current != null)
                 {
-                    rot = Vector2.zero;
+                    rmb = UnityEngine.InputSystem.Mouse.current.rightButton.isPressed;
+                    if (!rmb) rot = Vector2.zero;
                 }
 #endif
             }
+            UpdateRotateCursorState(active: _rotateOnlyWhileRightMouse && _changeCursorWhileRotating && rmb);
             _controlledCamera.IncreaseRotation(rot.x, rot.y, dt);
             
         }
@@ -199,7 +220,9 @@ namespace EazyCamera
             }
 
             // Rotate only if RMB pressed when the option is enabled
-            if (!_rotateOnlyWhileRightMouse || Input.GetMouseButton(1))
+            bool rotatingNow = !_rotateOnlyWhileRightMouse || Input.GetMouseButton(1);
+            UpdateRotateCursorState(active: _rotateOnlyWhileRightMouse && _changeCursorWhileRotating && Input.GetMouseButton(1));
+            if (rotatingNow)
             {
                 float horz = Input.GetAxis(Util.MouseX);
                 float vert = Input.GetAxis(Util.MouseY);
@@ -237,6 +260,99 @@ namespace EazyCamera
             }
         }
 #endif // ENABLE_INPUT_SYSTEM
+
+        private void UpdateRotateCursorState(bool active)
+        {
+            if (!_changeCursorWhileRotating) return;
+            if (active)
+            {
+                if (!_cursorOwned)
+                {
+                    EnsureScaledRotateCursor();
+                    var tex = _scaledRotateCursor != null ? _scaledRotateCursor : _rotateCursor;
+                    var hs = _scaledRotateCursor != null ? _scaledRotateCursorHotspot : _rotateCursorHotspot;
+                    Cursor.SetCursor(tex, hs, _rotateCursorMode);
+                    _cursorOwned = true;
+                }
+            }
+            else if (_cursorOwned)
+            {
+                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                _cursorOwned = false;
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (_cursorOwned)
+            {
+                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                _cursorOwned = false;
+            }
+            if (_scaledRotateCursor != null)
+            {
+                Destroy(_scaledRotateCursor);
+                _scaledRotateCursor = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_cursorOwned)
+            {
+                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                _cursorOwned = false;
+            }
+            if (_scaledRotateCursor != null)
+            {
+                Destroy(_scaledRotateCursor);
+                _scaledRotateCursor = null;
+            }
+        }
+
+        private void EnsureScaledRotateCursor()
+        {
+            if (!_resizeRotateCursor || _rotateCursor == null)
+            {
+                if (_scaledRotateCursor != null)
+                {
+                    Destroy(_scaledRotateCursor);
+                    _scaledRotateCursor = null;
+                }
+                return;
+            }
+            if (!_cursorDirty && _scaledRotateCursor != null) return;
+
+            int target = Mathf.Clamp(_rotateCursorSize, 8, 256);
+            float dpi = Screen.dpi;
+            if (_autoAdjustRotateCursorForDPI && dpi > 1f)
+            {
+                float scale = dpi / 96f;
+                target = Mathf.Clamp(Mathf.RoundToInt(target * scale), 8, 256);
+            }
+            int srcW = _rotateCursor.width;
+            int srcH = _rotateCursor.height;
+            int maxSrc = Mathf.Max(srcW, srcH);
+            float scaleF = maxSrc > 0 ? (float)target / maxSrc : 1f;
+            int dstW = Mathf.Max(8, Mathf.RoundToInt(srcW * scaleF));
+            int dstH = Mathf.Max(8, Mathf.RoundToInt(srcH * scaleF));
+
+            var rt = RenderTexture.GetTemporary(dstW, dstH, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var prev = RenderTexture.active;
+            Graphics.Blit(_rotateCursor, rt);
+            RenderTexture.active = rt;
+            var tex = new Texture2D(dstW, dstH, TextureFormat.RGBA32, false, false);
+            tex.ReadPixels(new Rect(0, 0, dstW, dstH), 0, 0);
+            tex.Apply();
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+            tex.filterMode = FilterMode.Bilinear;
+
+            if (_scaledRotateCursor != null) Destroy(_scaledRotateCursor);
+            _scaledRotateCursor = tex;
+            _scaledRotateCursorHotspot = _rotateCursorHotspot * scaleF;
+            _cursorDirty = false;
+        }
     }
 
 

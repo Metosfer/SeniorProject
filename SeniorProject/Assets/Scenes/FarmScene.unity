@@ -1390,6 +1390,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
+      propertyPath: _rotateCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: 0b38b1a387c2848b88743ac1e6c60fed, type: 3}
+    - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
+        type: 3}
+      propertyPath: _rotateCursorSize
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
+        type: 3}
       propertyPath: _rotateOnlyWhileRightMouse
       value: 1
       objectReference: {fileID: 0}
@@ -1403,6 +1413,11 @@ PrefabInstance:
       propertyPath: _followTarget
       value: 
       objectReference: {fileID: 7949885079087181006}
+    - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
+        type: 3}
+      propertyPath: _settings.InvertX
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _settings.InvertY
@@ -1456,7 +1471,7 @@ PrefabInstance:
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _settings.MouseSensitivity
-      value: 5
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
@@ -3017,9 +3032,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 192306706}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a26740c2194eed945ba187605621bbd3, type: 3}
+  m_Script: {fileID: 11500000, guid: a644b6c92b7661c4fa92ff634794adc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerInventory: {fileID: 11400000, guid: 54c9b72cc0309254d8d3164d828e1423, type: 2}
 --- !u!4 &192306708
 Transform:
   m_ObjectHideFlags: 0
@@ -12927,6 +12943,12 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -1515144191993293674, guid: 90b7dbfa676224645893a8304ec03868, type: 3}
+--- !u!4 &1000690199 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
+    type: 3}
+  m_PrefabInstance: {fileID: 1105213190}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1004356745
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14226,22 +14248,32 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 0}
+    m_TransformParent: {fileID: 1271404139}
     m_Modifications:
     - target: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
         type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.15147004
+      objectReference: {fileID: 0}
+    - target: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
+        type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.15147004
+      objectReference: {fileID: 0}
+    - target: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
+        type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.11008465
+      value: -5.007922
       objectReference: {fileID: 0}
     - target: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.093
+      value: -2.547
       objectReference: {fileID: 0}
     - target: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -2.82
+      value: -2.327365
       objectReference: {fileID: 0}
     - target: {fileID: 4820484427332901409, guid: 0b7b3e48ba72f440ba872b02535e49cd,
         type: 3}
@@ -15867,6 +15899,7 @@ Transform:
   - {fileID: 543450651900963611}
   - {fileID: 124086711}
   - {fileID: 110325526}
+  - {fileID: 1000690199}
   m_Father: {fileID: 1075961542}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1288322104
@@ -30680,4 +30713,3 @@ SceneRoots:
   - {fileID: 1376024549}
   - {fileID: 243867255}
   - {fileID: 1075961542}
-  - {fileID: 1105213190}
