@@ -1388,6 +1388,11 @@ PrefabInstance:
       propertyPath: m_RendererIndex
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
+        type: 3}
+      propertyPath: _rotateOnlyWhileRightMouse
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_Enabled
@@ -1451,7 +1456,7 @@ PrefabInstance:
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _settings.MouseSensitivity
-      value: 4
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
