@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -15,6 +16,16 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Header("Planting Spots")]
     [Tooltip("Planting points (empty GameObjects). The first free slot is chosen.")]
     public List<Transform> plotPoints = new List<Transform>();
+
+    [Header("Soil Visuals")]
+    [Tooltip("Her plot için SoilPlace kök objesi (Renderer/SpriteRenderer içerebilir)")]
+    public List<GameObject> soilPlaceRoots = new List<GameObject>();
+    [Range(0f,1f)] public float unpreparedAlpha = 0.5f;
+    [Range(0f,1f)] public float preparedAlpha = 1.0f;
+    [Header("Soil Auto-Assign")]
+    [Tooltip("Inspector listesi boş/eksikse SoilPlace köklerini otomatik doldur")] public bool autoAssignSoilPlace = true;
+    [Tooltip("Soil araması için kök (boşsa bu GameObject altında aranır)")] public Transform soilSearchRoot;
+    [Tooltip("İsim filtrelemesi (içeriyorsa önceliklendir)")] public string soilNameContains = "Soil";
 
     [Header("Visuals & Feedback")]
     [Tooltip("Optional small marker prefab shown when planting (seed mark).")]
@@ -58,6 +69,14 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Tooltip("Optional VFX when watering starts.")]
     public GameObject wateringVFX;
 
+    [Header("Preparation (Rake / Harrow)")]
+    [Tooltip("Key to prepare (harrow) empty plots when in range with rake equipped.")]
+    public KeyCode prepareKey = KeyCode.E;
+    [Tooltip("Max distance from player to allow preparing (harrowing) plots.")]
+    public float prepareRange = 2.5f;
+    [Tooltip("Optional UI prompt to show when preparing is possible (e.g., 'Press E to prepare')")] 
+    public GameObject preparePromptUI;
+
     [Header("Status Formatting (Detailed)")]
     [Tooltip("If true, use extended detailed status including waiting.")]
     public bool useWateringAwareStatus = true;
@@ -84,10 +103,17 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     private const float INPUT_GRACE_WINDOW = 0.2f;
     private float _lastPromptStateChangeTime;
     private float _pendingWaterPressUntil;
+    // Preparation prompt state
+    private float _lastPrepareUIUpdateTime;
+    private bool _inPrepareRangeSticky;
+    private bool _lastPreparePromptState;
+    private float _lastPreparePromptStateChangeTime;
+    private float _pendingPreparePressUntil;
 
     private void Awake()
     {
-        SyncPlotStatesWithPoints();
+    SyncPlotStatesWithPoints();
+    TryAutoAssignSoilPlaceRoots();
         UpdateStatusText();
         // Ensure prompts/VFX start disabled to avoid lingering after load
         if (wateringPromptUI != null && wateringPromptUI.activeSelf)
@@ -96,16 +122,27 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             wateringVFX.SetActive(false);
 
     }
-
+    
     private void OnValidate()
     {
-        SyncPlotStatesWithPoints();
+    SyncPlotStatesWithPoints();
+    TryAutoAssignSoilPlaceRoots();
     }
 
     private void Update()
     {
-        // Watering prompt + input handling (integrates with BucketManager)
-        UpdateWateringPromptAndHandleInput();
+        // Suppress all interactions if a modal (e.g., Market) is open
+        if (MarketManager.IsAnyOpen)
+        {
+            if (wateringPromptUI != null && wateringPromptUI.activeSelf) wateringPromptUI.SetActive(false);
+            if (preparePromptUI != null && preparePromptUI.activeSelf) preparePromptUI.SetActive(false);
+            return;
+        }
+
+    // Watering prompt + input handling (integrates with BucketManager)
+    UpdateWateringPromptAndHandleInput();
+    // Preparation prompt + input handling (integrates with HarrowManager)
+    UpdatePreparePromptAndHandleInput();
     }
 
     private void SyncPlotStatesWithPoints()
@@ -123,6 +160,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             _plots.Clear();
             _plots.AddRange(newList);
         }
+        // SoilPlace görsellerini senkronize et
+        UpdateAllSoilPlaceVisuals();
     }
 
     // DragAndDropHandler calls this directly; also works via IDropHandler if this is a UI target
@@ -150,7 +189,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             return;
         }
 
-        bool planted = TryPlantAtPlot(freeIndex, item, inventory, slotIndex);
+    bool planted = TryPlantAtPlot(freeIndex, item, inventory, slotIndex);
         if (!planted)
         {
             Debug.LogWarning("FarmingArea: Planting failed.");
@@ -162,6 +201,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         if (plotIndex < 0 || plotIndex >= plotPoints.Count) return false;
         var state = _plots[plotIndex];
         if (state.isOccupied) return false;
+        // Require prepared plot before planting
+        if (!state.isPrepared)
+        {
+            Debug.Log("FarmingArea: Plot is not prepared. Use rake to prepare before planting.");
+            return false;
+        }
 
         Transform point = plotPoints[plotIndex];
         if (point == null) return false;
@@ -293,7 +338,10 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             state.seedMarkerInstance = null;
         }
         state.Reset();
-        UpdateStatusText();
+    // After harvesting, require re-preparation
+    state.isPrepared = false;
+        UpdateSoilPlaceVisual(plotIndex);
+    UpdateStatusText();
     }
 
     private int GetBestFreePlotIndex(Vector3? worldHint)
@@ -379,6 +427,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [System.Serializable]
     private class PlotState
     {
+    public bool isPrepared; // Must be true to allow planting
         public bool isOccupied;
         public bool requiresWater;
         public bool isGrowing;
@@ -394,6 +443,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
         public void Reset()
         {
+            // Do not clear isPrepared here; harvest will explicitly clear it
             isOccupied = false;
             requiresWater = false;
             isGrowing = false;
@@ -401,17 +451,17 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             currentSeed = null;
             if (seedMarkerInstance != null)
             {
-                Object.Destroy(seedMarkerInstance);
+                Destroy(seedMarkerInstance);
                 seedMarkerInstance = null;
             }
             if (grownInstance != null)
             {
-                Object.Destroy(grownInstance);
+                Destroy(grownInstance);
                 grownInstance = null;
             }
             if (countdownInstance != null)
             {
-                Object.Destroy(countdownInstance);
+                Destroy(countdownInstance);
                 countdownInstance = null;
             }
             countdownTMP = null;
@@ -625,6 +675,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             var s = _plots[i];
             if (s == null) continue;
             string prefix = $"Plot{i}.";
+            data[prefix + "prepared"] = s.isPrepared;
             data[prefix + "occupied"] = s.isOccupied;
             data[prefix + "waiting"] = s.isOccupied && !s.isGrowing && s.grownInstance == null;
             data[prefix + "growing"] = s.isGrowing;
@@ -664,6 +715,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             bool occupied = GetBool(data, prefix + "occupied");
             if (!occupied) continue;
 
+            s.isPrepared = GetBool(data, prefix + "prepared");
             bool waiting = GetBool(data, prefix + "waiting");
             bool growing = GetBool(data, prefix + "growing");
             bool ready = GetBool(data, prefix + "ready");
@@ -814,6 +866,117 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
     }
 
+    // ------- SoilPlace visuals -------
+    private void UpdateAllSoilPlaceVisuals()
+    {
+        int n = _plots != null ? _plots.Count : 0;
+        for (int i = 0; i < n; i++) UpdateSoilPlaceVisual(i);
+    }
+
+    private void UpdateSoilPlaceVisual(int index)
+    {
+        if (soilPlaceRoots == null) return;
+        if (index < 0 || index >= soilPlaceRoots.Count) return;
+        var root = soilPlaceRoots[index];
+        if (root == null) return;
+        float a = 0.5f;
+        if (index < _plots.Count && _plots[index] != null)
+        {
+            a = _plots[index].isPrepared ? preparedAlpha : unpreparedAlpha;
+        }
+        ApplyAlphaToRoot(root, a);
+    }
+
+    private static void ApplyAlphaToRoot(GameObject root, float a)
+    {
+        // SpriteRenderer: component-level color değişimi (materyali değiştirmez)
+        var sr = root.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            var c = sr.color; c.a = a; sr.color = c;
+        }
+
+        // Mesh/Skinned renderers: MaterialPropertyBlock ile sadece renk alfa değeri
+        var rends = root.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < rends.Length; i++)
+        {
+            var r = rends[i]; if (r == null) continue;
+            var sharedMats = r.sharedMaterials; if (sharedMats == null || sharedMats.Length == 0) continue;
+
+            // Baz renk ve property ismi tespiti (yalnızca sharedMaterial'dan okuma; materyali instantiate etmeyiz)
+            string colorProp = null;
+            Color baseCol = Color.white;
+            var refMat = sharedMats[0];
+            if (refMat != null)
+            {
+                if (refMat.HasProperty("_BaseColor")) { colorProp = "_BaseColor"; baseCol = refMat.GetColor("_BaseColor"); }
+                else if (refMat.HasProperty("_Color")) { colorProp = "_Color"; baseCol = refMat.color; }
+            }
+            if (string.IsNullOrEmpty(colorProp)) continue;
+
+            var mpb = new MaterialPropertyBlock();
+            // Not: aynı MPB'yi tüm indexler için kullanıp set etmek yeterli
+            var newCol = new Color(baseCol.r, baseCol.g, baseCol.b, a);
+            mpb.SetColor(colorProp, newCol);
+
+            // Tüm materyal indexleri için uygula
+            for (int mi = 0; mi < sharedMats.Length; mi++)
+            {
+                r.SetPropertyBlock(mpb, mi);
+            }
+        }
+    }
+
+    // ------- Soil auto-assign helpers -------
+    private void TryAutoAssignSoilPlaceRoots()
+    {
+        if (!autoAssignSoilPlace) return;
+        int plots = plotPoints != null ? plotPoints.Count : 0;
+        if (plots == 0) return;
+        if (soilPlaceRoots != null && soilPlaceRoots.Count == plots && soilPlaceRoots.TrueForAll(go => go != null)) return;
+
+        var root = soilSearchRoot != null ? soilSearchRoot : transform;
+        var candidates = new List<GameObject>();
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t == null || t == root) continue;
+            if (plotPoints != null && plotPoints.Contains(t)) continue; // skip plot points themselves
+            bool hasRenderer = t.GetComponentInChildren<Renderer>(true) != null || t.GetComponent<SpriteRenderer>() != null;
+            if (!hasRenderer) continue;
+            candidates.Add(t.gameObject);
+        }
+        if (!string.IsNullOrEmpty(soilNameContains))
+        {
+            candidates.Sort((a,b) =>
+            {
+                bool am = a != null && a.name.IndexOf(soilNameContains, StringComparison.OrdinalIgnoreCase) >= 0;
+                bool bm = b != null && b.name.IndexOf(soilNameContains, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (am == bm) return 0; return am ? -1 : 1;
+            });
+        }
+
+        var assigned = new List<GameObject>(new GameObject[plots]);
+        var used = new HashSet<GameObject>();
+        for (int i = 0; i < plots; i++)
+        {
+            var p = plotPoints[i]; if (p == null) continue;
+            float best = float.MaxValue; GameObject bestGo = null;
+            for (int c = 0; c < candidates.Count; c++)
+            {
+                var go = candidates[c]; if (go == null || used.Contains(go)) continue;
+                float d = (go.transform.position - p.position).sqrMagnitude;
+                if (d < best)
+                {
+                    best = d; bestGo = go;
+                }
+            }
+            assigned[i] = bestGo;
+            if (bestGo != null) used.Add(bestGo);
+        }
+        soilPlaceRoots = assigned;
+        UpdateAllSoilPlaceVisuals();
+    }
+
     // ------- Watering logic -------
     private bool HasAnyWaiting()
     {
@@ -827,6 +990,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
     private void UpdateWateringPromptAndHandleInput()
     {
+        // If a modal is open, handled in Update() already, but guard again
+        if (MarketManager.IsAnyOpen)
+        {
+            if (wateringPromptUI != null && wateringPromptUI.activeSelf) wateringPromptUI.SetActive(false);
+            return;
+        }
         // Get carried bucket (if any)
         var bucket = BucketManager.CurrentCarried;
         bool baseCanWater = bucket != null && bucket.IsCarried && bucket.IsFilled && HasAnyWaiting();
@@ -919,6 +1088,152 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
     }
 
+    // ------- Preparation logic (Rake/Harrow) -------
+    private bool HasAnyUnpreparedEmpty()
+    {
+        for (int i = 0; i < _plots.Count; i++)
+        {
+            var s = _plots[i];
+            if (s == null) continue;
+            if (!s.isOccupied && !s.isPrepared) return true;
+        }
+        return false;
+    }
+
+    private int FindNearestUnpreparedEmptyInRange(Transform player, float range)
+    {
+        if (player == null) return -1;
+        float best = range * range;
+        int bestIdx = -1;
+        for (int i = 0; i < plotPoints.Count; i++)
+        {
+            var p = plotPoints[i];
+            var s = (i < _plots.Count) ? _plots[i] : null;
+            if (p == null || s == null) continue;
+            if (s.isOccupied || s.isPrepared) continue;
+            Vector3 a = new Vector3(player.position.x, 0f, player.position.z);
+            Vector3 b = new Vector3(p.position.x, 0f, p.position.z);
+            float sqr = (a - b).sqrMagnitude;
+            if (sqr <= best)
+            {
+                best = sqr;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    }
+
+    private void UpdatePreparePromptAndHandleInput()
+    {
+        // If watering is possible and bucket is filled, prioritize watering prompt over prepare
+        var bucket = BucketManager.CurrentCarried;
+        bool canWater = bucket != null && bucket.IsCarried && bucket.IsFilled && HasAnyWaiting();
+        if (canWater)
+        {
+            if (preparePromptUI != null && preparePromptUI.activeSelf) preparePromptUI.SetActive(false);
+            return;
+        }
+
+        // Require rake equipped
+            if (!IsRakeEquipped() || !HasAnyUnpreparedEmpty())
+        {
+            _inPrepareRangeSticky = false;
+            if (preparePromptUI != null && preparePromptUI.activeSelf) preparePromptUI.SetActive(false);
+            return;
+        }
+
+        // Buffer input so a quick flicker won't drop the press
+        if (Input.GetKeyDown(prepareKey))
+        {
+            _pendingPreparePressUntil = Time.unscaledTime + INPUT_GRACE_WINDOW;
+        }
+
+        // Use player position; try to get from bucket.player else by tag
+        Transform player = bucket != null && bucket.player != null ? bucket.player : (GameObject.FindGameObjectWithTag("Player")?.transform);
+        float baseRange = Mathf.Max(0.1f, prepareRange);
+
+        // Throttle prompt updates
+        float currentTime = Time.unscaledTime;
+        bool timeToUpdate = currentTime - _lastPrepareUIUpdateTime >= UI_UPDATE_INTERVAL;
+        float enter = baseRange + RANGE_HYSTERESIS;
+        float exit = baseRange - RANGE_HYSTERESIS;
+
+        // Choose nearest candidate and decide if in range
+        int nearestIdx = FindNearestUnpreparedEmptyInRange(player, enter);
+        bool desiredShow = nearestIdx >= 0;
+
+        // Sticky in-range by measuring distance at center -> nearest plot point
+        if (!_inPrepareRangeSticky)
+        {
+            _inPrepareRangeSticky = desiredShow;
+        }
+        else
+        {
+            // If we were in range, only drop if nothing within the tighter exit range
+            int idxExit = FindNearestUnpreparedEmptyInRange(player, exit);
+            _inPrepareRangeSticky = idxExit >= 0;
+        }
+
+        bool finalShow = _inPrepareRangeSticky;
+
+        if (timeToUpdate)
+        {
+            _lastPrepareUIUpdateTime = currentTime;
+            if (preparePromptUI != null)
+            {
+                bool target = finalShow;
+                float since = currentTime - _lastPreparePromptStateChangeTime;
+                if (_lastPreparePromptState && !target && since < PROMPT_MIN_ON_DURATION)
+                {
+                    target = true;
+                }
+                else if (!_lastPreparePromptState && target && since < PROMPT_MIN_OFF_DURATION)
+                {
+                    target = false;
+                }
+                if (preparePromptUI.activeSelf != target)
+                {
+                    preparePromptUI.SetActive(target);
+                    _lastPreparePromptState = target;
+                    _lastPreparePromptStateChangeTime = currentTime;
+                }
+            }
+        }
+        else
+        {
+            if (preparePromptUI != null && preparePromptUI.activeSelf != _lastPreparePromptState)
+            {
+                preparePromptUI.SetActive(_lastPreparePromptState);
+            }
+        }
+
+        // Handle input with grace window
+        if (_lastPreparePromptState || finalShow)
+        {
+            if (Time.unscaledTime <= _pendingPreparePressUntil)
+            {
+                _pendingPreparePressUntil = 0f;
+                if (nearestIdx >= 0)
+                {
+                    PreparePlot(nearestIdx);
+                }
+            }
+        }
+    }
+
+    public bool PreparePlot(int plotIndex)
+    {
+        if (plotIndex < 0 || plotIndex >= _plots.Count) return false;
+        var s = _plots[plotIndex];
+        if (s == null) return false;
+        if (s.isOccupied || s.isPrepared) return false;
+        s.isPrepared = true;
+        // Optional small feedback: reuse marker if desired; keeping it simple for now
+    UpdateSoilPlaceVisual(plotIndex);
+    UpdateStatusText();
+        return true;
+    }
+
     private int WaterAllWaiting(BucketManager bucket)
     {
         int count = 0;
@@ -1009,5 +1324,14 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             catch { }
         }
         catch { }
+    }
+
+    private static bool IsRakeEquipped()
+    {
+        var t = System.Type.GetType("HarrowManager");
+        if (t == null) return false;
+        var prop = t.GetProperty("IsEquipped", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        if (prop == null) return false;
+        try { return (bool)prop.GetValue(null); } catch { return false; }
     }
 }

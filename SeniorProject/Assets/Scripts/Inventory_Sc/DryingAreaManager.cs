@@ -9,6 +9,8 @@ public class DryingAreaManager : MonoBehaviour
     public float interactionRange = 3f;
     public KeyCode interactionKey = KeyCode.T   ;
     public GameObject interactionUI; // "Press T to open drying area" UI
+    [Tooltip("UI titremesini önlemek için çıkış eşiği (histerezis). İçeri giriş: interactionRange, dışarı çıkış: interactionRange + bu değer")]
+    public float rangeHysteresis = 0.3f;
 
     [Header("UI References")]
     public DryingAreaUI dryingUI;
@@ -41,11 +43,11 @@ public class DryingAreaManager : MonoBehaviour
 
     private void Update()
     {
-        // Player mesafe kontrolü
+        // Player mesafe kontrolü (Market gibi modal UI'lar açıkken bastır)
         CheckPlayerDistance();
 
         // T tuşu kontrolü (input işlemleri Update'te olmalı)
-        if (playerInRange && Input.GetKeyDown(interactionKey))
+        if (playerInRange && !MarketManager.IsAnyOpen && Input.GetKeyDown(interactionKey))
         {
             if (dryingUI != null)
             {
@@ -69,11 +71,33 @@ public class DryingAreaManager : MonoBehaviour
 
     private void CheckPlayerDistance()
     {
-        if (playerTransform == null) return;
+        if (playerTransform == null)
+        {
+            if (interactionUI != null && interactionUI.activeSelf) interactionUI.SetActive(false);
+            playerInRange = false;
+            return;
+        }
+        // Modal UI açıkken (Market vb.) proximity UI gösterme ve range'i false say
+        if (MarketManager.IsAnyOpen)
+        {
+            if (interactionUI != null && interactionUI.activeSelf) interactionUI.SetActive(false);
+            playerInRange = false;
+            return;
+        }
         
         float distance = Vector3.Distance(transform.position, playerTransform.position);
         bool wasInRange = playerInRange;
-        playerInRange = distance <= interactionRange;
+        // Histerezis: içeri giriş interactionRange ile, dışarı çıkış interactionRange + rangeHysteresis ile
+        if (playerInRange)
+        {
+            if (distance > interactionRange + Mathf.Max(0f, rangeHysteresis))
+                playerInRange = false;
+        }
+        else
+        {
+            if (distance <= interactionRange)
+                playerInRange = true;
+        }
         
         // Player range'e girdi/çıktı
         if (playerInRange != wasInRange)
