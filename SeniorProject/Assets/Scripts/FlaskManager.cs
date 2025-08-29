@@ -10,6 +10,17 @@ public class FlaskManager : MonoBehaviour
     
     // Panelin aktif olup olmadığını kontrol eden değişken
     private bool isPanelActive = false;
+
+    [Header("Hover Feedback")]
+    [Tooltip("Mouse ile üstüne gelince uygulanacak opaklık (0-1)")]
+    [Range(0f,1f)] public float hoverOpacity = 0.9f;
+    [Tooltip("Alt objelerdeki renderer'lara da uygula")] public bool includeChildren = true;
+    [Tooltip("Renk özelliği için denenecek property adları")] public string[] colorPropertyNames = new[] { "_Color", "_BaseColor" };
+
+    private Renderer[] _renderers;
+    private MaterialPropertyBlock _mpb;
+    private Dictionary<Renderer, float> _originalAlpha = new Dictionary<Renderer, float>();
+    private bool _hoverApplied;
     
     [Header("Storage Settings")]
     [Tooltip("Flask deposundaki slot sayısı")] public int slotCount = 3;
@@ -34,6 +45,11 @@ public class FlaskManager : MonoBehaviour
         {
             panel.SetActive(false);
         }
+
+    // Hover görsel geri bildirim için renderer'ları hazırla
+    _renderers = includeChildren ? GetComponentsInChildren<Renderer>(true) : GetComponents<Renderer>();
+    _mpb = new MaterialPropertyBlock();
+    CacheOriginalAlphas();
 
         // Force clear all stored data first
         Debug.Log("=== FLASK MANAGER START - CLEARING DATA ===");
@@ -84,6 +100,18 @@ public class FlaskManager : MonoBehaviour
         {
             ClosePanel();
         }
+    }
+    
+    private void OnMouseEnter()
+    {
+        ApplyAlphaToRenderers(hoverOpacity);
+        _hoverApplied = true;
+    }
+
+    private void OnMouseExit()
+    {
+        RestoreAlphaOnRenderers();
+        _hoverApplied = false;
     }
     
     // Mouse tıklaması algılandığında çağrılır
@@ -406,11 +434,132 @@ public class FlaskManager : MonoBehaviour
 
     private void OnDisable()
     {
+        if (_hoverApplied)
+        {
+            RestoreAlphaOnRenderers();
+            _hoverApplied = false;
+        }
         // Scene değişiminde veya disable olurken mevcut durumu kaydetmek için GameSaveManager'a push et
         var gsm = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>(true);
         if (gsm != null)
         {
             gsm.CaptureFlaskState(this);
+        }
+    }
+
+    private void CacheOriginalAlphas()
+    {
+        _originalAlpha.Clear();
+        if (_renderers == null) return;
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            var r = _renderers[i];
+            if (r == null) continue;
+            float a = GetRendererAlpha(r);
+            _originalAlpha[r] = a;
+        }
+    }
+
+    private float GetRendererAlpha(Renderer r)
+    {
+        if (r == null) return 1f;
+        var mats = r.sharedMaterials;
+        if (mats != null && mats.Length > 0)
+        {
+            var m = mats[0];
+            if (m != null)
+            {
+                for (int i = 0; i < colorPropertyNames.Length; i++)
+                {
+                    string prop = colorPropertyNames[i];
+                    if (m.HasProperty(prop))
+                    {
+                        Color c = m.GetColor(prop);
+                        return c.a;
+                    }
+                }
+            }
+        }
+        var sr = r.GetComponent<SpriteRenderer>();
+        if (sr != null) return sr.color.a;
+        return 1f;
+    }
+
+    private void ApplyAlphaToRenderers(float alpha)
+    {
+        if (_renderers == null) return;
+        alpha = Mathf.Clamp01(alpha);
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            var r = _renderers[i];
+            if (r == null) continue;
+            bool applied = false;
+            var mats = r.sharedMaterials;
+            if (mats != null && mats.Length > 0)
+            {
+                for (int pi = 0; pi < colorPropertyNames.Length; pi++)
+                {
+                    string prop = colorPropertyNames[pi];
+                    if (mats[0] != null && mats[0].HasProperty(prop))
+                    {
+                        r.GetPropertyBlock(_mpb);
+                        Color c = mats[0].GetColor(prop);
+                        c.a = alpha;
+                        _mpb.SetColor(prop, c);
+                        r.SetPropertyBlock(_mpb);
+                        applied = true;
+                        break;
+                    }
+                }
+            }
+            if (!applied)
+            {
+                var sr = r.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                {
+                    var c = sr.color; c.a = alpha; sr.color = c; applied = true;
+                }
+            }
+        }
+    }
+
+    private void RestoreAlphaOnRenderers()
+    {
+        if (_renderers == null) return;
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            var r = _renderers[i];
+            if (r == null) continue;
+            float alpha = 1f;
+            if (_originalAlpha.TryGetValue(r, out var a)) alpha = a;
+
+            bool restored = false;
+            var mats = r.sharedMaterials;
+            if (mats != null && mats.Length > 0)
+            {
+                for (int pi = 0; pi < colorPropertyNames.Length; pi++)
+                {
+                    string prop = colorPropertyNames[pi];
+                    if (mats[0] != null && mats[0].HasProperty(prop))
+                    {
+                        r.GetPropertyBlock(_mpb);
+                        Color c = mats[0].GetColor(prop);
+                        c.a = alpha;
+                        _mpb.SetColor(prop, c);
+                        r.SetPropertyBlock(_mpb);
+                        restored = true;
+                        break;
+                    }
+                }
+            }
+            if (!restored)
+            {
+                var sr = r.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                {
+                    var c = sr.color; c.a = alpha; sr.color = c; restored = true;
+                }
+            }
         }
     }
 }

@@ -4776,7 +4776,7 @@ RectTransform:
   m_GameObject: {fileID: 738368023}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2.7604678, y: 2.7604678, z: 2.7604678}
+  m_LocalScale: {x: 1.9552946, y: 1.9552946, z: 1.9552946}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 549960880}
@@ -4784,7 +4784,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -572, y: -232}
+  m_AnchoredPosition: {x: -807, y: -222}
   m_SizeDelta: {x: 101.8979, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &738368025
@@ -7081,6 +7081,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panel: {fileID: 1946725965}
+  hoverOpacity: 0.9
+  includeChildren: 1
+  colorPropertyNames:
+  - _Color
+  - _BaseColor
   slotCount: 3
   slotUIs:
   - {fileID: 2094863121}
@@ -13087,7 +13092,7 @@ RectTransform:
   m_GameObject: {fileID: 1906739150}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.5393, y: 1.9433663, z: 1.5393}
+  m_LocalScale: {x: 1.0191591, y: 1.2866884, z: 1.0191591}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 268303835}
@@ -13095,7 +13100,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -572, y: -152.6}
+  m_AnchoredPosition: {x: -808, y: -157}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1906739152
@@ -13330,6 +13335,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panel: {fileID: 1806126832}
+  hoverOpacity: 0.684
+  includeChildren: 1
+  colorPropertyNames:
+  - _Color
+  - _BaseColor
 --- !u!61 &1919438283
 BoxCollider2D:
   m_ObjectHideFlags: 0
