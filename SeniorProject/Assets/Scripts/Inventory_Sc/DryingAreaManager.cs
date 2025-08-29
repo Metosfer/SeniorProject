@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class DryingAreaManager : MonoBehaviour
 {
@@ -18,17 +19,32 @@ public class DryingAreaManager : MonoBehaviour
     private bool playerInRange = false;
     private Transform playerTransform;
     private Inventory playerInventory;
+    
+    [Header("Flicker Control")]
+    [Tooltip("Sahne yüklendikten sonra UI değişikliklerini bastırma süresi (sn)")]
+    public float initialUISuppressDuration = 0.3f;
+    [Tooltip("UI görünürlük değişimini uygulamadan önce gereken stabil süre (sn)")]
+    public float uiStateStabilityTime = 0.08f;
+
+    private float _uiSuppressUntil;
+    private bool _uiShown;
+    private bool _uiDesiredLast;
+    private float _uiDesiredSince;
 
     private void Start()
     {
         // Player referanslarını bul
         playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
         playerInventory = FindObjectOfType<Inventory>();
+    // Scene load sonrası kısa süre UI'ı bastır (flicker önlemek için)
+    _uiSuppressUntil = Time.unscaledTime + Mathf.Max(0f, initialUISuppressDuration);
+    UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
         
         // Interaction UI'yı başlangıçta gizle
         if (interactionUI != null)
         {
             interactionUI.SetActive(false);
+            _uiShown = false;
         }
         
         // Slot'ları sıfırla
@@ -38,6 +54,23 @@ public class DryingAreaManager : MonoBehaviour
             {
                 dryingSlots[i].ResetSlot();
             }
+        }
+    }
+
+    private void OnDestroy()
+    {
+    UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Yeni sahnede tekrar bastırma penceresi başlat
+        _uiSuppressUntil = Time.unscaledTime + Mathf.Max(0f, initialUISuppressDuration);
+        // UI'ı güvenli şekilde kapat
+        if (interactionUI != null)
+        {
+            interactionUI.SetActive(false);
+            _uiShown = false;
         }
     }
 
@@ -80,7 +113,11 @@ public class DryingAreaManager : MonoBehaviour
         // Modal UI açıkken (Market vb.) proximity UI gösterme ve range'i false say
         if (MarketManager.IsAnyOpen)
         {
-            if (interactionUI != null && interactionUI.activeSelf) interactionUI.SetActive(false);
+            if (interactionUI != null && interactionUI.activeSelf)
+            {
+                interactionUI.SetActive(false);
+                _uiShown = false;
+            }
             playerInRange = false;
             return;
         }
@@ -99,12 +136,40 @@ public class DryingAreaManager : MonoBehaviour
                 playerInRange = true;
         }
         
-        // Player range'e girdi/çıktı
-        if (playerInRange != wasInRange)
+        // Player range'e girdi/çıktı: UI görünürlüğünü stabil/delay ile işle
+        UpdateInteractionUI(playerInRange);
+    }
+
+    private void UpdateInteractionUI(bool desiredVisible)
+    {
+        if (interactionUI == null) return;
+        // Sahne yüklendikten sonra kısa süre UI bastır
+        if (Time.unscaledTime < _uiSuppressUntil)
         {
-            if (interactionUI != null)
+            if (_uiShown)
             {
-                interactionUI.SetActive(playerInRange);
+                interactionUI.SetActive(false);
+                _uiShown = false;
+            }
+            // Suppress süresi bitene kadar state izle ama uygulama
+            _uiDesiredLast = desiredVisible;
+            _uiDesiredSince = Time.unscaledTime;
+            return;
+        }
+
+        if (desiredVisible != _uiDesiredLast)
+        {
+            _uiDesiredLast = desiredVisible;
+            _uiDesiredSince = Time.unscaledTime;
+        }
+
+        // Stabil kaldıysa uygula
+        if (Time.unscaledTime - _uiDesiredSince >= Mathf.Max(0f, uiStateStabilityTime))
+        {
+            if (_uiShown != desiredVisible)
+            {
+                interactionUI.SetActive(desiredVisible);
+                _uiShown = desiredVisible;
             }
         }
     }
