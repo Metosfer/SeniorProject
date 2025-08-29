@@ -108,6 +108,8 @@ public class HarrowManager : MonoBehaviour, ISaveable
 
     private void Start()
     {
+    // Ensure stable saveId if inspector left empty
+    if (string.IsNullOrEmpty(saveId)) saveId = $"harrow_{gameObject.name}";
         if (player == null)
         {
             var go = GameObject.FindGameObjectWithTag("Player");
@@ -579,6 +581,8 @@ public class HarrowManager : MonoBehaviour, ISaveable
     public Dictionary<string, object> GetSaveData()
     {
         var data = new Dictionary<string, object>();
+    // Include saveId for diagnostics (object identity is primarily handled by GameSaveManager)
+    data["saveId"] = string.IsNullOrEmpty(saveId) ? gameObject.name : saveId;
         data["isCarried"] = _isCarried;
         data["isEquipped"] = IsEquipped;
         data["posX"] = transform.position.x;
@@ -590,6 +594,7 @@ public class HarrowManager : MonoBehaviour, ISaveable
         data["sX"] = transform.localScale.x;
         data["sY"] = transform.localScale.y;
         data["sZ"] = transform.localScale.z;
+    Debug.Log($"[Harrow Save] id={saveId}, pos={transform.position}, rotY={transform.eulerAngles.y:F1}");
         return data;
     }
 
@@ -620,6 +625,8 @@ public class HarrowManager : MonoBehaviour, ISaveable
         transform.position = new Vector3(px, py, pz);
         transform.eulerAngles = new Vector3(rx, ry, rz);
         transform.localScale = new Vector3(sx, sy, sz);
+
+    Debug.Log($"[Harrow Load] id={saveId}, pos=({px:F2},{py:F2},{pz:F2}), rotY={ry:F1}");
 
         // Optional: respect saved equipped state off only; ignore true to avoid spawning in hand after scene load
         // If you want to re-equip on load, uncomment below and ensure player/socket is valid

@@ -172,6 +172,8 @@ public class BucketManager : MonoBehaviour, ISaveable
 
     private void Start()
     {
+        // Ensure stable saveId if inspector left empty
+        if (string.IsNullOrEmpty(saveId)) saveId = $"bucket_{gameObject.name}";
         if (player == null)
         {
             var playerGO = GameObject.FindGameObjectWithTag("Player");
@@ -1051,8 +1053,9 @@ public class BucketManager : MonoBehaviour, ISaveable
         data["rot"] = transform.eulerAngles;
         data["scale"] = transform.localScale;
         data["filled"] = isFilled;
-    data["waterCharges"] = waterCharges;
+        data["waterCharges"] = waterCharges;
         data["carried"] = false; // We never restore as carried across scenes
+        Debug.Log($"[Bucket Save] id={saveId}, pos={transform.position}, filled={isFilled}, charges={waterCharges}");
         return data;
     }
 
@@ -1102,6 +1105,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         waterCharges = (charges > 0) ? charges : (isFilled ? Mathf.Max(1, maxWaterCropsPerFill) : 0);
         ApplyVisual();
         RefreshCollidersAndPhysicsState();
+        Debug.Log($"[Bucket Load] id={saveId}, pos={pos}, filled={filled}, charges={waterCharges}");
     }
 
 #if UNITY_EDITOR
