@@ -29,13 +29,22 @@ public class MainMenuController : MonoBehaviour
         if (loadPanel != null) loadPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
 
-        // Ayarları yükle
-        if (volumeSlider != null) volumeSlider.value = PlayerPrefs.GetFloat("Volume", 1f);
-        if (graphicsDropdown != null) graphicsDropdown.value = PlayerPrefs.GetInt("GraphicsQuality", 0);
+        // Ayarları yükle (SettingsManager varsa onu kullan)
+        var sm = SettingsManager.Instance;
+        if (sm != null)
+        {
+            if (volumeSlider != null) volumeSlider.value = sm.Current.masterVolume;
+            if (graphicsDropdown != null) graphicsDropdown.value = sm.Current.graphicsQuality;
+        }
+        else
+        {
+            if (volumeSlider != null) volumeSlider.value = PlayerPrefs.GetFloat("Volume", 1f);
+            if (graphicsDropdown != null) graphicsDropdown.value = PlayerPrefs.GetInt("GraphicsQuality", 0);
+        }
 
-        // Ayar değişikliklerini dinle
-        if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(SetVolume);
-        if (graphicsDropdown != null) graphicsDropdown.onValueChanged.AddListener(SetGraphicsQuality);
+        // Ayar değişikliklerini dinle (SettingsManager üzerinden uygula)
+        if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(v => SetVolume(v));
+        if (graphicsDropdown != null) graphicsDropdown.onValueChanged.AddListener(i => SetGraphicsQuality(i));
     }
 
     void Update()
@@ -166,14 +175,24 @@ public class MainMenuController : MonoBehaviour
 
     void SetVolume(float volume)
     {
-        PlayerPrefs.SetFloat("Volume", volume);
-        PlayerPrefs.Save();
+        var sm = SettingsManager.Instance;
+        if (sm != null) sm.SetMasterVolume(volume);
+        else
+        {
+            PlayerPrefs.SetFloat("Volume", volume);
+            PlayerPrefs.Save();
+        }
     }
 
     void SetGraphicsQuality(int qualityIndex)
     {
-        PlayerPrefs.SetInt("GraphicsQuality", qualityIndex);
-        PlayerPrefs.Save();
+        var sm = SettingsManager.Instance;
+        if (sm != null) sm.SetGraphicsQuality(qualityIndex);
+        else
+        {
+            PlayerPrefs.SetInt("GraphicsQuality", qualityIndex);
+            PlayerPrefs.Save();
+        }
     }
 
     void QuitGame()
