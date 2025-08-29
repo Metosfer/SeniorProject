@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
 {
     // Panel referansı
     [SerializeField] private GameObject panel;
@@ -30,6 +30,12 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     [Tooltip("Hover'dan çıkış süresi (sn)")] public float scaleOutDuration = 0.12f;
     private Vector3 _initialScale;
     private Coroutine _scaleCo;
+    private bool _isPointerOver;
+
+    [Header("Hover Cursor")]
+    [Tooltip("Objenin üstüne gelince değişecek cursor görseli")] public Texture2D hoverCursor;
+    [Tooltip("Cursor hotspot (piksel)")] public Vector2 cursorHotspot = Vector2.zero;
+    [Tooltip("Cursor boyutu (px). (0,0) ise orijinal boyut kullanılır")] public Vector2 cursorSize = Vector2.zero;
     
     void Start()
     {
@@ -60,6 +66,8 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         ApplyAlphaToRenderers(hoverOpacity);
         _hoverApplied = true;
     StartHoverScale();
+    StartHoverCursor();
+    _isPointerOver = true;
     }
 
     private void OnMouseExit()
@@ -67,6 +75,8 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         RestoreAlphaOnRenderers();
         _hoverApplied = false;
     EndHoverScale();
+    EndHoverCursor();
+    _isPointerOver = false;
     }
 
     private void OnDisable()
@@ -87,6 +97,7 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     // Mouse tıklaması algılandığında çağrılır
     private void OnMouseDown()
     {
+    StartClickScale();
         // Block world clicks while Pause menu is open
         if (PauseMenuController.IsPausedGlobally)
         {
@@ -98,6 +109,11 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             return;
         }
         OpenPanel();
+    }
+
+    private void OnMouseUp()
+    {
+        ReleaseClickScale();
     }
     
     // Paneli açan metod
@@ -133,12 +149,26 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     // UI EventSystem handlers (for Image-based objects)
     public void OnPointerEnter(PointerEventData eventData)
     {
-        StartHoverScale();
+    StartHoverScale();
+    StartHoverCursor();
+    _isPointerOver = true;
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        EndHoverScale();
+    EndHoverScale();
+    EndHoverCursor();
+        _isPointerOver = false;
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        StartClickScale();
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        ReleaseClickScale();
     }
 
     private void StartHoverScale()
@@ -172,6 +202,95 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         }
         transform.localScale = target;
         _scaleCo = null;
+    }
+
+    [Header("Click Scale (Press)")]
+    [Tooltip("Tıklanırken küçülme efekti")] public bool enableClickScale = true;
+    [Tooltip("Tıklama sırasında çarpan (1'den küçük önerilir, örn: 0.96)")] public float clickScale = 0.96f;
+    [Tooltip("Basılıya geçiş süresi (sn)")] public float clickScaleInDuration = 0.06f;
+    [Tooltip("Basılıdan çıkış süresi (sn)")] public float clickScaleOutDuration = 0.08f;
+
+    private void StartClickScale()
+    {
+        if (!enableClickScale) return;
+        if (_scaleCo != null) StopCoroutine(_scaleCo);
+        float mult = Mathf.Clamp(clickScale, 0.5f, 1.5f);
+        Vector3 target = transform.localScale * mult;
+        _scaleCo = StartCoroutine(ScaleTo(target, Mathf.Max(0.01f, clickScaleInDuration)));
+    }
+
+    private void ReleaseClickScale()
+    {
+        if (!enableClickScale) return;
+        if (_scaleCo != null) StopCoroutine(_scaleCo);
+        // Restore to hover or normal depending on pointer state
+        Vector3 target = _isPointerOver && enableHoverScale ? _initialScale * Mathf.Max(0.01f, hoverScale) : _initialScale;
+        _scaleCo = StartCoroutine(ScaleTo(target, Mathf.Max(0.01f, clickScaleOutDuration)));
+    }
+
+    private void StartHoverCursor()
+    {
+        if (hoverCursor == null) return;
+        if (cursorSize != Vector2.zero && (hoverCursor.width != (int)cursorSize.x || hoverCursor.height != (int)cursorSize.y))
+        {
+            var scaled = ScaleCursor(hoverCursor, (int)cursorSize.x, (int)cursorSize.y);
+            Cursor.SetCursor(scaled, cursorHotspot, CursorMode.Auto);
+        }
+        else
+        {
+            Cursor.SetCursor(hoverCursor, cursorHotspot, CursorMode.Auto);
+        }
+    }
+
+    private void EndHoverCursor()
+    {
+        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+    }
+
+    private Texture2D ScaleCursor(Texture2D originalCursor, int newWidth, int newHeight)
+    {
+        if (originalCursor == null) return null;
+        Texture2D readable = MakeTextureReadable(originalCursor);
+        if (readable == null) return originalCursor;
+        Texture2D scaled = new Texture2D(newWidth, newHeight, TextureFormat.RGBA32, false);
+        for (int x = 0; x < newWidth; x++)
+        {
+            for (int y = 0; y < newHeight; y++)
+            {
+                float u = (float)x / newWidth;
+                float v = (float)y / newHeight;
+                Color pixel = readable.GetPixelBilinear(u, v);
+                scaled.SetPixel(x, y, pixel);
+            }
+        }
+        scaled.Apply();
+        if (readable != originalCursor)
+        {
+            DestroyImmediate(readable);
+        }
+        return scaled;
+    }
+
+    private Texture2D MakeTextureReadable(Texture2D texture)
+    {
+        if (texture == null) return null;
+        try
+        {
+            texture.GetPixel(0, 0);
+            return texture;
+        }
+        catch
+        {
+            RenderTexture rt = RenderTexture.GetTemporary(texture.width, texture.height);
+            Graphics.Blit(texture, rt);
+            RenderTexture.active = rt;
+            Texture2D readable = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+            readable.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
+            readable.Apply();
+            RenderTexture.active = null;
+            RenderTexture.ReleaseTemporary(rt);
+            return readable;
+        }
     }
 
     private void CacheOriginalAlphas()

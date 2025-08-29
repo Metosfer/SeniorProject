@@ -1321,6 +1321,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_Name
@@ -2153,6 +2168,21 @@ PrefabInstance:
     - target: {fileID: 693628044034657565, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
@@ -4437,6 +4467,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: cursorSize.y
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4655,6 +4700,21 @@ PrefabInstance:
     - target: {fileID: 693628044034657565, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
@@ -7095,6 +7155,9 @@ MonoBehaviour:
   hoverScale: 1.08
   scaleInDuration: 0.12
   scaleOutDuration: 0.12
+  hoverCursor: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+  cursorHotspot: {x: 0, y: 0}
+  cursorSize: {x: 0, y: 0}
   slotCount: 3
   slotUIs:
   - {fileID: 2094863121}
@@ -7102,6 +7165,10 @@ MonoBehaviour:
   - {fileID: 948702688}
   stackLimit: 4
   storedSlots: []
+  enableClickScale: 1
+  clickScale: 0.96
+  clickScaleInDuration: 0.06
+  clickScaleOutDuration: 0.08
 --- !u!70 &1134819640
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -7622,6 +7689,21 @@ PrefabInstance:
       propertyPath: itemIcon
       value: 
       objectReference: {fileID: 1153795325}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: itemCountText
@@ -8170,6 +8252,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_Name
@@ -8569,6 +8666,21 @@ PrefabInstance:
     - target: {fileID: 693628044034657565, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
@@ -10038,6 +10150,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_Name
@@ -10628,6 +10755,21 @@ PrefabInstance:
     - target: {fileID: 693628044034657565, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5609571188796096153, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
+        type: 3}
+      propertyPath: cursorSize.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
@@ -13307,6 +13449,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: cursorSize.y
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -13353,6 +13510,13 @@ MonoBehaviour:
   hoverScale: 1.08
   scaleInDuration: 0.12
   scaleOutDuration: 0.12
+  hoverCursor: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+  cursorHotspot: {x: 0, y: 0}
+  cursorSize: {x: 0, y: 0}
+  enableClickScale: 1
+  clickScale: 0.96
+  clickScaleInDuration: 0.06
+  clickScaleOutDuration: 0.08
 --- !u!61 &1919438283
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -15624,6 +15788,21 @@ PrefabInstance:
     - target: {fileID: 6411698622311434156, guid: a028df7d0fe3a488893768ea3dfa5f01,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: hoverCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: fcd72d6e454058a4198c1c5e42d309a2, type: 3}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: cursorSize.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9004983892157037978, guid: a028df7d0fe3a488893768ea3dfa5f01,
+        type: 3}
+      propertyPath: cursorSize.y
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
