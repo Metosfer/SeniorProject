@@ -89,6 +89,11 @@ public class FlaskManager : MonoBehaviour
     // Mouse tıklaması algılandığında çağrılır
     private void OnMouseDown()
     {
+        // Block world clicks while Pause menu is open
+        if (PauseMenuController.IsPausedGlobally)
+        {
+            return;
+        }
         // If Market or another modal UI is open, ignore world clicks
         if (MarketManager.IsAnyOpen)
         {

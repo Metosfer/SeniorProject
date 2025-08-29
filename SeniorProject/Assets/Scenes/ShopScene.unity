@@ -292,6 +292,8 @@ MonoBehaviour:
   volumeSlider: {fileID: 662485759}
   graphicsDropdown: {fileID: 1339386403}
   playerTransform: {fileID: 0}
+  autoBlockInteractions: 1
+  additionalBehavioursToBlock: []
 --- !u!1 &134288202
 GameObject:
   m_ObjectHideFlags: 0

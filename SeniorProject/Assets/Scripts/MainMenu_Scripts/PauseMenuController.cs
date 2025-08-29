@@ -5,7 +5,7 @@ using System.Collections;
 using TMPro;
 using System;
 
-public class PauseMenuController : MonoBehaviour
+public partial class PauseMenuController : MonoBehaviour
 {
     public GameObject pauseMenuPanel;           // Duraklatma menüsü paneli
     public GameObject confirmationDialogPanel;  // Onay diyaloğu paneli
@@ -27,6 +27,14 @@ public class PauseMenuController : MonoBehaviour
     private bool isPaused = false;              // Oyun duraklatıldı mı?
     private string pendingAction;               // Bekleyen eylem (MainMenu veya Quit)
     private bool wasPauseMenuOpen = false;      // PauseMenu açık mıydı?
+
+    [Header("Interaction Blocking")]
+    [Tooltip("Pause menü açıkken sahnede tıklanabilir/etkileşimli scriptleri otomatik olarak devre dışı bırak")] 
+    public bool autoBlockInteractions = true;
+    [Tooltip("Ek olarak devre dışı bırakılmasını istediğiniz bileşenler (isteğe bağlı)")] 
+    public List<Behaviour> additionalBehavioursToBlock = new List<Behaviour>();
+    private readonly HashSet<Behaviour> _blockedBehaviours = new HashSet<Behaviour>();
+    public static bool IsPausedGlobally { get; private set; }
 
     void Start()
     {
@@ -151,6 +159,11 @@ public class PauseMenuController : MonoBehaviour
             pauseMenuPanel.SetActive(true);
             isPaused = true;
             wasPauseMenuOpen = true;
+            IsPausedGlobally = true;
+            if (autoBlockInteractions)
+            {
+                BlockSceneInteractions(true);
+            }
         }
         else
         {
@@ -165,6 +178,11 @@ public class PauseMenuController : MonoBehaviour
         if (settingsPanel != null) settingsPanel.SetActive(false);
         isPaused = false;
         wasPauseMenuOpen = false;
+        IsPausedGlobally = false;
+        if (autoBlockInteractions)
+        {
+            BlockSceneInteractions(false);
+        }
     }
 
     void SaveGame()
@@ -298,10 +316,15 @@ public class PauseMenuController : MonoBehaviour
             {
                 saveManager.SaveGame();
             }
+            // Ensure we clear any interaction blocks before switching scenes
+            if (autoBlockInteractions) BlockSceneInteractions(false);
+            IsPausedGlobally = false;
             UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
         }
         else if (pendingAction == "Quit")
         {
+            if (autoBlockInteractions) BlockSceneInteractions(false);
+            IsPausedGlobally = false;
             Application.Quit();
         }
     }
@@ -319,5 +342,100 @@ public class PauseMenuController : MonoBehaviour
         {
             Debug.LogError("saveNotificationText, Unity editöründe atanmamış!");
         }
+    }
+}
+
+// --------------- Helpers ---------------
+partial class PauseMenuController
+{
+    private void BlockSceneInteractions(bool block)
+    {
+        try
+        {
+            if (block)
+            {
+                // Disable known interaction scripts
+                DisableAllOfType<HarrowManager>();
+                DisableAllOfType<BucketManager>();
+                DisableAllOfType<DrawerManager>();
+                DisableAllOfType<WellManager>();
+                DisableAllOfType<BookManager>();
+                DisableAllOfType<FlaskManager>();
+                DisableAllOfType<MarketManager>();
+                DisableAllOfType<DragAndDropHandler>();
+                // Eazy camera input controller (prevents rotating/zooming by input)
+                DisableAllOfType<EazyCamera.EazyController>();
+                // Optional: player movement/input scripts if present in your project
+                TryDisableByTypeName("PlayerMovement");
+                TryDisableByTypeName("EzPlayerController");
+
+                // Additional manual behaviours
+                foreach (var b in additionalBehavioursToBlock)
+                {
+                    if (b != null && b.enabled)
+                    {
+                        b.enabled = false;
+                        _blockedBehaviours.Add(b);
+                    }
+                }
+            }
+            else
+            {
+                // Re-enable only the behaviours we disabled
+                foreach (var b in _blockedBehaviours)
+                {
+                    if (b != null)
+                    {
+                        b.enabled = true;
+                    }
+                }
+                _blockedBehaviours.Clear();
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[PauseMenu] Interaction block error: {e.Message}");
+        }
+    }
+
+    private void DisableAllOfType<T>() where T : Behaviour
+    {
+        var comps = FindObjectsOfType<T>();
+        for (int i = 0; i < comps.Length; i++)
+        {
+            var c = comps[i];
+            if (c != null && c.enabled)
+            {
+                c.enabled = false;
+                _blockedBehaviours.Add(c);
+            }
+        }
+    }
+
+    private void TryDisableByTypeName(string typeName)
+    {
+        var t = Type.GetType(typeName) ?? FindTypeInAssemblies(typeName);
+        if (t == null || !typeof(Behaviour).IsAssignableFrom(t)) return;
+        var comps = FindObjectsOfType(t) as UnityEngine.Object[];
+        if (comps == null) return;
+        for (int i = 0; i < comps.Length; i++)
+        {
+            var b = comps[i] as Behaviour;
+            if (b != null && b.enabled)
+            {
+                b.enabled = false;
+                _blockedBehaviours.Add(b);
+            }
+        }
+    }
+
+    private static Type FindTypeInAssemblies(string typeName)
+    {
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var t = asm.GetType(typeName);
+            if (t != null) return t;
+        }
+        return null;
     }
 }
