@@ -79,6 +79,15 @@ public class HarrowManager : MonoBehaviour, ISaveable
     private Vector2 _scaledHotspot;
     private bool _cursorDirty;
 
+    [Header("Hover Scale")]
+    [Tooltip("Mouse üstüne geldiğinde tırmığı biraz büyüt")] public bool enableHoverScale = true;
+    [Tooltip("Hedef ölçek çarpanı (1 = orijinal)")] public float hoverScale = 1.08f;
+    [Tooltip("Hover'a geçiş süresi (sn)")] public float hoverScaleInDuration = 0.12f;
+    [Tooltip("Hover'dan çıkış süresi (sn)")] public float hoverScaleOutDuration = 0.12f;
+    private Coroutine _hoverScaleCo;
+    private bool _hoverScaleActive;
+    private Vector3 _initialScale;
+
     [Header("Taşıma Pozu Seçeneği")]
     [Tooltip("Özel taşıma ofseti kullan (kapalı ise socket'in tam konumu/rotasyonu kullanılır)")]
     public bool useCustomCarriedPose = true;
@@ -121,6 +130,8 @@ public class HarrowManager : MonoBehaviour, ISaveable
             hoverMask &= ~(1 << uiLayerToExclude);
         }
     _cursorDirty = true;
+    // Cache initial scale for non-compounding hover scaling
+    _initialScale = _originalLocalScale;
     }
 
     private void Update()
@@ -143,10 +154,13 @@ public class HarrowManager : MonoBehaviour, ISaveable
             }
         }
 
-        // Hover imleci
-    if (enableCursorFeedback)
+        // Hover detection (single evaluation)
+        bool hovering = !_isCarried && IsHoveringThisHarrow();
+
+        // Hover cursor
+        if (enableCursorFeedback)
         {
-            if (!_isCarried && IsHoveringThisHarrow())
+            if (hovering)
             {
                 if (s_cursorOwner != this)
                 {
@@ -154,24 +168,85 @@ public class HarrowManager : MonoBehaviour, ISaveable
                     s_cursorOwner = this;
                     _cursorOwned = false;
                 }
-        if (!_cursorOwned && grabCursor != null)
+                if (!_cursorOwned && grabCursor != null)
                 {
-            EnsureScaledCursor();
-            var tex = _scaledGrabCursor != null ? _scaledGrabCursor : grabCursor;
-            var hs = _scaledGrabCursor != null ? _scaledHotspot : grabCursorHotspot;
-            Cursor.SetCursor(tex, hs, grabCursorMode);
+                    EnsureScaledCursor();
+                    var tex = _scaledGrabCursor != null ? _scaledGrabCursor : grabCursor;
+                    var hs = _scaledGrabCursor != null ? _scaledHotspot : grabCursorHotspot;
+                    Cursor.SetCursor(tex, hs, grabCursorMode);
                     _cursorOwned = true;
                 }
             }
-            else
+            else if (s_cursorOwner == this)
             {
-                if (s_cursorOwner == this)
-                {
-                    ResetCursorIfOwned();
-                    s_cursorOwner = null;
-                }
+                ResetCursorIfOwned();
+                s_cursorOwner = null;
             }
         }
+
+        // Hover scale visual
+        UpdateHoverScaleVisual(hovering);
+    }
+
+    private void UpdateHoverScaleVisual(bool desiredHover)
+    {
+        if (!enableHoverScale)
+        {
+            if (_hoverScaleActive)
+            {
+                EndHoverScale();
+            }
+            return;
+        }
+        if (desiredHover)
+            StartHoverScale();
+        else
+            EndHoverScale();
+    }
+
+    private void StartHoverScale()
+    {
+        Vector3 target = _initialScale * Mathf.Max(0.01f, hoverScale);
+        if (_hoverScaleCo == null && NearlyEqual(transform.localScale, target))
+        {
+            _hoverScaleActive = true;
+            return;
+        }
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        _hoverScaleCo = StartCoroutine(ScaleTo(target, Mathf.Max(0.01f, hoverScaleInDuration)));
+        _hoverScaleActive = true;
+    }
+
+    private void EndHoverScale()
+    {
+        Vector3 target = _initialScale;
+        if (_hoverScaleCo == null && NearlyEqual(transform.localScale, target))
+        {
+            _hoverScaleActive = false;
+            return;
+        }
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        _hoverScaleCo = StartCoroutine(ScaleTo(target, Mathf.Max(0.01f, hoverScaleOutDuration)));
+        _hoverScaleActive = false;
+    }
+
+    private IEnumerator ScaleTo(Vector3 target, float duration)
+    {
+        Vector3 start = transform.localScale;
+        if (duration <= 0.0001f)
+        {
+            transform.localScale = target; _hoverScaleCo = null; yield break;
+        }
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            transform.localScale = Vector3.Lerp(start, target, u);
+            yield return null;
+        }
+        transform.localScale = target;
+        _hoverScaleCo = null;
     }
 
     public static void SetEquipped(bool equipped)
@@ -565,6 +640,13 @@ public class HarrowManager : MonoBehaviour, ISaveable
             s_cursorOwner = null;
         }
         if (CurrentCarried == this) CurrentCarried = null;
+        // Reset hover scale
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        if (_hoverScaleActive || !NearlyEqual(transform.localScale, _initialScale))
+        {
+            transform.localScale = _initialScale;
+            _hoverScaleActive = false;
+        }
     }
 
     private void OnDestroy()
@@ -575,6 +657,18 @@ public class HarrowManager : MonoBehaviour, ISaveable
             s_cursorOwner = null;
         }
         if (CurrentCarried == this) CurrentCarried = null;
+        // Ensure restored scale
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        if (_hoverScaleActive || !NearlyEqual(transform.localScale, _initialScale))
+        {
+            transform.localScale = _initialScale;
+            _hoverScaleActive = false;
+        }
+    }
+
+    private static bool NearlyEqual(in Vector3 a, in Vector3 b, float eps = 0.0005f)
+    {
+        return (a - b).sqrMagnitude <= eps * eps;
     }
 
     // ===== ISaveable =====

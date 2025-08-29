@@ -107,6 +107,15 @@ public class BucketManager : MonoBehaviour, ISaveable
     [Tooltip("Try to adjust size using screen DPI (uses 96dpi as baseline). If Screen.dpi is 0, this is ignored.")]
     public bool autoAdjustForDPI = true;
 
+    [Header("Hover Scale")]
+    [Tooltip("Mouse üstüne geldiğinde kovayı biraz büyüt")] public bool enableHoverScale = true;
+    [Tooltip("Hedef ölçek çarpanı (1 = orijinal)")] public float hoverScale = 1.08f;
+    [Tooltip("Hover'a geçiş süresi (sn)")] public float hoverScaleInDuration = 0.12f;
+    [Tooltip("Hover'dan çıkış süresi (sn)")] public float hoverScaleOutDuration = 0.12f;
+    private Coroutine _hoverScaleCo;
+    private bool _hoverScaleActive;
+    private Vector3 _initialScale;
+
     [Header("Hover Raycast")]
     [Tooltip("Layer mask used for hover/click raycasts. Exclude UI/3D Text layers to prevent cursor flicker.")]
     public LayerMask hoverMask = ~0;
@@ -183,6 +192,8 @@ public class BucketManager : MonoBehaviour, ISaveable
     if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
     if (fillPromptUI != null) fillPromptUI.SetActive(false);
         _cursorDirty = true;
+    // Cache initial scale as stable base for hover scaling (prevents compounding)
+    _initialScale = _originalLocalScale;
         
         // Cache camera reference to avoid FindObjectOfType calls
         _cachedCamera = Camera.main != null ? Camera.main : FindObjectOfType<Camera>();
@@ -260,7 +271,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         }
 
         // Cursor feedback while hovering (throttled)
-        if (enableMouseInteraction && enableCursorFeedback)
+    if (enableMouseInteraction && (enableCursorFeedback || enableHoverScale))
         {
             // Suppress hover cursor while carried or when any context menu is open to avoid flicker
             bool anyMenuOpen = false;
@@ -282,6 +293,8 @@ public class BucketManager : MonoBehaviour, ISaveable
             {
                 // Ensure cursor resets if we own it
                 UpdateCursorState(false);
+                // And stop hover scale
+                UpdateHoverScaleVisual(false);
             }
         }
 
@@ -457,6 +470,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         {
             // Use cached hover state
             UpdateCursorState(_lastHoverState);
+            UpdateHoverScaleVisual(_lastHoverState);
             return;
         }
         
@@ -469,6 +483,74 @@ public class BucketManager : MonoBehaviour, ISaveable
         }
         _lastHoverState = hovering;
         UpdateCursorState(hovering);
+        UpdateHoverScaleVisual(hovering);
+    }
+
+    private void UpdateHoverScaleVisual(bool desiredHover)
+    {
+        if (!enableHoverScale)
+        {
+            // If disabled, ensure reset when necessary
+            if (_hoverScaleActive)
+            {
+                EndHoverScale();
+            }
+            return;
+        }
+        if (desiredHover)
+        {
+            StartHoverScale();
+        }
+        else
+        {
+            EndHoverScale();
+        }
+    }
+
+    private void StartHoverScale()
+    {
+        Vector3 target = _initialScale * Mathf.Max(0.01f, hoverScale);
+        // If already approximately at target, do nothing
+        if (_hoverScaleCo == null && NearlyEqual(transform.localScale, target))
+        {
+            _hoverScaleActive = true;
+            return;
+        }
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        _hoverScaleCo = StartCoroutine(ScaleTo(target, Mathf.Max(0.01f, hoverScaleInDuration)));
+        _hoverScaleActive = true;
+    }
+
+    private void EndHoverScale()
+    {
+        Vector3 target = _initialScale;
+        if (_hoverScaleCo == null && NearlyEqual(transform.localScale, target))
+        {
+            _hoverScaleActive = false;
+            return;
+        }
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        _hoverScaleCo = StartCoroutine(ScaleTo(target, Mathf.Max(0.01f, hoverScaleOutDuration)));
+        _hoverScaleActive = false;
+    }
+
+    private IEnumerator ScaleTo(Vector3 target, float duration)
+    {
+        Vector3 start = transform.localScale;
+        if (duration <= 0.0001f)
+        {
+            transform.localScale = target; _hoverScaleCo = null; yield break;
+        }
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            transform.localScale = Vector3.Lerp(start, target, u);
+            yield return null;
+        }
+        transform.localScale = target;
+        _hoverScaleCo = null;
     }
 
     private bool IsWithinMousePickupRange()
@@ -1024,6 +1106,13 @@ public class BucketManager : MonoBehaviour, ISaveable
     if (CurrentCarried == this) CurrentCarried = null;
     if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
     if (fillPromptUI != null) fillPromptUI.SetActive(false);
+        // Reset hover scale to base
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        if (_hoverScaleActive || !NearlyEqual(transform.localScale, _initialScale))
+        {
+            transform.localScale = _initialScale;
+            _hoverScaleActive = false;
+        }
     }
 
     private void OnDestroy()
@@ -1042,6 +1131,18 @@ public class BucketManager : MonoBehaviour, ISaveable
             Destroy(_scaledGrabCursor);
             _scaledGrabCursor = null;
         }
+        // Ensure scale restored
+        if (_hoverScaleCo != null) StopCoroutine(_hoverScaleCo);
+        if (_hoverScaleActive || !NearlyEqual(transform.localScale, _initialScale))
+        {
+            transform.localScale = _initialScale;
+            _hoverScaleActive = false;
+        }
+    }
+
+    private static bool NearlyEqual(in Vector3 a, in Vector3 b, float eps = 0.0005f)
+    {
+        return (a - b).sqrMagnitude <= eps * eps;
     }
 
     // ===== ISaveable =====
