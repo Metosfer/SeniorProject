@@ -2,8 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public class FlaskManager : MonoBehaviour
+public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     // Panel referansı
     [SerializeField] private GameObject panel;
@@ -21,6 +22,14 @@ public class FlaskManager : MonoBehaviour
     private MaterialPropertyBlock _mpb;
     private Dictionary<Renderer, float> _originalAlpha = new Dictionary<Renderer, float>();
     private bool _hoverApplied;
+    
+    [Header("Hover Scale (UI/Image)")]
+    [Tooltip("Hover'da büyütme efektini etkinleştir")] public bool enableHoverScale = true;
+    [Tooltip("Hedef ölçek çarpanı (1 = orijinal)")] public float hoverScale = 1.08f;
+    [Tooltip("Hover'a geçiş süresi (sn)")] public float scaleInDuration = 0.12f;
+    [Tooltip("Hover'dan çıkış süresi (sn)")] public float scaleOutDuration = 0.12f;
+    private Vector3 _initialScale;
+    private Coroutine _scaleCo;
     
     [Header("Storage Settings")]
     [Tooltip("Flask deposundaki slot sayısı")] public int slotCount = 3;
@@ -50,6 +59,7 @@ public class FlaskManager : MonoBehaviour
     _renderers = includeChildren ? GetComponentsInChildren<Renderer>(true) : GetComponents<Renderer>();
     _mpb = new MaterialPropertyBlock();
     CacheOriginalAlphas();
+        _initialScale = transform.localScale;
 
         // Force clear all stored data first
         Debug.Log("=== FLASK MANAGER START - CLEARING DATA ===");
@@ -106,12 +116,14 @@ public class FlaskManager : MonoBehaviour
     {
         ApplyAlphaToRenderers(hoverOpacity);
         _hoverApplied = true;
+    StartHoverScale();
     }
 
     private void OnMouseExit()
     {
         RestoreAlphaOnRenderers();
         _hoverApplied = false;
+    EndHoverScale();
     }
     
     // Mouse tıklaması algılandığında çağrılır
@@ -439,12 +451,61 @@ public class FlaskManager : MonoBehaviour
             RestoreAlphaOnRenderers();
             _hoverApplied = false;
         }
+        if (enableHoverScale)
+        {
+            if (_scaleCo != null) StopCoroutine(_scaleCo);
+            transform.localScale = _initialScale;
+        }
         // Scene değişiminde veya disable olurken mevcut durumu kaydetmek için GameSaveManager'a push et
         var gsm = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>(true);
         if (gsm != null)
         {
             gsm.CaptureFlaskState(this);
         }
+    }
+
+    // UI EventSystem handlers (for Image-based objects)
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        StartHoverScale();
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        EndHoverScale();
+    }
+
+    private void StartHoverScale()
+    {
+        if (!enableHoverScale) return;
+        if (_scaleCo != null) StopCoroutine(_scaleCo);
+        _scaleCo = StartCoroutine(ScaleTo(_initialScale * Mathf.Max(0.01f, hoverScale), Mathf.Max(0.01f, scaleInDuration)));
+    }
+
+    private void EndHoverScale()
+    {
+        if (!enableHoverScale) return;
+        if (_scaleCo != null) StopCoroutine(_scaleCo);
+        _scaleCo = StartCoroutine(ScaleTo(_initialScale, Mathf.Max(0.01f, scaleOutDuration)));
+    }
+
+    private IEnumerator ScaleTo(Vector3 target, float duration)
+    {
+        Vector3 start = transform.localScale;
+        if (duration <= 0.0001f)
+        {
+            transform.localScale = target; yield break;
+        }
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            transform.localScale = Vector3.Lerp(start, target, u);
+            yield return null;
+        }
+        transform.localScale = target;
+        _scaleCo = null;
     }
 
     private void CacheOriginalAlphas()

@@ -1,8 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class BookManager : MonoBehaviour
+public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     // Panel referansı
     [SerializeField] private GameObject panel;
@@ -22,6 +23,14 @@ public class BookManager : MonoBehaviour
     private Dictionary<Renderer, float> _originalAlpha = new Dictionary<Renderer, float>();
     private bool _hoverApplied;
     
+    [Header("Hover Scale (UI/Image)")]
+    [Tooltip("Hover'da büyütme efektini etkinleştir")] public bool enableHoverScale = true;
+    [Tooltip("Hedef ölçek çarpanı (1 = orijinal)")] public float hoverScale = 1.08f;
+    [Tooltip("Hover'a geçiş süresi (sn)")] public float scaleInDuration = 0.12f;
+    [Tooltip("Hover'dan çıkış süresi (sn)")] public float scaleOutDuration = 0.12f;
+    private Vector3 _initialScale;
+    private Coroutine _scaleCo;
+    
     void Start()
     {
         // Başlangıçta paneli kapalı duruma getir
@@ -34,6 +43,7 @@ public class BookManager : MonoBehaviour
     _renderers = includeChildren ? GetComponentsInChildren<Renderer>(true) : GetComponents<Renderer>();
     _mpb = new MaterialPropertyBlock();
     CacheOriginalAlphas();
+        _initialScale = transform.localScale;
     }
 
     void Update()
@@ -49,12 +59,14 @@ public class BookManager : MonoBehaviour
     {
         ApplyAlphaToRenderers(hoverOpacity);
         _hoverApplied = true;
+    StartHoverScale();
     }
 
     private void OnMouseExit()
     {
         RestoreAlphaOnRenderers();
         _hoverApplied = false;
+    EndHoverScale();
     }
 
     private void OnDisable()
@@ -63,6 +75,12 @@ public class BookManager : MonoBehaviour
         {
             RestoreAlphaOnRenderers();
             _hoverApplied = false;
+        }
+        // Reset scale on disable to avoid stuck scale
+        if (enableHoverScale)
+        {
+            if (_scaleCo != null) StopCoroutine(_scaleCo);
+            transform.localScale = _initialScale;
         }
     }
 
@@ -110,6 +128,50 @@ public class BookManager : MonoBehaviour
     public bool IsPanelActive()
     {
         return isPanelActive;
+    }
+
+    // UI EventSystem handlers (for Image-based objects)
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        StartHoverScale();
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        EndHoverScale();
+    }
+
+    private void StartHoverScale()
+    {
+        if (!enableHoverScale) return;
+        if (_scaleCo != null) StopCoroutine(_scaleCo);
+        _scaleCo = StartCoroutine(ScaleTo(_initialScale * Mathf.Max(0.01f, hoverScale), Mathf.Max(0.01f, scaleInDuration)));
+    }
+
+    private void EndHoverScale()
+    {
+        if (!enableHoverScale) return;
+        if (_scaleCo != null) StopCoroutine(_scaleCo);
+        _scaleCo = StartCoroutine(ScaleTo(_initialScale, Mathf.Max(0.01f, scaleOutDuration)));
+    }
+
+    private IEnumerator ScaleTo(Vector3 target, float duration)
+    {
+        Vector3 start = transform.localScale;
+        if (duration <= 0.0001f)
+        {
+            transform.localScale = target; yield break;
+        }
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime; // UI feel independent of timescale
+            float u = Mathf.Clamp01(t / duration);
+            transform.localScale = Vector3.Lerp(start, target, u);
+            yield return null;
+        }
+        transform.localScale = target;
+        _scaleCo = null;
     }
 
     private void CacheOriginalAlphas()

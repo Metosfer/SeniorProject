@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// UI butonu ile aç/kapat yapılan slot tabanlı market (2D/Ortho uyumlu).
@@ -22,6 +23,14 @@ public class MarketManager : MonoBehaviour
 
     [Header("UI Open")]
     public Button openMarketButton;
+
+    [Header("Hover Scale (Open Button)")]
+    [Tooltip("Market butonuna hover scale efekti uygula")] public bool enableHoverScaleForMarketButton = true;
+    [Tooltip("Hedef ölçek çarpanı (1 = orijinal)")] public float marketButtonHoverScale = 1.08f;
+    [Tooltip("Hover'a geçiş süresi (sn)")] public float marketButtonScaleInDuration = 0.12f;
+    [Tooltip("Hover'dan çıkış süresi (sn)")] public float marketButtonScaleOutDuration = 0.12f;
+    private Vector3 _btnInitialScale;
+    private Coroutine _btnScaleCo;
 
     [Header("UI")]
     public GameObject marketPanel;
@@ -78,6 +87,7 @@ public class MarketManager : MonoBehaviour
         {
             openMarketButton.onClick.RemoveListener(OpenMarket);
             openMarketButton.onClick.AddListener(OpenMarket);
+            SetupMarketButtonHoverScale();
         }
         // Sync local fallback money with MoneyManager if present
         if (MoneyManager.Instance != null)
@@ -149,6 +159,18 @@ public class MarketManager : MonoBehaviour
     if (inputBlockerOverlay != null) inputBlockerOverlay.SetActive(false);
     RestoreOtherCanvasGroups();
     s_isAnyOpen = false;
+    }
+
+    private void OnDisable()
+    {
+        // Reset button scale if effect was used
+        if (openMarketButton != null && enableHoverScaleForMarketButton)
+        {
+            if (_btnScaleCo != null) StopCoroutine(_btnScaleCo);
+            var t = openMarketButton.transform as RectTransform;
+            if (t != null && _btnInitialScale != Vector3.zero)
+                t.localScale = _btnInitialScale;
+        }
     }
 
     private void GenerateOffers()
@@ -370,6 +392,67 @@ public class MarketManager : MonoBehaviour
     public bool IsPanelActive()
     {
         return marketPanel != null && marketPanel.activeSelf;
+    }
+
+    private void SetupMarketButtonHoverScale()
+    {
+        if (!enableHoverScaleForMarketButton || openMarketButton == null) return;
+        var t = openMarketButton.transform as RectTransform;
+        if (t == null) return;
+        _btnInitialScale = t.localScale;
+
+        var et = openMarketButton.GetComponent<EventTrigger>();
+        if (et == null) et = openMarketButton.gameObject.AddComponent<EventTrigger>();
+
+        AddOrReplaceTrigger(et, EventTriggerType.PointerEnter, OnMarketButtonPointerEnter);
+        AddOrReplaceTrigger(et, EventTriggerType.PointerExit, OnMarketButtonPointerExit);
+    }
+
+    private void AddOrReplaceTrigger(EventTrigger et, EventTriggerType type, System.Action<BaseEventData> callback)
+    {
+        if (et == null) return;
+        // Remove previous entries of same type added by us
+        if (et.triggers == null) et.triggers = new System.Collections.Generic.List<EventTrigger.Entry>();
+        et.triggers.RemoveAll(e => e != null && e.eventID == type);
+        var entry = new EventTrigger.Entry { eventID = type };
+        entry.callback = new EventTrigger.TriggerEvent();
+        entry.callback.AddListener(new UnityEngine.Events.UnityAction<BaseEventData>(callback));
+        et.triggers.Add(entry);
+    }
+
+    private void OnMarketButtonPointerEnter(BaseEventData _)
+    {
+        if (!enableHoverScaleForMarketButton || openMarketButton == null) return;
+        var t = openMarketButton.transform as RectTransform;
+        if (t == null) return;
+        if (_btnScaleCo != null) StopCoroutine(_btnScaleCo);
+        Vector3 target = _btnInitialScale * Mathf.Max(0.01f, marketButtonHoverScale);
+        _btnScaleCo = StartCoroutine(ScaleRectTransform(t, target, Mathf.Max(0.01f, marketButtonScaleInDuration)));
+    }
+
+    private void OnMarketButtonPointerExit(BaseEventData _)
+    {
+        if (!enableHoverScaleForMarketButton || openMarketButton == null) return;
+        var t = openMarketButton.transform as RectTransform;
+        if (t == null) return;
+        if (_btnScaleCo != null) StopCoroutine(_btnScaleCo);
+        _btnScaleCo = StartCoroutine(ScaleRectTransform(t, _btnInitialScale, Mathf.Max(0.01f, marketButtonScaleOutDuration)));
+    }
+
+    private System.Collections.IEnumerator ScaleRectTransform(RectTransform t, Vector3 target, float duration)
+    {
+        Vector3 start = t.localScale;
+        if (duration <= 0.0001f) { t.localScale = target; yield break; }
+        float time = 0f;
+        while (time < duration)
+        {
+            time += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(time / duration);
+            t.localScale = Vector3.Lerp(start, target, u);
+            yield return null;
+        }
+        t.localScale = target;
+        _btnScaleCo = null;
     }
 
     // SaveSystem entegrasyonu

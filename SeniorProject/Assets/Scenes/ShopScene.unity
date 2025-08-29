@@ -4304,6 +4304,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4cbed32776434b04fb89f0fa8841fccc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  changeFarmButton: {fileID: 738368025}
+  enableHoverScaleForChangeFarmButton: 1
+  changeFarmButtonHoverScale: 1.08
+  changeFarmButtonScaleInDuration: 0.12
+  changeFarmButtonScaleOutDuration: 0.12
 --- !u!4 &693129451
 Transform:
   m_ObjectHideFlags: 0
@@ -7086,6 +7091,10 @@ MonoBehaviour:
   colorPropertyNames:
   - _Color
   - _BaseColor
+  enableHoverScale: 1
+  hoverScale: 1.08
+  scaleInDuration: 0.12
+  scaleOutDuration: 0.12
   slotCount: 3
   slotUIs:
   - {fileID: 2094863121}
@@ -13335,11 +13344,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panel: {fileID: 1806126832}
-  hoverOpacity: 0.684
+  hoverOpacity: 0.9
   includeChildren: 1
   colorPropertyNames:
   - _Color
   - _BaseColor
+  enableHoverScale: 1
+  hoverScale: 1.08
+  scaleInDuration: 0.12
+  scaleOutDuration: 0.12
 --- !u!61 &1919438283
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -13927,50 +13940,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1961472044}
   m_CullTransparentMesh: 1
---- !u!1 &1985292395
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1985292397}
-  - component: {fileID: 1985292396}
-  m_Layer: 0
-  m_Name: CursorManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1985292396
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1985292395}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e2765c517ed94bdfa0535bc719d74e7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &1985292397
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1985292395}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.1842109, y: 2.0863287, z: -2.1239524}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2038690321
 GameObject:
   m_ObjectHideFlags: 0
@@ -15687,4 +15656,3 @@ SceneRoots:
   - {fileID: 1341568578}
   - {fileID: 1037963061}
   - {fileID: 1854008830}
-  - {fileID: 1985292397}
