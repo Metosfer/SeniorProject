@@ -94,7 +94,15 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public void OnPointerExit(PointerEventData eventData)
     {
         _isHovered = false;
-        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        var cm = CursorManager.Instance;
+        if (cm != null)
+        {
+            cm.UseDefaultNow();
+        }
+        else
+        {
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        }
         UpdateHoverVisuals();
     }
 

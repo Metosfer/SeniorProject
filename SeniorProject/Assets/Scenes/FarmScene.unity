@@ -1393,16 +1393,16 @@ PrefabInstance:
         type: 3}
       propertyPath: _rotateCursor
       value: 
-      objectReference: {fileID: 2800000, guid: 0b38b1a387c2848b88743ac1e6c60fed, type: 3}
+      objectReference: {fileID: 2800000, guid: ca680b05e210d0b4c9ecb3c84fc36660, type: 3}
     - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _rotateCursorSize
-      value: 8
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _resizeRotateCursor
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
@@ -1412,7 +1412,7 @@ PrefabInstance:
     - target: {fileID: 20566229239774466, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: _autoAdjustRotateCursorForDPI
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 427229399175577728, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
@@ -25037,6 +25037,55 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1681648856}
   m_CullTransparentMesh: 1
+--- !u!1 &1681755256
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1681755258}
+  - component: {fileID: 1681755257}
+  m_Layer: 0
+  m_Name: CursorManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1681755257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1681755256}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8aea269b3ce834de38ce3fbe1f694375, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defaultCursor: {fileID: 2800000, guid: 4c19f70f00306194d9eb6aecbe4a997a, type: 3}
+  defaultHotspot: {x: 0, y: 0}
+  defaultSize: {x: 0, y: 0}
+  defaultMode: 0
+  autoAdjustForDPI: 0
+--- !u!4 &1681755258
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1681755256}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.0218034, y: 3.4660673, z: -2.3572354}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1683648877
 GameObject:
   m_ObjectHideFlags: 0
@@ -33224,7 +33273,7 @@ PrefabInstance:
         type: 3}
       propertyPath: grabCursor
       value: 
-      objectReference: {fileID: 2800000, guid: 552731339a84c437cab98a333e733118, type: 3}
+      objectReference: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
     - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
         type: 3}
       propertyPath: handSocket
@@ -33233,12 +33282,22 @@ PrefabInstance:
     - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
         type: 3}
       propertyPath: grabCursorSize
-      value: 8
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
+        type: 3}
+      propertyPath: autoAdjustForDPI
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
         type: 3}
       propertyPath: hoverMask.m_Bits
       value: 1024
+      objectReference: {fileID: 0}
+    - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
+        type: 3}
+      propertyPath: resizeGrabCursor
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8057980938009706925, guid: bb0829da59b794138bed0e64d7465fc9,
         type: 3}
@@ -35133,6 +35192,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
         type: 3}
+      propertyPath: grabCursor
+      value: 
+      objectReference: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
+    - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
+        type: 3}
       propertyPath: handSocket
       value: 
       objectReference: {fileID: 1038660608}
@@ -35148,6 +35212,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
         type: 3}
+      propertyPath: grabCursorSize
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
+        type: 3}
       propertyPath: pickupPromptUI
       value: 
       objectReference: {fileID: 61009161}
@@ -35155,6 +35224,11 @@ PrefabInstance:
         type: 3}
       propertyPath: mousePickupRange
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
+        type: 3}
+      propertyPath: resizeGrabCursor
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3549056893044183731, guid: b8c928177155e1d4a90325350280ca81,
         type: 3}
@@ -35557,5 +35631,6 @@ SceneRoots:
   - {fileID: 857281830}
   - {fileID: 1376024549}
   - {fileID: 1755484326}
+  - {fileID: 1681755258}
   - {fileID: 243867255}
   - {fileID: 1075961542}

@@ -277,7 +277,8 @@ namespace EazyCamera
             }
             else if (_cursorOwned)
             {
-                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                var cm = CursorManager.Instance;
+                if (cm != null) cm.UseDefaultNow(); else Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
                 _cursorOwned = false;
             }
         }
@@ -286,7 +287,8 @@ namespace EazyCamera
         {
             if (_cursorOwned)
             {
-                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                var cm = CursorManager.Instance;
+                if (cm != null) cm.UseDefaultNow(); else Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
                 _cursorOwned = false;
             }
             if (_scaledRotateCursor != null)
@@ -300,7 +302,8 @@ namespace EazyCamera
         {
             if (_cursorOwned)
             {
-                Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                var cm = CursorManager.Instance;
+                if (cm != null) cm.UseDefaultNow(); else Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
                 _cursorOwned = false;
             }
             if (_scaledRotateCursor != null)

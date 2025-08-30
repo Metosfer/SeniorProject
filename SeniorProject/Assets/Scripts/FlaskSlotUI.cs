@@ -264,7 +264,7 @@ public class FlaskSlotUI : MonoBehaviour, IDropHandler, IPointerClickHandler, IP
             }
         }
         
-        if (hoverCursor != null)
+    if (hoverCursor != null)
         {
             // Boyut ayarı varsa ölçeklenmiş cursor kullan
             if (cursorSize != Vector2.zero && (cursorSize.x != hoverCursor.width || cursorSize.y != hoverCursor.height))
@@ -284,7 +284,15 @@ public class FlaskSlotUI : MonoBehaviour, IDropHandler, IPointerClickHandler, IP
     {
         _isHovered = false;
         HideGhostImage();
-        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        var cm = CursorManager.Instance;
+        if (cm != null)
+        {
+            cm.UseDefaultNow();
+        }
+        else
+        {
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        }
         UpdateVisualState();
     }
 

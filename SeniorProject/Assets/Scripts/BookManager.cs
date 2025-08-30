@@ -244,7 +244,15 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
 
     private void EndHoverCursor()
     {
-        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        var cm = CursorManager.Instance;
+        if (cm != null)
+        {
+            cm.UseDefaultNow();
+        }
+        else
+        {
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        }
     }
 
     private Texture2D ScaleCursor(Texture2D originalCursor, int newWidth, int newHeight)
