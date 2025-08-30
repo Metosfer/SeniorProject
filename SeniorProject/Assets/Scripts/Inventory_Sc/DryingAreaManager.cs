@@ -1,13 +1,15 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class DryingAreaManager : MonoBehaviour
+public class DryingAreaManager : MonoBehaviour, ISaveable
 {
     [Header("Drying Settings")]
     public DryingSlot[] dryingSlots = new DryingSlot[3];
     
     [Header("Player Interaction")]
     public float interactionRange = 3f;
+        [Header("Save Identity")]
+        public string saveId = "DryingArea";
     public KeyCode interactionKey = KeyCode.T   ;
     public GameObject interactionUI; // "Press T to open drying area" UI
     [Tooltip("UI titremesini önlemek için çıkış eşiği (histerezis). İçeri giriş: interactionRange, dışarı çıkış: interactionRange + bu değer")]
@@ -191,6 +193,11 @@ public class DryingAreaManager : MonoBehaviour
             slot.isReadyToCollect = false;
             
             Debug.Log($"Item '{item.itemName}' kurutma slot {slotIndex}'a eklendi. Süre: {item.dryingTime}s");
+            // Snapshot update
+            if (GameSaveManager.Instance != null)
+            {
+                try { GameSaveManager.Instance.CaptureSceneObjectsSnapshotNow(); } catch {}
+            }
             return true;
         }
         
@@ -203,6 +210,10 @@ public class DryingAreaManager : MonoBehaviour
         {
             slot.isReadyToCollect = true;
             Debug.Log($"Kurutma tamamlandı: {slot.currentItemData.itemName}");
+            if (GameSaveManager.Instance != null)
+            {
+                try { GameSaveManager.Instance.CaptureSceneObjectsSnapshotNow(); } catch {}
+            }
         }
     }
 
@@ -226,6 +237,10 @@ public class DryingAreaManager : MonoBehaviour
                 {
                     Debug.Log($"Kurutulmuş item toplandı: {slot.currentItemData.driedVersion.itemName}");
                     slot.ResetSlot();
+                    if (GameSaveManager.Instance != null)
+                    {
+                        try { GameSaveManager.Instance.CaptureSceneObjectsSnapshotNow(); } catch {}
+                    }
                 }
                 else
                 {
@@ -241,6 +256,10 @@ public class DryingAreaManager : MonoBehaviour
                 {
                     Debug.Log($"Item toplandı (dried version yok): {slot.currentItemData.itemName}");
                     slot.ResetSlot();
+                    if (GameSaveManager.Instance != null)
+                    {
+                        try { GameSaveManager.Instance.CaptureSceneObjectsSnapshotNow(); } catch {}
+                    }
                 }
                 else
                 {
@@ -255,5 +274,79 @@ public class DryingAreaManager : MonoBehaviour
         // Interaction range'i göster
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, interactionRange);
+    }
+
+    // ISaveable implementation
+    public System.Collections.Generic.Dictionary<string, object> GetSaveData()
+    {
+        var data = new System.Collections.Generic.Dictionary<string, object>();
+        // Basic transform
+        data["position"] = transform.position;
+        data["rotation"] = transform.eulerAngles;
+        data["scale"] = transform.localScale;
+        // Slots
+        for (int i = 0; i < dryingSlots.Length; i++)
+        {
+            var s = dryingSlots[i]; if (s == null) continue;
+            string p = $"slot{i}";
+            data[$"{p}.occupied"] = s.isOccupied;
+            data[$"{p}.ready"] = s.isReadyToCollect;
+            data[$"{p}.timer"] = s.timer;
+            data[$"{p}.itemName"] = s.currentItemData != null ? s.currentItemData.itemName : string.Empty;
+        }
+        return data;
+    }
+
+    public void LoadSaveData(System.Collections.Generic.Dictionary<string, object> data)
+    {
+        if (data == null) return;
+        // Transform
+        TryParseVector3(data, "position", out var pos); transform.position = pos;
+        TryParseVector3(data, "rotation", out var rot); transform.eulerAngles = rot;
+        TryParseVector3(data, "scale", out var scl); transform.localScale = scl;
+        // Slots
+        for (int i = 0; i < dryingSlots.Length; i++)
+        {
+            var s = dryingSlots[i]; if (s == null) continue;
+            string p = $"slot{i}";
+            bool occ = GetBool(data, $"{p}.occupied");
+            bool ready = GetBool(data, $"{p}.ready");
+            float timer = GetFloat(data, $"{p}.timer");
+            string itemName = GetString(data, $"{p}.itemName");
+            if (!string.IsNullOrEmpty(itemName))
+            {
+                s.currentItemData = FindItem(itemName);
+            }
+            else
+            {
+                s.currentItemData = null;
+            }
+            s.isOccupied = occ;
+            s.isReadyToCollect = ready;
+            s.timer = timer;
+        }
+    }
+
+    private static bool TryParseVector3(System.Collections.Generic.Dictionary<string, object> d, string k, out Vector3 v)
+    {
+        v = Vector3.zero; if (!d.ContainsKey(k)) return false; var s = d[k] as string; if (string.IsNullOrEmpty(s)) return false;
+        var parts = s.Split(','); if (parts.Length != 3) return false;
+        if (float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x) &&
+            float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y) &&
+            float.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z))
+        { v = new Vector3(x, y, z); return true; }
+        return false;
+    }
+    private static bool GetBool(System.Collections.Generic.Dictionary<string, object> d, string k)
+    { return d.ContainsKey(k) && (d[k]?.ToString() == "true" || d[k]?.ToString() == "True"); }
+    private static float GetFloat(System.Collections.Generic.Dictionary<string, object> d, string k)
+    { return d.ContainsKey(k) ? float.Parse(d[k]?.ToString() ?? "0", System.Globalization.CultureInfo.InvariantCulture) : 0f; }
+    private static string GetString(System.Collections.Generic.Dictionary<string, object> d, string k)
+    { return d.ContainsKey(k) ? (d[k]?.ToString() ?? string.Empty) : string.Empty; }
+    private static SCItem FindItem(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null; var all = Resources.LoadAll<SCItem>("");
+        for (int i = 0; i < all.Length; i++) if (all[i] != null && all[i].itemName == name) return all[i];
+        return null;
     }
 }

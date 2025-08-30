@@ -322,8 +322,13 @@ public class GameSaveManager : MonoBehaviour
     
     private void SaveWorldItems()
     {
-        currentSaveData.worldItems.Clear();
+        if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
         
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        // Preserve other scenes' items; only replace current scene entries
+        currentSaveData.worldItems.RemoveAll(w => w != null && w.sceneName == currentScene);
+        
+        var newEntries = new List<WorldItemSaveData>();
         // WorldItem component'ine sahip tüm objeleri bul
         WorldItem[] worldItems = FindObjectsOfType<WorldItem>();
         foreach (WorldItem worldItem in worldItems)
@@ -341,9 +346,8 @@ public class GameSaveManager : MonoBehaviour
                 itemData.rotation = worldItem.transform.eulerAngles;
                 itemData.scale = worldItem.transform.localScale;
                 itemData.quantity = worldItem.quantity;
-                itemData.sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-                
-                currentSaveData.worldItems.Add(itemData);
+                itemData.sceneName = currentScene;
+                newEntries.Add(itemData);
             }
         }
         
@@ -359,11 +363,12 @@ public class GameSaveManager : MonoBehaviour
                 itemData.rotation = droppedItem.transform.eulerAngles;
                 itemData.scale = droppedItem.transform.localScale;
                 itemData.quantity = 1;
-                itemData.sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-                
-                currentSaveData.worldItems.Add(itemData);
+                itemData.sceneName = currentScene;
+                newEntries.Add(itemData);
             }
         }
+        
+        currentSaveData.worldItems.AddRange(newEntries);
     }
     
     private void SavePlants()
@@ -675,17 +680,17 @@ public class GameSaveManager : MonoBehaviour
         // Player pozisyonunu restore et
         RestorePlayerData();
         
-        // Mevcut world item'ları temizle
-        ClearExistingWorldItems();
-        
-        // World item'ları restore et
-        RestoreWorldItems();
+    // Mevcut world item'ları temizle
+    ClearExistingWorldItems();
         
     // Scene object'leri restore et (FarmingAreaManager/HarrowManager gibi ISaveable'lar önce kendi durumunu kursun)
-        RestoreSceneObjects();
+    RestoreSceneObjects();
         
-        // Plant'ları en son restore et; böylece sahnede mevcut bitkileri görüp tekrar oluşturmayız
-        RestorePlants();
+    // Plant'ları restore et
+    RestorePlants();
+        
+    // World item'ları en son restore et (bitki pozisyonlarıyla çakışmayı azaltmak için)
+    RestoreWorldItems();
         
         // Inventory'yi restore et (biraz gecikme ile)
         Invoke(nameof(DelayedInventoryRestore), 0.2f);
@@ -849,6 +854,23 @@ public class GameSaveManager : MonoBehaviour
             {
         string plantId = $"{plant.item.itemName}_{Mathf.Round(plant.transform.position.x * 100f) / 100f}_{Mathf.Round(plant.transform.position.y * 100f) / 100f}_{Mathf.Round(plant.transform.position.z * 100f) / 100f}";
                 existingPlantIds.Add(plantId);
+            }
+        }
+
+        // 1) Bu sahnede collected olarak işaretlenen bitkileri sahneden kaldır
+        foreach (var savedPlant in currentSaveData.plants)
+        {
+            if (savedPlant.sceneName != currentScene || !savedPlant.isCollected) continue;
+            // Find matching live plant by id
+            for (int i = 0; i < existingPlants.Length; i++)
+            {
+                var p = existingPlants[i]; if (p == null || p.item == null) continue;
+                string pid = $"{p.item.itemName}_{Mathf.Round(p.transform.position.x * 100f) / 100f}_{Mathf.Round(p.transform.position.y * 100f) / 100f}_{Mathf.Round(p.transform.position.z * 100f) / 100f}";
+                if (pid == savedPlant.plantId)
+                {
+                    DestroyImmediate(p.gameObject);
+                    break;
+                }
             }
         }
         
@@ -1413,6 +1435,56 @@ public class GameSaveManager : MonoBehaviour
                 Destroy(p.gameObject);
             }
         }
+    }
+
+    // Called when a world item is picked up so it won't respawn on return
+    public void OnWorldItemPickedUp(WorldItem picked)
+    {
+        if (picked == null || picked.item == null) return;
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
+
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        var pos = picked.transform.position;
+        // remove matching entries in current scene near the same spot and same item
+        int removed = currentSaveData.worldItems.RemoveAll(w =>
+            w != null && w.sceneName == currentScene && w.itemName == picked.item.itemName &&
+            (w.position - pos).sqrMagnitude <= 0.5f * 0.5f);
+        if (removed > 0)
+        {
+            Debug.Log($"[GameSaveManager] Removed {removed} saved world item entries for picked {picked.item.itemName}");
+        }
+        // Also refresh the scene snapshot for world items to reflect the live removal
+        SaveWorldItems();
+    }
+
+    // Called when an inventory item is dropped into the world
+    public void OnWorldItemDropped(SCItem item, Vector3 position, int quantity)
+    {
+        if (item == null) return;
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        var data = new WorldItemSaveData
+        {
+            itemName = item.itemName,
+            position = position,
+            rotation = Vector3.zero,
+            scale = Vector3.one,
+            quantity = Mathf.Max(1, quantity),
+            sceneName = currentScene
+        };
+        currentSaveData.worldItems.Add(data);
+        Debug.Log($"[GameSaveManager] Tracked dropped item {item.itemName} at {position}");
+        // Refresh snapshot from scene as well (to capture exact rotation/scale after spawn)
+        SaveWorldItems();
+    }
+
+    // Public helper for components to update snapshot of ISaveable objects without flushing to disk
+    public void CaptureSceneObjectsSnapshotNow()
+    {
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        SaveSceneObjects();
     }
     
     // Auto-save on application focus/pause events

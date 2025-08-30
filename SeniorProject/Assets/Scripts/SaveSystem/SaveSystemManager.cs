@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Collections;
 
 /// <summary>
 /// Save sistemini başlatan ve yöneten ana sınıf
@@ -35,6 +36,8 @@ public class SaveSystemManager : MonoBehaviour
         {
             Debug.Log("[SaveSystemManager] Auto-save on scene change enabled, subscribing to sceneUnloaded event");
             UnityEngine.SceneManagement.SceneManager.sceneUnloaded += OnSceneUnloaded;
+            // Ek güvence: aktif sahne değiştiğinde de kaydet (GameSaveManager önce snapshot alır)
+            UnityEngine.SceneManagement.SceneManager.activeSceneChanged += OnActiveSceneChanged;
         }
         else
         {
@@ -70,9 +73,27 @@ public class SaveSystemManager : MonoBehaviour
             Debug.LogError("[SaveSystemManager] GameSaveManager.Instance is null, cannot auto-save!");
         }
     }
+
+    private void OnActiveSceneChanged(Scene previous, Scene next)
+    {
+        // GameSaveManager bu event ile önce previous sahnenin snapshot'ını alır.
+        // Burada bir frame bekleyip SaveGame çağırarak PlayerPrefs'e yazmayı garantile.
+        if (GameSaveManager.Instance != null)
+        {
+            StartCoroutine(DeferredSave());
+        }
+    }
+
+    private IEnumerator DeferredSave()
+    {
+        yield return null; // next frame
+        GameSaveManager.Instance.SaveGame();
+        Debug.Log("[SaveSystemManager] Deferred SaveGame after activeSceneChanged");
+    }
     
     private void OnDestroy()
     {
         UnityEngine.SceneManagement.SceneManager.sceneUnloaded -= OnSceneUnloaded;
+    UnityEngine.SceneManagement.SceneManager.activeSceneChanged -= OnActiveSceneChanged;
     }
 }

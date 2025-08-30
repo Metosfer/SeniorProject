@@ -194,8 +194,11 @@ public class WorldItemSpawner : MonoBehaviour
             sWeightedPrefabs = new List<WeightedPrefabEntry> { new WeightedPrefabEntry { prefab = defaultPrefab, weight = 1f } };
         }
 
-        // Return to this scene? Restore previously saved world items
-        TryRestoreSavedForActiveScene();
+        // Return to this scene? Restore previously saved world items unless central save manager is present
+        if (GameSaveManager.Instance == null)
+        {
+            TryRestoreSavedForActiveScene();
+        }
 
         // Auto-spawn zamanlayıcıyı başlat
         _nextSpawnTime = Time.time + spawnInterval;

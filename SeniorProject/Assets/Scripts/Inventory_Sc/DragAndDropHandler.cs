@@ -292,12 +292,21 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         {
             Vector3 worldPosition = GetWorldDropPosition(eventData);
             WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
+            // Notify save system
+            if (GameSaveManager.Instance != null)
+            {
+                try { GameSaveManager.Instance.OnWorldItemDropped(currentSlotRef.item, worldPosition, 1); } catch {}
+            }
             RemoveSingleItemFromInventory();
         }
     else if (hitObject == null || (!IsUIElement(hitObject)))
         {
             Vector3 worldPosition = GetWorldDropPosition(eventData);
             WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
+            if (GameSaveManager.Instance != null)
+            {
+                try { GameSaveManager.Instance.OnWorldItemDropped(currentSlotRef.item, worldPosition, 1); } catch {}
+            }
             RemoveSingleItemFromInventory();
         }
     else

@@ -71,6 +71,11 @@ public class WorldItem : MonoBehaviour
             if (added)
             {
                 Debug.Log($"Picked up: {item.itemName} x{quantity}");
+                // Notify save system immediately
+                if (GameSaveManager.Instance != null)
+                {
+                    try { GameSaveManager.Instance.OnWorldItemPickedUp(this); } catch {}
+                }
                 
                 // Eğer quantity 1'den fazlaysa, sadece 1 tane al ve quantity'yi azalt
                 if (quantity > 1)
