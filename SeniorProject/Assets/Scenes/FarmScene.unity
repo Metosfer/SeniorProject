@@ -19950,6 +19950,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f430ca93b6754cb41979bd13e107ca9f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  weightedPrefabs:
+  - prefab: {fileID: 4148940763791018315, guid: 4a5fb5c0c4feda547a20f33d42d13b74,
+      type: 3}
+    weight: 100
   defaultWorldItemPrefab: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
     type: 3}
   extraDefaultPrefabs:
@@ -19967,11 +19971,12 @@ MonoBehaviour:
   rayMaxDistance: 3
   groundClearance: 0
   enableAutoSpawn: 1
-  autoSpawnItem: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}
+  autoSpawnItem: {fileID: 0}
   autoSpawnQuantity: 1
   spawnInterval: 10
   maxAliveInArea: 10
   includeExistingWorldItemsInCount: 0
+  autoSpawnItems: []
   useTransformAsCenter: 1
   areaCenter: {x: 0, y: 0, z: 0}
   areaSize: {x: 9.43, y: 0.1, z: 14.5}

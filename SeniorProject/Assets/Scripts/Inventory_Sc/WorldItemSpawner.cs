@@ -1,13 +1,24 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class WorldItemSpawner : MonoBehaviour
 {
-    [Header("World Item Settings")]
-    public GameObject defaultWorldItemPrefab; // Inspector'da atanacak varsayılan prefab
-    public static GameObject worldItemPrefab; // Statik referans
-    [Tooltip("Varsayılan prefab yoksa kullanılacak ek fallback prefab'lar (ilk geçerli olan seçilir)")]
-    public List<GameObject> extraDefaultPrefabs = new List<GameObject>();
+    [System.Serializable]
+    public class WeightedPrefabEntry
+    {
+        public GameObject prefab;
+        [Tooltip("Bu prefab'ın spawn olma ağırlığı/yüzdesi. Hepsi toplanır ve normalize edilir.")]
+        public float weight = 1f;
+    }
+
+    [Header("World Item Prefabs (Weighted)")]
+    [Tooltip("Spawn için kullanılacak prefab havuzu ve ağırlıkları")] 
+    public List<WeightedPrefabEntry> weightedPrefabs = new List<WeightedPrefabEntry>();
+
+    // Backward-compat (migrate to weightedPrefabs on Awake if set)
+    [HideInInspector] public GameObject defaultWorldItemPrefab;
+    [HideInInspector] public List<GameObject> extraDefaultPrefabs = new List<GameObject>();
     [Header("Lifetime")]
     [Tooltip("Bu spawner'ı sahne geçişlerinde koru.")]
     public bool dontDestroyOnLoad = false;
@@ -38,12 +49,12 @@ public class WorldItemSpawner : MonoBehaviour
     private static float sRayStartHeight = 0.5f;
     private static float sRayMaxDistance = 5f;
     private static float sGroundClearance = 0.0f;
-    private static List<GameObject> sExtraDefaultPrefabs = new List<GameObject>();
+    private static List<WeightedPrefabEntry> sWeightedPrefabs = new List<WeightedPrefabEntry>();
 
     [Header("Auto Spawn Settings")]
     [Tooltip("Belirli aralıklarla otomatik world item spawn et.")]
     public bool enableAutoSpawn = false;
-    [Tooltip("Otomatik spawn edilecek SCItem (dropPrefab'ı varsa kullanılır).")]
+    [Tooltip("Geriye dönük: Tek bir auto-spawn item. Yeni sistemle weighted listeyi kullanın.")]
     public SCItem autoSpawnItem;
     [Tooltip("Her spawn'da üretilecek adet.")]
     public int autoSpawnQuantity = 1;
@@ -53,6 +64,18 @@ public class WorldItemSpawner : MonoBehaviour
     public int maxAliveInArea = 10;
     [Tooltip("Kapsite hesabına bu spawner'a ait olmayan (etiketsiz) world item'ları da dahil et.")]
     public bool includeExistingWorldItemsInCount = true;
+
+    [Header("Auto Spawn Items (Weighted)")]
+    [Tooltip("Auto-spawn için SCItem havuzu ve ağırlıkları (bu liste boş değilse kullanılır)")]
+    public List<WeightedItemEntry> autoSpawnItems = new List<WeightedItemEntry>();
+
+    [System.Serializable]
+    public class WeightedItemEntry
+    {
+        public SCItem item;
+        [Tooltip("Bu item'ın seçilme ağırlığı. Hepsi toplanıp normalize edilir.")]
+        public float weight = 1f;
+    }
 
     [Header("Auto Spawn Area")] 
     [Tooltip("Merkez olarak bu objenin pozisyonunu kullan.")]
@@ -69,6 +92,23 @@ public class WorldItemSpawner : MonoBehaviour
 
     private float _nextSpawnTime;
     private readonly List<AutoSpawnTag> _autoSpawned = new List<AutoSpawnTag>();
+
+    // Per-scene persistence
+    private enum SpawnOrigin { PreferDrop, PreferItem, Fallback, Unknown }
+    [System.Serializable]
+    private class SavedWorldItemData
+    {
+        public SCItem item;
+        public int quantity;
+        public Vector3 position;
+        public Quaternion rotation;
+        public Vector3 scale;
+        public SpawnOrigin origin;
+        public GameObject usedFallbackPrefab; // only for Fallback
+    }
+
+    private static readonly Dictionary<string, List<SavedWorldItemData>> s_sceneSaves = new Dictionary<string, List<SavedWorldItemData>>();
+    private bool _restoredThisScene;
 
     private void Awake()
     {
@@ -92,16 +132,35 @@ public class WorldItemSpawner : MonoBehaviour
                 return;
             }
         }
-        
-        // Statik prefab referansını ayarla
-        if (defaultWorldItemPrefab != null)
-        {
-            worldItemPrefab = defaultWorldItemPrefab;
-        }
-            // Ek fallback listesi cache
-            sExtraDefaultPrefabs = extraDefaultPrefabs != null ? new List<GameObject>(extraDefaultPrefabs) : new List<GameObject>();
 
-        // Statik ground clamp ayarlarını cache'le
+        // Migrate old fields to weighted list if needed
+        if (weightedPrefabs == null) weightedPrefabs = new List<WeightedPrefabEntry>();
+        if (weightedPrefabs.Count == 0)
+        {
+            if (defaultWorldItemPrefab != null)
+            {
+                weightedPrefabs.Add(new WeightedPrefabEntry { prefab = defaultWorldItemPrefab, weight = 1f });
+            }
+            if (extraDefaultPrefabs != null)
+            {
+                for (int i = 0; i < extraDefaultPrefabs.Count; i++)
+                {
+                    var p = extraDefaultPrefabs[i];
+                    if (p != null) weightedPrefabs.Add(new WeightedPrefabEntry { prefab = p, weight = 1f });
+                }
+            }
+        }
+
+        // Cache static weighted list (filter nulls, non-positive weights)
+        sWeightedPrefabs = new List<WeightedPrefabEntry>();
+        for (int i = 0; i < weightedPrefabs.Count; i++)
+        {
+            var e = weightedPrefabs[i];
+            if (e != null && e.prefab != null && e.weight > 0f)
+                sWeightedPrefabs.Add(e);
+        }
+
+    // Statik ground clamp ayarlarını cache'le
         sClampToGroundY = clampToGroundY;
         sDefaultGroundY = defaultGroundY;
     sGroundMask = groundMask;
@@ -114,6 +173,8 @@ public class WorldItemSpawner : MonoBehaviour
         {
             DontDestroyOnLoad(gameObject);
         }
+    // Save on scene switch (also works when this object persists)
+    UnityEngine.SceneManagement.SceneManager.activeSceneChanged += OnActiveSceneChanged;
     }
 
     private void Start()
@@ -124,12 +185,17 @@ public class WorldItemSpawner : MonoBehaviour
             GameObject container = new GameObject("World Items");
             itemContainer = container.transform;
         }
-        
-        // Eğer default prefab yoksa basit bir prefab oluştur
-        if (worldItemPrefab == null && defaultWorldItemPrefab == null)
+
+        // Eğer listede hiç prefab yoksa basit bir prefab ekle
+        if (sWeightedPrefabs == null || sWeightedPrefabs.Count == 0)
         {
-            CreateDefaultWorldItemPrefab();
+            var defaultPrefab = CreateDefaultWorldItemPrefab();
+            weightedPrefabs.Add(new WeightedPrefabEntry { prefab = defaultPrefab, weight = 1f });
+            sWeightedPrefabs = new List<WeightedPrefabEntry> { new WeightedPrefabEntry { prefab = defaultPrefab, weight = 1f } };
         }
+
+        // Return to this scene? Restore previously saved world items
+        TryRestoreSavedForActiveScene();
 
         // Auto-spawn zamanlayıcıyı başlat
         _nextSpawnTime = Time.time + spawnInterval;
@@ -138,21 +204,27 @@ public class WorldItemSpawner : MonoBehaviour
     private void Update()
     {
         if (!enableAutoSpawn) return;
-        if (autoSpawnItem == null) return;
+        bool useWeightedItems = autoSpawnItems != null && autoSpawnItems.Count > 0;
+        if (!useWeightedItems && autoSpawnItem == null) return;
         if (spawnInterval <= 0f) return;
 
         // Kapasite kontrolü (alan içerisindeki aynı item)
         if (maxAliveInArea > 0)
         {
-            int alive = GetAliveCountInArea();
+            int alive = GetAliveCountInArea(useWeightedItems);
             if (alive >= maxAliveInArea) return;
         }
 
         if (Time.time >= _nextSpawnTime)
         {
             Vector3 pos = GetRandomPointInArea();
-            // Y seviyesini (opsiyonel) clamp politikası zaten uygulayacak
-            GameObject go = CreateWorldItemObject(autoSpawnItem, pos, Mathf.Max(1, autoSpawnQuantity), preferDropPrefab: false);
+            // Seçilecek item: weighted list varsa ondan, yoksa tekil autoSpawnItem
+            SCItem chosen = useWeightedItems ? ChooseWeightedSCItem() : autoSpawnItem;
+            if (chosen == null) { _nextSpawnTime = Time.time + spawnInterval; return; }
+            // İstenen davranış: seçilen ScriptableObject'i Auto Spawn Item alanına yansıt
+            if (useWeightedItems) { autoSpawnItem = chosen; }
+            // Y seviyesini (opsiyonel) clamp politikası zaten uygulanacak
+            GameObject go = CreateWorldItemObject(chosen, pos, Mathf.Max(1, autoSpawnQuantity), preferDropPrefab: false);
             if (go != null)
             {
                 var tag = go.AddComponent<AutoSpawnTag>();
@@ -162,8 +234,37 @@ public class WorldItemSpawner : MonoBehaviour
             _nextSpawnTime = Time.time + spawnInterval;
         }
     }
+
+    private SCItem ChooseWeightedSCItem()
+    {
+        if (autoSpawnItems == null || autoSpawnItems.Count == 0) return null;
+        float total = 0f;
+        for (int i = 0; i < autoSpawnItems.Count; i++)
+        {
+            var e = autoSpawnItems[i];
+            if (e == null || e.item == null || e.weight <= 0f) continue;
+            total += e.weight;
+        }
+        if (total <= 0f) return null;
+        float r = Random.value * total;
+        float acc = 0f;
+        for (int i = 0; i < autoSpawnItems.Count; i++)
+        {
+            var e = autoSpawnItems[i];
+            if (e == null || e.item == null || e.weight <= 0f) continue;
+            acc += e.weight;
+            if (r <= acc) return e.item;
+        }
+        // fallback: son geçerli
+        for (int i = autoSpawnItems.Count - 1; i >= 0; i--)
+        {
+            var e = autoSpawnItems[i];
+            if (e != null && e.item != null && e.weight > 0f) return e.item;
+        }
+        return null;
+    }
     
-    private void CreateDefaultWorldItemPrefab()
+    private GameObject CreateDefaultWorldItemPrefab()
     {
         // Basit bir cube prefab oluştur
         GameObject defaultPrefab = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -180,12 +281,9 @@ public class WorldItemSpawner : MonoBehaviour
             col.isTrigger = true;
         }
         
-        // Prefab olarak ayarla
-        worldItemPrefab = defaultPrefab;
-        defaultWorldItemPrefab = defaultPrefab;
-        
         // Geçici objeyi deaktif et (prefab olarak kullanılacak)
         defaultPrefab.SetActive(false);
+        return defaultPrefab;
     }
 
     public static void SpawnItem(SCItem item, Vector3 position, int quantity = 1)
@@ -208,6 +306,8 @@ public class WorldItemSpawner : MonoBehaviour
     private static GameObject CreateWorldItemObject(SCItem item, Vector3 position, int quantity, bool preferDropPrefab)
     {
         GameObject worldItem;
+        SpawnOrigin origin = SpawnOrigin.Unknown;
+        GameObject usedFallback = null;
         
         // Prefab seçimi modu
         if (preferDropPrefab)
@@ -217,15 +317,18 @@ public class WorldItemSpawner : MonoBehaviour
             {
                 worldItem = Instantiate(item.dropPrefab, position, Quaternion.identity);
                 worldItem.name = $"WorldItem_{item.itemName}";
+                origin = SpawnOrigin.PreferDrop;
             }
             else if (item.itemPrefab != null)
             {
                 worldItem = Instantiate(item.itemPrefab, position, Quaternion.identity);
                 worldItem.name = $"WorldItem_{item.itemName}";
+                origin = SpawnOrigin.PreferItem;
             }
             else
             {
-                worldItem = InstantiateFallback(item, position);
+                worldItem = InstantiateFallback(item, position, out usedFallback);
+                origin = SpawnOrigin.Fallback;
             }
         }
         else
@@ -235,15 +338,18 @@ public class WorldItemSpawner : MonoBehaviour
             {
                 worldItem = Instantiate(item.itemPrefab, position, Quaternion.identity);
                 worldItem.name = $"WorldItem_{item.itemName}";
+                origin = SpawnOrigin.PreferItem;
             }
             else if (item.dropPrefab != null)
             {
                 worldItem = Instantiate(item.dropPrefab, position, Quaternion.identity);
                 worldItem.name = $"WorldItem_{item.itemName}";
+                origin = SpawnOrigin.PreferDrop;
             }
             else
             {
-                worldItem = InstantiateFallback(item, position);
+                worldItem = InstantiateFallback(item, position, out usedFallback);
+                origin = SpawnOrigin.Fallback;
             }
         }
 
@@ -254,13 +360,20 @@ public class WorldItemSpawner : MonoBehaviour
         }
 
         // WorldItem component'i ekle (eğer yoksa)
-        WorldItem worldItemComponent = worldItem.GetComponent<WorldItem>();
+    WorldItem worldItemComponent = worldItem.GetComponent<WorldItem>();
         if (worldItemComponent == null)
         {
             worldItemComponent = worldItem.AddComponent<WorldItem>();
         }
         worldItemComponent.item = item;
         worldItemComponent.quantity = quantity;
+
+    // Meta bilgisi ekle (persist için)
+    var meta = worldItem.GetComponent<WorldItemMeta>();
+    if (meta == null) meta = worldItem.AddComponent<WorldItemMeta>();
+    meta.origin = origin;
+    meta.usedFallbackPrefab = usedFallback;
+    meta.owner = instance;
 
         // Collider ekle (eğer yoksa)
         Collider collider = worldItem.GetComponent<Collider>();
@@ -293,23 +406,19 @@ public class WorldItemSpawner : MonoBehaviour
 
     public static void SetWorldItemPrefab(GameObject prefab)
     {
-        worldItemPrefab = prefab;
+        // Back-compat: tek bir prefab atanırsa ağırlıklı listeye 1 ağırlıkla ekle
+        if (prefab == null) return;
+        if (sWeightedPrefabs == null) sWeightedPrefabs = new List<WeightedPrefabEntry>();
+        sWeightedPrefabs.Add(new WeightedPrefabEntry { prefab = prefab, weight = 1f });
     }
 
     // Default/extra fallback oluşturucu
-    private static GameObject InstantiateFallback(SCItem item, Vector3 position)
+    private static GameObject InstantiateFallback(SCItem item, Vector3 position, out GameObject usedPrefab)
     {
-        GameObject basePrefab = worldItemPrefab;
-        if (basePrefab == null)
+        usedPrefab = ChooseWeightedPrefab();
+        if (usedPrefab != null)
         {
-            for (int i = 0; i < sExtraDefaultPrefabs.Count; i++)
-            {
-                if (sExtraDefaultPrefabs[i] != null) { basePrefab = sExtraDefaultPrefabs[i]; break; }
-            }
-        }
-        if (basePrefab != null)
-        {
-            var go = Instantiate(basePrefab, position, Quaternion.identity);
+            var go = Instantiate(usedPrefab, position, Quaternion.identity);
             go.name = $"WorldItem_{item.itemName}";
             return go;
         }
@@ -330,7 +439,52 @@ public class WorldItemSpawner : MonoBehaviour
             else mat.color = Color.gray;
             renderer.material = mat;
         }
+        usedPrefab = null;
         return worldItem;
+    }
+
+    private static GameObject ChooseWeightedPrefab()
+    {
+        if (sWeightedPrefabs == null || sWeightedPrefabs.Count == 0) return null;
+        float total = 0f;
+        for (int i = 0; i < sWeightedPrefabs.Count; i++)
+        {
+            var e = sWeightedPrefabs[i];
+            if (e == null || e.prefab == null || e.weight <= 0f) continue;
+            total += e.weight;
+        }
+        if (total <= 0f) return null;
+        float r = Random.value * total;
+        float acc = 0f;
+        for (int i = 0; i < sWeightedPrefabs.Count; i++)
+        {
+            var e = sWeightedPrefabs[i];
+            if (e == null || e.prefab == null || e.weight <= 0f) continue;
+            acc += e.weight;
+            if (r <= acc) return e.prefab;
+        }
+        return sWeightedPrefabs[sWeightedPrefabs.Count - 1].prefab;
+    }
+
+    // Create directly from a specific prefab and restore exact transform
+    private static GameObject CreateWorldItemFromPrefab(GameObject prefab, SCItem item, Vector3 position, Quaternion rotation, Vector3 scale, int quantity)
+    {
+        if (prefab == null) return null;
+        var go = Instantiate(prefab, position, rotation);
+        go.transform.localScale = scale;
+        go.name = $"WorldItem_{item.itemName}";
+        if (itemContainer != null) go.transform.SetParent(itemContainer);
+        var wi = go.GetComponent<WorldItem>();
+        if (wi == null) wi = go.AddComponent<WorldItem>();
+        wi.item = item; wi.quantity = quantity;
+        var col = go.GetComponent<Collider>();
+        if (col == null) col = go.AddComponent<BoxCollider>();
+        var trigger = go.AddComponent<BoxCollider>();
+        trigger.isTrigger = true; trigger.size = Vector3.one * 2f;
+        go.tag = "WorldItem";
+        var meta = go.AddComponent<WorldItemMeta>();
+        meta.origin = SpawnOrigin.Fallback; meta.usedFallbackPrefab = prefab; meta.owner = instance;
+        return go;
     }
 
     // --- Helpers for auto spawn ---
@@ -350,10 +504,10 @@ public class WorldItemSpawner : MonoBehaviour
         return new Vector3(x, y, z);
     }
 
-    private int GetAliveCountInArea()
+    private int GetAliveCountInArea(bool usingWeightedItems)
     {
         var b = GetAreaBounds();
-        string nameFilter = autoSpawnItem != null ? autoSpawnItem.itemName : null;
+        string nameFilter = usingWeightedItems ? null : (autoSpawnItem != null ? autoSpawnItem.itemName : null);
         int count = 0;
 
         // Kendi spawn ettiklerimiz
@@ -485,6 +639,109 @@ public class WorldItemSpawner : MonoBehaviour
             t.position = pos;
         }
     }
+
+    // === Persistence helpers ===
+    private void SaveCurrentSceneItems()
+    {
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        SaveCurrentSceneItems(sceneName);
+    }
+
+    private void SaveCurrentSceneItems(string sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName)) return;
+        var list = new List<SavedWorldItemData>();
+        var all = GameObject.FindGameObjectsWithTag("WorldItem");
+        for (int i = 0; i < all.Length; i++)
+        {
+            var go = all[i]; if (go == null) continue;
+            // Only save objects that belong to the specified scene
+            if (go.scene.name != sceneName) continue;
+            var wi = go.GetComponent<WorldItem>(); if (wi == null || wi.item == null) continue;
+            var meta = go.GetComponent<WorldItemMeta>();
+            // Only track items spawned by this spawner
+            if (meta == null || meta.owner != this) continue;
+            var data = new SavedWorldItemData
+            {
+                item = wi.item,
+                quantity = Mathf.Max(1, wi.quantity),
+                position = go.transform.position,
+                rotation = go.transform.rotation,
+                scale = go.transform.localScale,
+                origin = meta.origin,
+                usedFallbackPrefab = meta.usedFallbackPrefab
+            };
+            list.Add(data);
+        }
+        s_sceneSaves[sceneName] = list;
+    }
+
+    private void TryRestoreSavedForActiveScene()
+    {
+        if (_restoredThisScene) return;
+    string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (!s_sceneSaves.TryGetValue(sceneName, out var list) || list == null || list.Count == 0)
+        {
+            _restoredThisScene = true;
+            return;
+        }
+        for (int i = 0; i < list.Count; i++)
+        {
+            var d = list[i]; if (d == null || d.item == null) continue;
+            GameObject go = null;
+            if (d.origin == SpawnOrigin.Fallback && d.usedFallbackPrefab != null)
+            {
+                go = CreateWorldItemFromPrefab(d.usedFallbackPrefab, d.item, d.position, d.rotation, d.scale, d.quantity);
+            }
+            else
+            {
+                // Recreate using selection path and then force transform
+                go = CreateWorldItemObject(d.item, d.position, d.quantity, preferDropPrefab: d.origin == SpawnOrigin.PreferDrop);
+                if (go != null)
+                {
+                    go.transform.position = d.position;
+                    go.transform.rotation = d.rotation;
+                    go.transform.localScale = d.scale;
+                }
+            }
+        }
+        _restoredThisScene = true;
+    }
+
+    private void OnDisable()
+    {
+        // Save current scene items when leaving scene (for scene-bound instances)
+        if (!dontDestroyOnLoad && gameObject.scene.IsValid())
+        {
+            SaveCurrentSceneItems();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+        {
+            // Save also on destroy
+            SaveCurrentSceneItems();
+            instance = null;
+        }
+        UnityEngine.SceneManagement.SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+    }
+
+    private void OnActiveSceneChanged(Scene prev, Scene next)
+    {
+        // Save items for previous scene before switching away
+        if (prev.IsValid()) SaveCurrentSceneItems(prev.name);
+        _restoredThisScene = false;
+    }
+
+    // Meta component attached to world items we spawn (for persistence fidelity)
+    private class WorldItemMeta : MonoBehaviour
+    {
+        public SpawnOrigin origin;
+        public GameObject usedFallbackPrefab;
+        public WorldItemSpawner owner;
+    }
     private void OnDrawGizmosSelected()
     {
         if (!drawAreaGizmos) return;
@@ -498,12 +755,5 @@ public class WorldItemSpawner : MonoBehaviour
     private class AutoSpawnTag : MonoBehaviour
     {
         public WorldItemSpawner owner;
-    }
-    private void OnDestroy()
-    {
-        if (instance == this)
-        {
-            instance = null;
-        }
     }
 }
