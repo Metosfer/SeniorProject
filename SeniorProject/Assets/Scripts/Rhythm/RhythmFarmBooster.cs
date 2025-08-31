@@ -11,6 +11,8 @@ public class RhythmFarmBooster : MonoBehaviour
     public RythmGameManager rhythm;
     public FarmingAreaManager farmingArea; // optional; if null, finds nearest in scene
     public Transform player; // optional; auto-find by tag "Player"
+    [Tooltip("If true and no area is assigned, bind to the nearest FarmingAreaManager on Awake")] public bool bindNearestOnAwake = true;
+    [Tooltip("Max distance to bind when searching nearest on Awake (0 = unlimited)")] public float bindMaxDistance = 0f;
     [Tooltip("TMP_Text to display the applied boost result")] public TMP_Text boostResultText;
 
     [Header("Interaction")]
@@ -35,6 +37,18 @@ public class RhythmFarmBooster : MonoBehaviour
         {
             var go = GameObject.FindGameObjectWithTag("Player");
             if (go != null) player = go.transform;
+        }
+        // Bind to nearest area once if not assigned
+        if (farmingArea == null && bindNearestOnAwake)
+        {
+            var nearest = FindNearestFarmingArea();
+            if (nearest != null)
+            {
+                if (bindMaxDistance <= 0f || (nearest.transform.position - transform.position).sqrMagnitude <= bindMaxDistance * bindMaxDistance)
+                {
+                    farmingArea = nearest;
+                }
+            }
         }
         if (rhythm != null)
         {
@@ -85,20 +99,19 @@ public class RhythmFarmBooster : MonoBehaviour
         // Update prompt message when in range
         if (_inRange && interactPromptText != null)
         {
-            var targetAreaForPrompt = farmingArea != null ? farmingArea : FindNearestFarmingArea();
-            bool canOpen = targetAreaForPrompt != null && targetAreaForPrompt.HasAnyPlantedSeed();
-            interactPromptText.text = canOpen ? "Press E to play" : "No seeds planted";
+            bool canOpen = farmingArea != null && farmingArea.HasAnyGrowingSeed();
+            interactPromptText.text = canOpen ? "Press E to play" : "Add water first";
         }
 
         if (_inRange && Input.GetKeyDown(interactKey))
         {
             // Block if there is no planted seed in range/target area
-            var targetArea = farmingArea != null ? farmingArea : FindNearestFarmingArea();
-            bool canOpen = targetArea != null && targetArea.HasAnyPlantedSeed();
+            var targetArea = farmingArea; // must be bound/assigned
+            bool canOpen = targetArea != null && targetArea.HasAnyGrowingSeed();
             if (!canOpen)
             {
                 // Ensure prompt shows the correct warning
-                if (interactPromptText != null) interactPromptText.text = "No seeds planted";
+                if (interactPromptText != null) interactPromptText.text = "Add water first";
                 if (infoText != null) { infoText.text = ""; }
                 return;
             }
@@ -128,8 +141,8 @@ public class RhythmFarmBooster : MonoBehaviour
         if (total <= 0.01f) return;
 
         // Find target farming area if missing
-        var target = farmingArea != null ? farmingArea : FindNearestFarmingArea();
-        if (target == null) return;
+    var target = farmingArea;
+    if (target == null) return;
 
         float applied = target.ApplyGrowthBoost(total);
         Debug.Log($"RhythmFarmBooster applied {applied:F1}s growth boost (requested {total:F1}s) to {target.name}");

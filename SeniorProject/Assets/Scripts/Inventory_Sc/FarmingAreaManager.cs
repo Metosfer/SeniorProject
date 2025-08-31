@@ -606,6 +606,20 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         return false;
     }
 
+    // Public helper to check if there is at least one seed currently growing (watered, timer running)
+    public bool HasAnyGrowingSeed()
+    {
+        for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
+        {
+            var s = _plots[i];
+            if (s != null && s.isOccupied && s.isGrowing && s.grownInstance == null)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ------- Editor Gizmos -------
     private void OnDrawGizmos()
     {

@@ -32,6 +32,18 @@ public class GameManager : MonoBehaviour
     [Tooltip("Kontrol sıklığı (saniye). 0 = her frame.")]
     public float checkInterval = 0.2f;
 
+    [Header("Stability & Safety")]
+    [Tooltip("Expand safe bounds by this padding (world units) to avoid edge flicker respawns.")]
+    public float boundsPadding = 1.0f;
+    [Tooltip("Require being outside continuously for at least this many seconds before respawn.")]
+    public float minOutsideDuration = 0.75f;
+    [Tooltip("If the player is outside but closer than this to the bounds, treat as inside (hysteresis).")]
+    public float minDistanceOutside = 0.5f;
+    [Tooltip("Use CharacterController/Collider bounds center instead of raw transform position when available.")]
+    public bool preferColliderBounds = true;
+    [Tooltip("If grounded and horizontally inside, do not respawn due to tiny vertical jitter above killY.")]
+    public bool ignoreWhenGroundedInsideXZ = true;
+
     [Header("Gizmos")] 
     public bool drawAreaGizmos = true;
     public Color areaFillColor = new Color(0.2f, 0.6f, 1f, 0.12f);
@@ -39,6 +51,8 @@ public class GameManager : MonoBehaviour
     public Color respawnColor = new Color(0.2f, 1f, 0.2f, 0.9f);
 
     private float _nextCheckTime;
+    private float _outsideSince = -1f;
+    private bool _wasOutside;
 
     private void Awake()
     {
@@ -68,11 +82,40 @@ public class GameManager : MonoBehaviour
     {
         if (player == null) return;
         var b = GetAreaBounds();
-        var pos = player.position;
-        bool outside = !b.Contains(pos) || pos.y <= killY;
-        if (outside)
+        var pos = GetBestCheckPosition();
+
+        // Optional: ignore respawn if grounded and horizontally inside (prevents tiny jitter false positives)
+        if (ignoreWhenGroundedInsideXZ)
+        {
+            var cc = player.GetComponent<CharacterController>();
+            bool grounded = cc != null ? cc.isGrounded : (player.GetComponent<Rigidbody>() == null || Physics.Raycast(player.position + Vector3.up * 0.1f, Vector3.down, 0.2f));
+            if (grounded)
+            {
+                Vector3 horiz = new Vector3(pos.x, b.center.y, pos.z);
+                var bNoY = new Bounds(b.center, new Vector3(b.size.x, Mathf.Max(0.1f, b.size.y), b.size.z));
+                if (bNoY.Contains(horiz) && pos.y > killY)
+                {
+                    _outsideSince = -1f; _wasOutside = false; return;
+                }
+            }
+        }
+
+        bool outside = IsOutside(b, pos);
+        if (!outside)
+        {
+            _outsideSince = -1f;
+            _wasOutside = false;
+            return;
+        }
+
+        // Debounce: require sustained outside state
+        if (_outsideSince < 0f) _outsideSince = Time.time;
+        _wasOutside = true;
+        if (Time.time - _outsideSince >= Mathf.Max(0f, minOutsideDuration))
         {
             RespawnPlayer();
+            _outsideSince = -1f;
+            _wasOutside = false;
         }
     }
 
@@ -80,7 +123,37 @@ public class GameManager : MonoBehaviour
     {
         Vector3 center = useTransformAsCenter ? transform.position + areaCenter : areaCenter;
         Vector3 size = new Vector3(Mathf.Max(1f, areaSize.x), Mathf.Max(1f, areaSize.y), Mathf.Max(1f, areaSize.z));
-        return new Bounds(center, size);
+        var b = new Bounds(center, size);
+        if (boundsPadding > 0f)
+        {
+            b.Expand(boundsPadding * 2f); // Expand equally in all directions
+        }
+        return b;
+    }
+
+    private Vector3 GetBestCheckPosition()
+    {
+        if (!preferColliderBounds) return player.position;
+        // Prefer CharacterController bounds center
+        var cc = player.GetComponent<CharacterController>();
+        if (cc != null) return cc.bounds.center;
+        var col = player.GetComponent<Collider>();
+        if (col != null) return col.bounds.center;
+        return player.position;
+    }
+
+    private bool IsOutside(Bounds b, Vector3 pos)
+    {
+        bool outsideBounds = !b.Contains(pos) || pos.y <= killY;
+        if (!outsideBounds) return false;
+        // Hysteresis: if only slightly outside, allow it
+        Vector3 nearest = b.ClosestPoint(pos);
+        float dist = Vector3.Distance(nearest, pos);
+        if (dist < Mathf.Max(0f, minDistanceOutside) && pos.y > killY)
+        {
+            return false;
+        }
+        return true;
     }
 
     private void RespawnPlayer()

@@ -9779,17 +9779,22 @@ MonoBehaviour:
   autoFindPlayerByTag: 1
   useTransformAsCenter: 1
   areaCenter: {x: 0, y: 4.41, z: 0}
-  areaSize: {x: 93.7, y: 35.8, z: 54.6}
+  areaSize: {x: 111.7, y: 75.3, z: 109.1}
   respawnPoint: {fileID: 1305175762}
   killY: -50
   snapToGround: 0
   groundMask:
     serializedVersion: 2
-    m_Bits: 128
+    m_Bits: 5505
   rayStartHeight: 2
   rayMaxDistance: 100
   groundClearance: 1
   checkInterval: 1
+  boundsPadding: 1
+  minOutsideDuration: 0.75
+  minDistanceOutside: 0.5
+  preferColliderBounds: 1
+  ignoreWhenGroundedInsideXZ: 1
   drawAreaGizmos: 1
   areaFillColor: {r: 1, g: 0, b: 0.80166054, a: 0.12}
   areaWireColor: {r: 1, g: 0.89414346, b: 0, a: 0.9}
@@ -18558,16 +18563,18 @@ MonoBehaviour:
   rhythm: {fileID: 1931053895}
   farmingArea: {fileID: 4609176484178661158}
   player: {fileID: 7949885079087181006}
+  bindNearestOnAwake: 1
+  bindMaxDistance: 0
   boostResultText: {fileID: 355394866}
-  interactRange: 2.5
+  interactRange: 1.5
   interactKey: 101
   interactPromptUI: {fileID: 507487769}
-  interactPromptText: {fileID: 0}
+  interactPromptText: {fileID: 507487770}
   infoText: {fileID: 0}
   secondsPerThousandScore: 2
   secondsPerTenCombo: 0.5
   maxTotalSeconds: 15
-  includeComboBonus: 0
+  includeComboBonus: 1
 --- !u!4 &1161660575 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1503844757079232779, guid: a49206e40dd072d47b1844bb2d713e07,
@@ -21428,17 +21435,17 @@ PrefabInstance:
     - target: {fileID: 1503844757079232779, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.94
+      value: 7.98
       objectReference: {fileID: 0}
     - target: {fileID: 1503844757079232779, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.22
+      value: 0.23
       objectReference: {fileID: 0}
     - target: {fileID: 1503844757079232779, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4.47
+      value: -3.73
       objectReference: {fileID: 0}
     - target: {fileID: 1503844757079232779, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
@@ -31210,6 +31217,7 @@ GameObject:
   - component: {fileID: 1931053896}
   - component: {fileID: 1931053895}
   - component: {fileID: 1931053898}
+  - component: {fileID: 1931053899}
   m_Layer: 5
   m_Name: RythmGamePanel
   m_TagString: Untagged
@@ -31257,7 +31265,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   musicSource: {fileID: 1931053898}
-  beatSensitivity: 0.57
+  beatSensitivity: 0.81
   beatCooldown: 0.12
   arrowsPanel: {fileID: 1931053894}
   upTarget: {fileID: 266835698}
@@ -31292,18 +31300,18 @@ MonoBehaviour:
   hitFlashColor: {r: 1, g: 1, b: 1, a: 0.7}
   missFlashColor: {r: 1, g: 0.2, b: 0.2, a: 0.7}
   flashFadeTime: 0.3
-  missPenalty: 50
+  missPenalty: 200
   perfectColor: {r: 1, g: 0.95, b: 0.4, a: 1}
   greatColor: {r: 0.4, g: 1, b: 0.7, a: 1}
   goodColor: {r: 0.6, g: 0.8, b: 1, a: 1}
   missColor: {r: 1, g: 0.4, b: 0.4, a: 1}
-  judgmentPopScale: 1.25
+  judgmentPopScale: 1.5
   judgmentWiggleSpeed: 14
   judgmentShakeAngle: 8
   enableHypeWords: 1
-  sfxSource: {fileID: 0}
-  sfxHit: {fileID: 8300000, guid: c307817cb863c4485b05be11065bf809, type: 3}
-  sfxMiss: {fileID: 8300000, guid: 01362889f8f8f47d4b001903bb76d804, type: 3}
+  sfxSource: {fileID: 1931053899}
+  sfxHit: {fileID: 8300000, guid: 550de39aff6164aaea7fa60beba98b74, type: 3}
+  sfxMiss: {fileID: 8300000, guid: b44bce0d495d546b593929cdb1545090, type: 3}
 --- !u!114 &1931053896
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31353,6 +31361,102 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 8300000, guid: be10541da7d8a4ebdb6272b84c270704, type: 3}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!82 &1931053899
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1931053893}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
