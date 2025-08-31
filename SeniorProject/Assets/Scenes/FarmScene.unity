@@ -18562,6 +18562,7 @@ MonoBehaviour:
   interactRange: 2.5
   interactKey: 101
   interactPromptUI: {fileID: 507487769}
+  interactPromptText: {fileID: 0}
   infoText: {fileID: 0}
   secondsPerThousandScore: 2
   secondsPerTenCombo: 0.5
@@ -31280,6 +31281,8 @@ MonoBehaviour:
   autoDeactivateOnFinish: 1
   rootUI: {fileID: 1931053893}
   hideWhilePlaying: []
+  forceHideNames:
+  - InventoryPanel
   allowEscClose: 1
   allowEKeyClose: 1
   scoreText: {fileID: 1551252258}
@@ -38231,6 +38234,7 @@ SceneRoots:
   - {fileID: 9041309848821883344}
   - {fileID: 2444353398045877876}
   - {fileID: 6580437291509564321}
+  - {fileID: 1400289674}
   - {fileID: 601457061468995713}
   - {fileID: 1710462774}
   - {fileID: 1932686720}
@@ -38255,4 +38259,3 @@ SceneRoots:
   - {fileID: 1681755258}
   - {fileID: 243867255}
   - {fileID: 1075961542}
-  - {fileID: 1400289674}
