@@ -15,6 +15,15 @@ public class RythmGameManager : MonoBehaviour
     [Range(0.01f, 2f)] public float beatSensitivity = 0.25f;
     [Tooltip("Minimum seconds between detected beats to avoid double-detection.")]
     [Range(0.05f, 0.5f)] public float beatCooldown = 0.12f;
+    [Header("Playlist")]
+    [Tooltip("Optional list of music clips. If provided, a random one is picked on StartGame().")]
+    public List<AudioClip> musicClips = new List<AudioClip>();
+    [Tooltip("Pick a random track on each StartGame() call.")]
+    public bool pickRandomTrackEachStart = true;
+    [Tooltip("Avoid picking the same track twice in a row when randomizing.")]
+    public bool avoidImmediateRepeat = true;
+    [Tooltip("Reset detection and auto-tune timing to the selected track.")]
+    public bool autoTuneToTrack = true;
 
     [Header("Lanes & UI Targets")] 
     [Tooltip("Parent RectTransform that contains the 4 arrow images (Up,Down,Left,Right)")]
@@ -94,6 +103,11 @@ public class RythmGameManager : MonoBehaviour
     private float _energySum = 0f;
     private float _energySqSum = 0f;
     private System.Random _rng = new System.Random();
+    // Beat interval tracking for auto-tuning
+    private readonly List<float> _beatIntervals = new List<float>(16);
+    private float _avgBeatInterval = 0f;
+    private int _lastClipIndex = -1;
+    private float _initialTravelTime;
 
     private readonly List<RhythmNote> _notes = new List<RhythmNote>();
     private int _score;
@@ -129,6 +143,8 @@ public class RythmGameManager : MonoBehaviour
         }
     // Initialize input lock
     RhythmInputLock = false;
+    // Remember inspector-assigned travel time and keep it fixed
+    _initialTravelTime = travelTime;
     }
 
     private void Update()
@@ -190,10 +206,24 @@ public class RythmGameManager : MonoBehaviour
     HideExternalUI(true);
     if (rootUI != null) rootUI.SetActive(true);
         // Start audio
-        if (musicSource != null && musicSource.clip != null)
+        if (musicSource != null)
         {
-            musicSource.time = 0f;
-            musicSource.Play();
+            // Choose a track if a playlist is provided
+            if (musicClips != null && musicClips.Count > 0)
+            {
+                int idx = SelectTrackIndex();
+                if (idx >= 0 && idx < musicClips.Count)
+                {
+                    musicSource.clip = musicClips[idx];
+                    _lastClipIndex = idx;
+                }
+            }
+            if (musicSource.clip != null)
+            {
+                ResetBeatDetectionState();
+                musicSource.time = 0f;
+                musicSource.Play();
+            }
         }
         RhythmInputLock = lockPlayerWhilePlaying;
     }
@@ -261,9 +291,58 @@ public class RythmGameManager : MonoBehaviour
         float thresh = mean + std * Mathf.Lerp(1.2f, 3.0f, Mathf.Clamp01(beatSensitivity));
         if (energy > thresh && (now - _lastBeatTime) > beatCooldown)
         {
+            // Track beat interval for auto-tune
+            if (_lastBeatTime > 0f)
+            {
+                float interval = now - _lastBeatTime;
+                if (interval > 0.05f && interval < 3.0f)
+                {
+                    if (_beatIntervals.Count >= 12) _beatIntervals.RemoveAt(0);
+                    _beatIntervals.Add(interval);
+                    // compute average
+                    float sum = 0f; for (int i = 0; i < _beatIntervals.Count; i++) sum += _beatIntervals[i];
+                    _avgBeatInterval = sum / _beatIntervals.Count;
+                    if (autoTuneToTrack && _beatIntervals.Count >= 3)
+                    {
+                        // Adjust cooldown and travel time to track tempo
+                        float targetCooldown = Mathf.Clamp(_avgBeatInterval * 0.45f, 0.06f, 0.5f);
+                        beatCooldown = targetCooldown;
+                        // Do not change travelTime; keep inspector value
+                    }
+                }
+            }
             _lastBeatTime = now;
             SpawnRandomDirectionalNote(now + travelTime);
         }
+    }
+
+    private int SelectTrackIndex()
+    {
+        if (musicClips == null || musicClips.Count == 0) return -1;
+        if (!pickRandomTrackEachStart)
+        {
+            // Default to first clip when not randomizing
+            return 0;
+        }
+        if (musicClips.Count == 1) return 0;
+        int attempt = 0;
+        int idx;
+        do
+        {
+            idx = _rng.Next(0, musicClips.Count);
+            attempt++;
+        } while (avoidImmediateRepeat && idx == _lastClipIndex && attempt < 8);
+        return idx;
+    }
+
+    private void ResetBeatDetectionState()
+    {
+        _lastBeatTime = -999f;
+        _energyBuf.Clear();
+        _energySum = 0f;
+        _energySqSum = 0f;
+        _beatIntervals.Clear();
+        _avgBeatInterval = 0f;
     }
 
     private void SpawnRandomDirectionalNote(float expectedHitTime)

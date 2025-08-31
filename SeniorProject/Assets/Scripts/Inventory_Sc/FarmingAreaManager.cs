@@ -169,6 +169,28 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                         s.growthEndTime -= delta;
                         // If countdown exists, it will reflect new remaining automatically
                         applied += delta; budget -= delta;
+
+                        // If time is up after boost, finish this plot immediately
+                        float remainAfter = Mathf.Max(0f, s.growthEndTime - Time.time);
+                        if (remainAfter <= 0.01f)
+                        {
+                            if (s.growthRoutine != null)
+                            {
+                                StopCoroutine(s.growthRoutine);
+                                s.growthRoutine = null;
+                            }
+                            CompleteGrowthNow(i);
+                        }
+                        else
+                        {
+                            // Time reduced but not zero: restart growth to honor the new remaining time
+                            if (s.growthRoutine != null)
+                            {
+                                StopCoroutine(s.growthRoutine);
+                                s.growthRoutine = null;
+                            }
+                            s.growthRoutine = StartCoroutine(GrowAndSpawn(i, remainAfter));
+                        }
                     }
                 }
                 else if (s.requiresWater)
@@ -191,6 +213,89 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             UpdateStatusText();
         }
         return applied;
+    }
+
+    // Immediately complete growth for the given plot (spawn grown plant etc.)
+    private void CompleteGrowthNow(int plotIndex)
+    {
+        if (plotIndex < 0 || plotIndex >= _plots.Count) return;
+        var state = _plots[plotIndex];
+        if (state == null || !state.isOccupied || state.grownInstance != null) return;
+        var point = plotPoints[plotIndex]; if (point == null) return;
+
+        // Clear countdown UI
+        DestroyCountdown(plotIndex);
+
+        // Remove marker
+        if (state.seedMarkerInstance != null)
+        {
+            Destroy(state.seedMarkerInstance);
+            state.seedMarkerInstance = null;
+        }
+
+        // VFX
+        if (growVFXPrefab != null)
+        {
+            var vfx = Instantiate(growVFXPrefab, point.position + spawnOffset, point.rotation);
+            Destroy(vfx, 3f);
+        }
+
+        // Spawn grown (preserve prefab transform)
+        GameObject grownPrefab = GetGrownPrefab(state.currentSeed);
+        if (grownPrefab != null)
+        {
+            var instanceRoot = Instantiate(grownPrefab, point.position + spawnOffset, grownPrefab.transform.rotation);
+
+            // Prefer existing Plant anywhere in the hierarchy; otherwise add one on root
+            Plant[] plants = instanceRoot.GetComponentsInChildren<Plant>(true);
+            Plant plant = null;
+            if (plants != null && plants.Length > 0)
+            {
+                plant = plants[0];
+                // Destroy any duplicate Plant components beyond the first to prevent multi-pickup
+                for (int k = 1; k < plants.Length; k++)
+                {
+                    if (plants[k] != null) Destroy(plants[k]);
+                }
+            }
+            else
+            {
+                plant = instanceRoot.AddComponent<Plant>();
+            }
+
+            // Ensure the collider lives with the Plant object; create if missing
+            GameObject plantGO = plant.gameObject;
+            var plantCol = plantGO.GetComponent<Collider>();
+            if (plantCol == null)
+            {
+                plantCol = plantGO.AddComponent<BoxCollider>();
+            }
+            plantCol.isTrigger = true;
+
+            // Optional rigidbody on the Plant holder for stable trigger behavior
+            var rb = plantGO.GetComponent<Rigidbody>();
+            if (rb == null) rb = plantGO.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+
+            // Assign harvest item if not set
+            if (plant.item == null)
+            {
+                var harvest = GetHarvestItem(state.currentSeed);
+                if (harvest != null) plant.item = harvest;
+            }
+
+            // Track the actual Plant gameObject so when it's destroyed, we can reset the plot
+            state.grownInstance = plantGO;
+        }
+        else
+        {
+            Debug.LogWarning("FarmingArea: Grown prefab not found; spawn skipped.");
+        }
+
+        // Start monitoring harvest and refresh UI
+        StartCoroutine(WatchForHarvest(plotIndex));
+        UpdateStatusText();
     }
 
     private void SyncPlotStatesWithPoints()

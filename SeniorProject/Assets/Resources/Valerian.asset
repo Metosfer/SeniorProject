@@ -20,9 +20,10 @@ MonoBehaviour:
     type: 3}
   dropPrefab: {fileID: 4148940763791018315, guid: 4a5fb5c0c4feda547a20f33d42d13b74,
     type: 3}
-  dryPrefab: {fileID: 0}
+  dryPrefab: {fileID: 4148940763791018315, guid: c24c9045855c54bb387b2d74bf6505fc,
+    type: 3}
   isSeed: 0
-  growthTime: 10
+  growthTime: 90
   grownPrefab: {fileID: 0}
   harvestItem: {fileID: 0}
   canBeDried: 1
