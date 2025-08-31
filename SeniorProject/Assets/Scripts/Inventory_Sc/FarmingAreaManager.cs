@@ -54,6 +54,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     public float defaultGrowthTime = 10f;
     [Tooltip("Use SCItem.growthTime when available, otherwise fallback to default.")]
     public bool useItemGrowthTimeIfAvailable = true;
+    [Tooltip("Max toplam hızlandırma (s) bir seferde uygulanabilecek")] public float maxBoostPerRun = 10f;
 
     [Header("Placement")]
     [Tooltip("Apply a small offset at spawn position (slightly above ground).")]
@@ -143,6 +144,53 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     UpdateWateringPromptAndHandleInput();
     // Preparation prompt + input handling (integrates with HarrowManager)
     UpdatePreparePromptAndHandleInput();
+    }
+
+    // Rhythm Game integration: apply a time reduction boost to seeds
+    // amountSeconds: how many seconds to reduce. Applies to currently growing plots (reduces remaining time)
+    // and to waiting plots (reduces planned growth time so they finish sooner once watered).
+    public float ApplyGrowthBoost(float amountSeconds)
+    {
+        if (amountSeconds <= 0f) return 0f;
+        float applied = 0f;
+        float budget = maxBoostPerRun > 0f ? Mathf.Min(amountSeconds, maxBoostPerRun) : amountSeconds;
+        for (int i = 0; i < _plots.Count && budget > 0f; i++)
+        {
+            var s = _plots[i]; if (s == null) continue;
+            if (s.isOccupied && s.grownInstance == null)
+            {
+                if (s.isGrowing)
+                {
+                    // Reduce remaining time directly, not below zero
+                    float remain = Mathf.Max(0f, s.growthEndTime - Time.time);
+                    float delta = Mathf.Min(remain, budget);
+                    if (delta > 0f)
+                    {
+                        s.growthEndTime -= delta;
+                        // If countdown exists, it will reflect new remaining automatically
+                        applied += delta; budget -= delta;
+                    }
+                }
+                else if (s.requiresWater)
+                {
+                    // Not growing yet: reduce planned growth time
+                    float planned = Mathf.Max(0.01f, s.plannedGrowthTime);
+                    float delta = Mathf.Min(planned * 0.9f, budget); // keep tiny floor
+                    if (delta > 0f)
+                    {
+                        s.plannedGrowthTime = Mathf.Max(0.01f, planned - delta);
+                        applied += delta; budget -= delta;
+                        // Update text if showing "Waiting"
+                        CreateOrUpdateCountdown(i, startTimer: false, customText: "Waiting");
+                    }
+                }
+            }
+        }
+        if (applied > 0f)
+        {
+            UpdateStatusText();
+        }
+        return applied;
     }
 
     private void SyncPlotStatesWithPoints()
@@ -542,6 +590,20 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             if (statusTMP != null) statusTMP.text = msg;
             if (statusTextUI != null) statusTextUI.text = msg;
         }
+    }
+
+    // Public helper to check if there is at least one planted seed (waiting or growing)
+    public bool HasAnyPlantedSeed()
+    {
+        for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
+        {
+            var s = _plots[i];
+            if (s != null && s.isOccupied && s.grownInstance == null)
+            {
+                return true; // includes waiting (requiresWater) and growing
+            }
+        }
+        return false;
     }
 
     // ------- Editor Gizmos -------

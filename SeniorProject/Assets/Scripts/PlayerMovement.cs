@@ -163,6 +163,12 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     private void HandleInputAndMovement()
     {
+        // Rythm game active? Block movement input
+        if (RythmGameManager.RhythmInputLock)
+        {
+            currentSpeed = 0f;
+            return;
+        }
         // Animasyon oynarken hareket girişini engelle
         if (animController != null && animController.IsSpuding())
         {
