@@ -40,6 +40,8 @@ public class RythmGameManager : MonoBehaviour
     public float travelTime = 0.8f;
     [Tooltip("Hit window in pixels near the target")]
     public float hitWindowPixels = 50f;
+    [Tooltip("Reduce combo gain when playing fast: 1=normal, >1 means stricter combo gain at higher speed")]
+    [Range(0.5f, 3f)] public float comboStrictnessAtHighSpeed = 1.4f;
 
     [Header("Input")] 
     public KeyCode keyUp = KeyCode.UpArrow;
@@ -286,6 +288,10 @@ public class RythmGameManager : MonoBehaviour
             img.color = LaneColor(lane);
         }
 
+        // Optional animated visuals
+        var anim = go.GetComponent<NoteUIAnimator>();
+        if (anim == null) anim = go.AddComponent<NoteUIAnimator>();
+
         var note = new RhythmNote
         {
             go = go,
@@ -296,7 +302,8 @@ public class RythmGameManager : MonoBehaviour
             endPos = target.anchoredPosition,
             spawnTime = Time.unscaledTime,
             expectedHitAudioTime = expectedHitTime,
-            travelTime = Mathf.Max(0.05f, travelTime)
+            travelTime = Mathf.Max(0.05f, travelTime),
+            visual = anim
         };
         _notes.Add(note);
     }
@@ -310,7 +317,17 @@ public class RythmGameManager : MonoBehaviour
         {
             var n = _notes[i];
             float u = Mathf.InverseLerp(n.spawnTime, n.spawnTime + n.travelTime, tNow);
-            n.rect.anchoredPosition = Vector2.LerpUnclamped(n.startPos, n.endPos, u);
+            Vector2 pos = Vector2.LerpUnclamped(n.startPos, n.endPos, u);
+            if (n.visual != null)
+            {
+                Vector2 ofs = n.visual.GetPositionOffset(tNow - n.spawnTime, _combo);
+                n.rect.anchoredPosition = pos + ofs;
+                n.visual.ApplyVisuals(tNow - n.spawnTime, _combo);
+            }
+            else
+            {
+                n.rect.anchoredPosition = pos;
+            }
             // Reached target without being hit -> Miss and cleanup
             if (u >= 1.0f)
             {
@@ -348,7 +365,17 @@ public class RythmGameManager : MonoBehaviour
                 bestDist = d; bestIdx = i;
             }
         }
-        if (bestIdx >= 0 && bestDist <= hitWindowPixels)
+        // Make combo stricter at higher perceived speed by narrowing effective hit window for combo gain
+        float effectiveWindow = hitWindowPixels;
+        if (comboStrictnessAtHighSpeed > 1f && musicSource != null && travelTime > 0.05f)
+        {
+            // Estimate flow speed from spawn-to-target travel; faster travel -> tighter combo window
+            float speedFactor = Mathf.Clamp((1f / travelTime), 0.5f, 3f); // 1/travelTime ~ speed
+            float tighten = Mathf.Lerp(1f, comboStrictnessAtHighSpeed, Mathf.InverseLerp(1f, 2.5f, speedFactor));
+            effectiveWindow = hitWindowPixels / tighten;
+        }
+
+        if (bestIdx >= 0 && bestDist <= effectiveWindow)
         {
             // Hit!
             var noteGO = _notes[bestIdx].go;
@@ -677,5 +704,6 @@ public class RythmGameManager : MonoBehaviour
         public float spawnTime; // unscaled time
         public float expectedHitAudioTime; // not used yet, can be used for tighter scoring
         public float travelTime;
+    public NoteUIAnimator visual;
     }
 }

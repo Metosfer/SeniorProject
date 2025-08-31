@@ -31265,7 +31265,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   musicSource: {fileID: 1931053898}
-  beatSensitivity: 0.81
+  beatSensitivity: 0.8
   beatCooldown: 0.12
   arrowsPanel: {fileID: 1931053894}
   upTarget: {fileID: 266835698}
@@ -31281,6 +31281,7 @@ MonoBehaviour:
   spawnLine: {fileID: 754525894}
   travelTime: 3
   hitWindowPixels: 600
+  comboStrictnessAtHighSpeed: 1.4
   keyUp: 273
   keyDown: 274
   keyLeft: 276
