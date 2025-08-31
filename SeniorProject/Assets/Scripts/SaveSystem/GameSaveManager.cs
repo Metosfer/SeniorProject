@@ -397,8 +397,8 @@ public class GameSaveManager : MonoBehaviour
         {
             if (plant.item != null)
             {
-                // Compute plantId with rounded position to reduce drift issues
-                string thisPlantId = $"{plant.item.itemName}_{Mathf.Round(plant.transform.position.x * 100f) / 100f}_{Mathf.Round(plant.transform.position.y * 100f) / 100f}_{Mathf.Round(plant.transform.position.z * 100f) / 100f}";
+                // Compute plantId consistently
+                string thisPlantId = MakePlantId(plant.item.itemName, plant.transform.position);
                 var alreadyCollected = currentSaveData.plants.Any(p => p.sceneName == currentScene && p.plantId == thisPlantId && p.isCollected);
                 // Also skip if an identical non-collected entry already exists (avoid duplicates on repeated saves)
                 var alreadySaved = currentSaveData.plants.Any(p => p.sceneName == currentScene && p.plantId == thisPlantId && !p.isCollected);
@@ -852,7 +852,7 @@ public class GameSaveManager : MonoBehaviour
         {
             if (plant.item != null)
             {
-        string plantId = $"{plant.item.itemName}_{Mathf.Round(plant.transform.position.x * 100f) / 100f}_{Mathf.Round(plant.transform.position.y * 100f) / 100f}_{Mathf.Round(plant.transform.position.z * 100f) / 100f}";
+    string plantId = MakePlantId(plant.item.itemName, plant.transform.position);
                 existingPlantIds.Add(plantId);
             }
         }
@@ -865,7 +865,7 @@ public class GameSaveManager : MonoBehaviour
             for (int i = 0; i < existingPlants.Length; i++)
             {
                 var p = existingPlants[i]; if (p == null || p.item == null) continue;
-                string pid = $"{p.item.itemName}_{Mathf.Round(p.transform.position.x * 100f) / 100f}_{Mathf.Round(p.transform.position.y * 100f) / 100f}_{Mathf.Round(p.transform.position.z * 100f) / 100f}";
+                string pid = MakePlantId(p.item.itemName, p.transform.position);
                 if (pid == savedPlant.plantId)
                 {
                     DestroyImmediate(p.gameObject);
@@ -943,6 +943,19 @@ public class GameSaveManager : MonoBehaviour
         }
         
         Debug.Log($"Plant restoration completed for scene: {currentScene}");
+    }
+
+    // Consistent plant ID builder (2 decimals, invariant)
+    private static string MakePlantId(string itemName, Vector3 pos)
+    {
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        float rx = Mathf.Round(pos.x * 100f) / 100f;
+        float ry = Mathf.Round(pos.y * 100f) / 100f;
+        float rz = Mathf.Round(pos.z * 100f) / 100f;
+        return string.Concat(itemName, "_",
+            rx.ToString("F2", ci), "_",
+            ry.ToString("F2", ci), "_",
+            rz.ToString("F2", ci));
     }
     
     private void RestoreInventoryData()
