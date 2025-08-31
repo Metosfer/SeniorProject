@@ -7195,7 +7195,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panel: {fileID: 1946725965}
-  hoverOpacity: 0.9
+  hoverOpacity: 0.95
   includeChildren: 1
   colorPropertyNames:
   - _Color
@@ -13550,7 +13550,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panel: {fileID: 1806126832}
-  hoverOpacity: 0.9
+  hoverOpacity: 0.95
   includeChildren: 1
   colorPropertyNames:
   - _Color
