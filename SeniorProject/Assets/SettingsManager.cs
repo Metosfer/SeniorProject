@@ -18,6 +18,12 @@ public class SettingsManager : MonoBehaviour
         public bool cameraShowRotateCursor = true;
         public int rotateCursorSize = 32;
         public bool dpiAwareCursor = true;
+
+    // Display/Graphics (classic)
+    public int resolutionIndex = -1; // -1 = keep current
+    public int displayMode = (int)FullScreenMode.FullScreenWindow; // serialized as int
+    public bool vSync = true; // QualitySettings.vSyncCount>0
+    public int targetFPS = -1; // -1 uncapped; ignored if vSync
     }
 
     public GameSettings Current = new GameSettings();
@@ -118,7 +124,96 @@ public class SettingsManager : MonoBehaviour
     private void ApplyGraphics()
     {
         int idx = Mathf.Clamp(Current.graphicsQuality, 0, QualitySettings.names.Length - 1);
-        QualitySettings.SetQualityLevel(idx);
+        QualitySettings.SetQualityLevel(idx, true);
+
+        // VSync & FPS
+        QualitySettings.vSyncCount = Current.vSync ? 1 : 0;
+        Application.targetFrameRate = Current.vSync ? -1 : Current.targetFPS;
+
+        // Display mode
+        var mode = (FullScreenMode)Mathf.Clamp(Current.displayMode, 0, (int)FullScreenMode.Windowed);
+
+        // Resolution (optional) — only if valid index found
+        if (Current.resolutionIndex >= 0)
+        {
+            var list = GetUniqueResolutions();
+            if (Current.resolutionIndex < list.Count)
+            {
+                var r = list[Current.resolutionIndex];
+                var rr = r.refreshRateRatio;
+                Screen.SetResolution(r.width, r.height, mode, rr);
+            }
+            else
+            {
+                // Fallback: apply mode only
+                Screen.fullScreenMode = mode;
+            }
+        }
+        else
+        {
+            // Apply display mode if resolution untouched
+            Screen.fullScreenMode = mode;
+        }
+    }
+
+    // Public setters for classic settings
+    public void SetResolutionIndex(int index)
+    {
+        var list = GetUniqueResolutions();
+        if (list.Count == 0) return;
+        index = Mathf.Clamp(index, 0, list.Count - 1);
+        Current.resolutionIndex = index;
+        var r = list[index];
+    var rr = r.refreshRateRatio;
+    Screen.SetResolution(r.width, r.height, (FullScreenMode)Current.displayMode, rr);
+        SaveSettings();
+        RaiseChanged();
+    }
+
+    public void SetDisplayMode(int modeInt)
+    {
+        modeInt = Mathf.Clamp(modeInt, 0, (int)FullScreenMode.Windowed);
+        Current.displayMode = modeInt;
+        Screen.fullScreenMode = (FullScreenMode)modeInt;
+        SaveSettings();
+        RaiseChanged();
+    }
+
+    public void SetVSync(bool enabled)
+    {
+        Current.vSync = enabled;
+        QualitySettings.vSyncCount = enabled ? 1 : 0;
+        if (enabled) Application.targetFrameRate = -1;
+        SaveSettings();
+        RaiseChanged();
+    }
+
+    public void SetTargetFPS(int fps)
+    {
+        if (fps < 0) fps = -1;
+        Current.targetFPS = fps;
+        if (!Current.vSync) Application.targetFrameRate = fps;
+        SaveSettings();
+        RaiseChanged();
+    }
+
+    // Build a unique resolution list by width x height with highest refresh per pair
+    private static System.Collections.Generic.List<Resolution> GetUniqueResolutions()
+    {
+        var src = Screen.resolutions;
+        var dict = new System.Collections.Generic.Dictionary<(int,int), Resolution>();
+        for (int i = 0; i < src.Length; i++)
+        {
+            var r = src[i];
+            var key = (r.width, r.height);
+            if (!dict.TryGetValue(key, out var exist) || r.refreshRateRatio.value > exist.refreshRateRatio.value)
+            {
+                dict[key] = r;
+            }
+        }
+        var list = new System.Collections.Generic.List<Resolution>(dict.Values);
+        list.Sort((a,b) => a.width != b.width ? a.width.CompareTo(b.width) : a.height.CompareTo(b.height));
+        return list;
     }
 
     private void ApplyCameraToControllers()
