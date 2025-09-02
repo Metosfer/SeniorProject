@@ -61,7 +61,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -6478536213147159724, guid: c1c933c8120665d4696a33f58406a07e, type: 3}
+  - {fileID: 2100000, guid: 810afde8bda034cacaa632cee0ea3095, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -206,7 +206,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -876546973899608171, guid: c1c933c8120665d4696a33f58406a07e, type: 3}
+  - {fileID: 2100000, guid: a70bc4a933f384aff8f8d30012e09453, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -331,9 +331,13 @@ MonoBehaviour:
     collectButton: {fileID: 0}
     slotCanvasGroup: {fileID: 0}
   interactionRange: 3
-  interactionKey: 105
+  saveId: DryingArea
+  interactionKey: 116
   interactionUI: {fileID: 0}
+  rangeHysteresis: 0.3
   dryingUI: {fileID: 0}
+  initialUISuppressDuration: 0.3
+  uiStateStabilityTime: 0.08
 --- !u!1 &7214614170803818662
 GameObject:
   m_ObjectHideFlags: 0

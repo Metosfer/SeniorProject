@@ -33,6 +33,8 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
     private bool _uiDesiredLast;
     private float _uiDesiredSince;
 
+    // No global modal ownership here; we only consume ESC when closing to prevent Pause
+
     private void Start()
     {
         // Player referanslarını bul
@@ -62,6 +64,7 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
     private void OnDestroy()
     {
     UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    // nothing special on destroy
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -74,12 +77,25 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
             interactionUI.SetActive(false);
             _uiShown = false;
         }
+    // do not force-close panel on scene load; UI scripts should manage their own state
     }
 
     private void Update()
     {
         // Player mesafe kontrolü (Market gibi modal UI'lar açıkken bastır)
         CheckPlayerDistance();
+
+        // ESC ile panel kapama ve pause menüyü bloklama
+        if (Input.GetKeyDown(KeyCode.Escape) && IsDryingUIOpen())
+        {
+            // Mark ESC consumed so PauseMenuController ignores it this frame
+            MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
+            if (dryingUI != null)
+            {
+                dryingUI.TogglePanel();
+            }
+            return; // early return to avoid processing other inputs this frame
+        }
 
         // T tuşu kontrolü (input işlemleri Update'te olmalı)
         if (playerInRange && !MarketManager.IsAnyOpen && Input.GetKeyDown(interactionKey))
@@ -102,6 +118,11 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
                 }
             }
         }
+    }
+
+    private bool IsDryingUIOpen()
+    {
+        return dryingUI != null && dryingUI.gameObject != null && dryingUI.gameObject.activeInHierarchy;
     }
 
     private void CheckPlayerDistance()

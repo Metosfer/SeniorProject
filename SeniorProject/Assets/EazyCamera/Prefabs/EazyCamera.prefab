@@ -157,10 +157,10 @@ Camera:
   field of view: 60
   orthographic: 0
   orthographic size: 5
-  m_Depth: -1
+  m_Depth: 15
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 33047
+    m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -202,16 +202,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _followTarget: {fileID: 0}
   _settings:
-    Distance: -5
-    DefaultRotation: {x: 0, y: 0}
+    Distance: -3.85
+    DefaultRotation: {x: 30, y: 0}
     OrbitEnabled: 1
-    MoveSpeed: 15
-    SnapFactor: 0.75
+    MoveSpeed: 10
+    SnapFactor: 1
     MaxLagDistance: 1
-    RotationSpeed: 50
+    RotationSpeed: 60
     VerticalRotation:
-      Min: -89
-      Max: 89
+      Min: 0
+      Max: 88.7
     EaseCurve:
       serializedVersion: 2
       m_Curve:
@@ -236,15 +236,24 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    InvertY: 1
+    LimitHorizontalRotation: 0
+    HorizontalRotation:
+      Min: -360
+      Max: 360
+    MouseSensitivity: 6
+    InvertX: 0
+    InvertY: 0
     EnableCollision: 1
     CollisionLayer:
       serializedVersion: 2
-      m_Bits: 0
+      m_Bits: 7553
+    CollisionSmoothingEnabled: 1
+    CollisionSmoothTime: 0.2
     EnableZoom: 1
     ZoomRange:
-      Min: -10
-      Max: -1
+      Min: -8
+      Max: -2
+    TargetOffset: {x: 0, y: 0.58, z: 0}
     EnableTargetLock: 1
     TargetLockIcon: {fileID: 0}
 --- !u!114 &20566229239774466
@@ -260,6 +269,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _controlledCamera: {fileID: 427229399175577728}
+  _rotateOnlyWhileRightMouse: 1
+  _changeCursorWhileRotating: 1
+  _rotateCursor: {fileID: 2800000, guid: ca680b05e210d0b4c9ecb3c84fc36660, type: 3}
+  _rotateCursorHotspot: {x: 8, y: 8}
+  _rotateCursorMode: 0
+  _resizeRotateCursor: 0
+  _rotateCursorSize: 0
+  _autoAdjustRotateCursorForDPI: 0
   _toggleLockOn:
     m_Name: ToggleLock
     m_Type: 0
@@ -461,7 +478,7 @@ MonoBehaviour:
   m_RequiresOpaqueTextureOption: 2
   m_CameraType: 0
   m_Cameras: []
-  m_RendererIndex: -1
+  m_RendererIndex: 0
   m_VolumeLayerMask:
     serializedVersion: 2
     m_Bits: 1

@@ -23,7 +23,7 @@ MonoBehaviour:
   dryPrefab: {fileID: 3196120123495289164, guid: c8aeab1e49d934d34a170392ff3f5b46,
     type: 3}
   isSeed: 1
-  growthTime: 60
+  growthTime: 13
   grownPrefab: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
     type: 3}
   harvestItem: {fileID: 11400000, guid: f0e7656982502f340810b55cb6718fb7, type: 2}

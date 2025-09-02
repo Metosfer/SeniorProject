@@ -186,10 +186,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.5000001
+  m_Radius: 0.5
   m_Height: 2
   m_Direction: 1
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1023467552404986694
 GameObject:
   m_ObjectHideFlags: 0
@@ -252,28 +252,28 @@ MonoBehaviour:
   enableKeyboardInteraction: 0
   pickupKey: 101
   fillKey: 121
-  pickupRange: 2
+  pickupRange: 1
   fillRange: 2
-  mousePickupRange: 3
+  mousePickupRange: 2
   wellLayer:
     serializedVersion: 2
     m_Bits: 256
   wellTag: Well
   isFilled: 0
   isCarried: 0
-  maxWaterCropsPerFill: 2
+  maxWaterCropsPerFill: 6
   waterCharges: 0
   carriedLocalPosition: {x: 0, y: -0.1, z: 0.15}
   carriedLocalEuler: {x: 0, y: 0, z: 0}
   carriedLocalScale: {x: 0.2, y: 0.2, z: 0.2}
-  dropForwardDistance: 0.6
+  dropForwardDistance: 0.3
   dropRayUpOffset: 1
   dropRayDownDistance: 3
   groundLayer:
     serializedVersion: 2
     m_Bits: 128
   dropClearance: 0.02
-  alignUprightOnDrop: 1
+  alignUprightOnDrop: 0
   onPickedUp:
     m_PersistentCalls:
       m_Calls: []
@@ -287,12 +287,16 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   enableCursorFeedback: 1
-  grabCursor: {fileID: 2800000, guid: 552731339a84c437cab98a333e733118, type: 3}
+  grabCursor: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
   grabCursorHotspot: {x: 8, y: 8}
   grabCursorMode: 0
-  resizeGrabCursor: 1
-  grabCursorSize: 8
+  resizeGrabCursor: 0
+  grabCursorSize: 0
   autoAdjustForDPI: 1
+  enableHoverScale: 1
+  hoverScale: 1.08
+  hoverScaleInDuration: 0.12
+  hoverScaleOutDuration: 0.12
   hoverMask:
     serializedVersion: 2
     m_Bits: 1153
@@ -304,7 +308,7 @@ MonoBehaviour:
   minYOnDrop: 0.1
   forceFixedDropY: 1
   fixedDropY: 0.05
-  saveId: 
+  saveId: 1
 --- !u!65 &6183028190482254251
 BoxCollider:
   m_ObjectHideFlags: 0
