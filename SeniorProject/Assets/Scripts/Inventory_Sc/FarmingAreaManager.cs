@@ -157,7 +157,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         for (int i = 0; i < _plots.Count && budget > 0f; i++)
         {
             var s = _plots[i]; if (s == null) continue;
-            if (s.isOccupied && s.grownInstance == null)
+            if (s.isOccupied && !s.isReady)
             {
                 if (s.isGrowing)
                 {
@@ -220,7 +220,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     {
         if (plotIndex < 0 || plotIndex >= _plots.Count) return;
         var state = _plots[plotIndex];
-        if (state == null || !state.isOccupied || state.grownInstance != null) return;
+        if (state == null || !state.isOccupied || state.isReady) return;
         var point = plotPoints[plotIndex]; if (point == null) return;
 
         // Clear countdown UI
@@ -286,6 +286,9 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             }
 
             // Track the actual Plant gameObject so when it's destroyed, we can reset the plot
+            // Mark as ready for harvest
+            state.isGrowing = false;
+            state.isReady = true;
             state.grownInstance = plantGO;
         }
         else
@@ -464,6 +467,9 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             }
 
             // Track the actual Plant gameObject so when it's destroyed, we can reset the plot
+            // Mark as ready for harvest
+            state.isGrowing = false;
+            state.isReady = true;
             state.grownInstance = plantGO;
         }
         else
@@ -584,6 +590,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         public bool isOccupied;
         public bool requiresWater;
         public bool isGrowing;
+        public bool isReady;           // Persistent flag: growth is complete and plant should exist
         public float plannedGrowthTime;
         public SCItem currentSeed;
         public GameObject seedMarkerInstance;
@@ -600,6 +607,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             isOccupied = false;
             requiresWater = false;
             isGrowing = false;
+            isReady = false;
             plannedGrowthTime = 0f;
             currentSeed = null;
             if (seedMarkerInstance != null)
@@ -630,7 +638,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         int ready = 0;
         for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
         {
-            if (_plots[i] != null && _plots[i].grownInstance != null) ready++;
+            if (_plots[i] != null && _plots[i].isReady) ready++;
         }
         return ready;
     }
@@ -641,7 +649,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
         {
             var s = _plots[i];
-            if (s != null && s.isOccupied && s.isGrowing && s.grownInstance == null) growing++;
+            if (s != null && s.isOccupied && s.isGrowing && !s.isReady) growing++;
         }
         return growing;
     }
@@ -663,7 +671,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
         {
             var s = _plots[i];
-            if (s != null && s.isOccupied && !s.isGrowing && s.grownInstance == null) waiting++;
+            if (s != null && s.isOccupied && !s.isGrowing && !s.isReady) waiting++;
         }
         return waiting;
     }
@@ -703,7 +711,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
         {
             var s = _plots[i];
-            if (s != null && s.isOccupied && s.grownInstance == null)
+            if (s != null && s.isOccupied && !s.isReady)
             {
                 return true; // includes waiting (requiresWater) and growing
             }
@@ -717,7 +725,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
         {
             var s = _plots[i];
-            if (s != null && s.isOccupied && s.isGrowing && s.grownInstance == null)
+            if (s != null && s.isOccupied && s.isGrowing && !s.isReady)
             {
                 return true;
             }
@@ -740,7 +748,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             if (Application.isPlaying && i < _plots.Count && _plots[i] != null)
             {
                 occupied = _plots[i].isOccupied;
-                ready = _plots[i].grownInstance != null;
+                ready = _plots[i].isReady;
             }
             if (ready) c = Color.green;
             else if (occupied) c = Color.yellow;
@@ -796,7 +804,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         while (plotIndex >= 0 && plotIndex < _plots.Count)
         {
             var s = _plots[plotIndex];
-            if (s == null || s.grownInstance != null || !s.isOccupied || !s.isGrowing) break;
+            if (s == null || s.isReady || !s.isOccupied || !s.isGrowing) break;
             UpdateCountdownText(plotIndex);
             if (Time.time >= s.growthEndTime) break;
             yield return new WaitForSeconds(0.25f);
@@ -810,7 +818,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         var s = _plots[plotIndex];
         if (s == null) return;
         string msg;
-        if (!s.isGrowing && s.isOccupied && s.grownInstance == null)
+        if (!s.isGrowing && s.isOccupied && !s.isReady)
         {
             msg = "Waiting";
         }
@@ -858,9 +866,9 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             string prefix = $"Plot{i}.";
             data[prefix + "prepared"] = s.isPrepared;
             data[prefix + "occupied"] = s.isOccupied;
-            data[prefix + "waiting"] = s.isOccupied && !s.isGrowing && s.grownInstance == null;
+            data[prefix + "waiting"] = s.isOccupied && !s.isGrowing && !s.isReady;
             data[prefix + "growing"] = s.isGrowing;
-            data[prefix + "ready"] = s.grownInstance != null;
+            data[prefix + "ready"] = s.isReady;
             data[prefix + "seedName"] = s.currentSeed != null ? s.currentSeed.itemName : "";
             data[prefix + "planned"] = s.plannedGrowthTime;
             // Save remaining time if growing
@@ -908,6 +916,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             float remaining = GetFloat(data, prefix + "remaining", 0f);
 
             s.isOccupied = true;
+            s.isReady = ready;
             s.plannedGrowthTime = Mathf.Max(0.01f, planned);
             s.currentSeed = !string.IsNullOrEmpty(seedName) ? FindItemByName(seedName) : null;
 
@@ -915,51 +924,49 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
             if (ready)
             {
-                // Prefer existing Plant restored by GameSaveManager to avoid duplicates
-                Plant nearest = FindNearestPlant(point.position + spawnOffset, 0.6f);
-                if (nearest != null)
+                // Ready plants must be on prepared/occupied plots
+                s.isPrepared = true;
+                s.isOccupied = true;
+                UpdateSoilPlaceVisual(i);
+                
+                // Always spawn the grown plant for ready plots to ensure persistence
+                var grownPrefab = GetGrownPrefab(s.currentSeed);
+                if (grownPrefab != null)
                 {
-                    // Clean duplicates under this plant
-                    CleanupDuplicatePlantComponents(nearest.gameObject);
-                    s.grownInstance = nearest.gameObject;
+                    var instanceRoot = Instantiate(grownPrefab, point.position + spawnOffset, grownPrefab.transform.rotation);
+                    // Choose Plant component in children if present; else add to root
+                    Plant[] plants = instanceRoot.GetComponentsInChildren<Plant>(true);
+                    Plant plant = null;
+                    if (plants != null && plants.Length > 0)
+                    {
+                        plant = plants[0];
+                        for (int k = 1; k < plants.Length; k++)
+                        {
+                            if (plants[k] != null) Destroy(plants[k]);
+                        }
+                    }
+                    else
+                    {
+                        plant = instanceRoot.AddComponent<Plant>();
+                    }
+                    var plantGO = plant.gameObject;
+                    var plantCol = plantGO.GetComponent<Collider>();
+                    if (plantCol == null) plantCol = plantGO.AddComponent<BoxCollider>();
+                    plantCol.isTrigger = true;
+                    var rb2 = plantGO.GetComponent<Rigidbody>();
+                    if (rb2 == null) rb2 = plantGO.AddComponent<Rigidbody>();
+                    rb2.isKinematic = true;
+                    rb2.useGravity = false;
+                    if (plant.item == null)
+                    {
+                        var harvest = GetHarvestItem(s.currentSeed);
+                        if (harvest != null) plant.item = harvest;
+                    }
+                    s.grownInstance = plantGO;
                 }
                 else
                 {
-                    // Spawn the grown plant if none exists nearby
-                    var grownPrefab = GetGrownPrefab(s.currentSeed);
-                    if (grownPrefab != null)
-                    {
-                        var instanceRoot = Instantiate(grownPrefab, point.position + spawnOffset, grownPrefab.transform.rotation);
-                        // Choose Plant component in children if present; else add to root
-                        Plant[] plants = instanceRoot.GetComponentsInChildren<Plant>(true);
-                        Plant plant = null;
-                        if (plants != null && plants.Length > 0)
-                        {
-                            plant = plants[0];
-                            for (int k = 1; k < plants.Length; k++)
-                            {
-                                if (plants[k] != null) Destroy(plants[k]);
-                            }
-                        }
-                        else
-                        {
-                            plant = instanceRoot.AddComponent<Plant>();
-                        }
-                        var plantGO = plant.gameObject;
-                        var plantCol = plantGO.GetComponent<Collider>();
-                        if (plantCol == null) plantCol = plantGO.AddComponent<BoxCollider>();
-                        plantCol.isTrigger = true;
-                        var rb2 = plantGO.GetComponent<Rigidbody>();
-                        if (rb2 == null) rb2 = plantGO.AddComponent<Rigidbody>();
-                        rb2.isKinematic = true;
-                        rb2.useGravity = false;
-                        if (plant.item == null)
-                        {
-                            var harvest = GetHarvestItem(s.currentSeed);
-                            if (harvest != null) plant.item = harvest;
-                        }
-                        s.grownInstance = plantGO;
-                    }
+                    Debug.LogWarning($"Ready plot {i} couldn't resolve grown prefab for seed '{seedName}'. Plot may appear empty.");
                 }
                 DestroyCountdown(i);
                 // Ensure harvest monitoring for loaded ready plants
@@ -1167,7 +1174,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         for (int i = 0; i < _plots.Count; i++)
         {
             var s = _plots[i];
-            if (s != null && s.isOccupied && !s.isGrowing && s.grownInstance == null) return true;
+            if (s != null && s.isOccupied && !s.isGrowing && !s.isReady) return true;
         }
         return false;
     }
@@ -1444,7 +1451,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         {
             var s = _plots[i];
             if (s == null) continue;
-            if (!s.isOccupied || s.isGrowing || s.grownInstance != null) continue;
+            if (!s.isOccupied || s.isGrowing || s.isReady) continue;
             if (startedThisPass >= maxToWater) break;
 
             // Start growth for this plot

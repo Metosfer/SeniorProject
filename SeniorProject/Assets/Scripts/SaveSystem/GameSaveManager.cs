@@ -683,11 +683,11 @@ public class GameSaveManager : MonoBehaviour
     // Mevcut world item'ları temizle
     ClearExistingWorldItems();
         
-    // Scene object'leri restore et (FarmingAreaManager/HarrowManager gibi ISaveable'lar önce kendi durumunu kursun)
-    RestoreSceneObjects();
-        
-    // Plant'ları restore et
+    // Plant'ları önce restore et (FarmingAreaManager'ın bulması için)
     RestorePlants();
+        
+    // Scene object'leri restore et (FarmingAreaManager/HarrowManager gibi ISaveable'lar)
+    RestoreSceneObjects();
         
     // World item'ları en son restore et (bitki pozisyonlarıyla çakışmayı azaltmak için)
     RestoreWorldItems();
@@ -879,6 +879,26 @@ public class GameSaveManager : MonoBehaviour
         {
             if (plantData.sceneName == currentScene && !plantData.isCollected)
             {
+                // Skip plants that are near farming area plots (FarmingAreaManager will handle these)
+                bool nearFarmingPlot = false;
+                foreach (var fam in FindObjectsOfType<FarmingAreaManager>())
+                {
+                    foreach (var plotPoint in fam.plotPoints)
+                    {
+                        if (plotPoint != null)
+                        {
+                            float distance = Vector3.Distance(plantData.position, plotPoint.position);
+                            if (distance < 1.0f) // Within 1 meter of a plot point
+                            {
+                                nearFarmingPlot = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (nearFarmingPlot) break;
+                }
+                if (nearFarmingPlot) continue;
+                
                 // Bu bitki zaten sahnede var mı kontrol et
                 if (!existingPlantIds.Contains(plantData.plantId))
                 {
