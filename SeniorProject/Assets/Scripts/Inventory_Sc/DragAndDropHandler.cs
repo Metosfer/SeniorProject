@@ -16,6 +16,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     private Transform originalParent;
     private InventorySlotUI inventorySlot;
     private GameObject dragIcon;
+    private GameObject dragGhost;
     
     // Camera orbit control during drag
     private EazyCam _cam;
@@ -81,47 +82,35 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         canvasGroup.blocksRaycasts = false;
 
-        if (dragIcon == null && inventorySlot != null && inventorySlot.itemIcon != null && inventorySlot.itemIcon.sprite != null && canvas != null)
+        // Prefer 3D ghost of the actual world item prefab if available
+        var slot = inventory.inventorySlots[slotIndex];
+        var item = slot != null ? slot.item : null;
+        GameObject prefabForGhost = null;
+        if (item != null)
         {
-            Debug.Log("Creating dragIcon...");
-            dragIcon = new GameObject("DragIcon");
-            dragIcon.SetActive(true);
-            dragIcon.transform.SetParent(canvas.transform, false);
-            var iconImage = dragIcon.AddComponent<Image>();
-            iconImage.sprite = inventorySlot.itemIcon.sprite;
-            iconImage.raycastTarget = false;
-            iconImage.color = Color.red; // Test için kırmızı
-            iconImage.enabled = true;
-            var iconRect = dragIcon.GetComponent<RectTransform>();
-            iconRect.sizeDelta = new Vector2(50, 50); // Sabit bir boyut testi
-            dragIcon.transform.SetAsLastSibling();
-
-            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
-            iconRect.anchorMax = new Vector2(0.5f, 0.5f);
-            iconRect.pivot = new Vector2(0.5f, 0.5f);
-
-            Vector2 localPointerPosition;
-            Camera cam = null;
-            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            // When dropping from inventory, dropPrefab is used first; mirror that for preview
+            prefabForGhost = item.dropPrefab != null ? item.dropPrefab : item.itemPrefab;
+        }
+        if (prefabForGhost != null)
+        {
+            try
             {
-                cam = canvas.worldCamera;
-                if (cam == null)
-                {
-                    cam = Camera.main;
-                }
+                dragGhost = Instantiate(prefabForGhost);
+                dragGhost.name = $"DragGhost_{item.itemName}";
+                PrepareGhostAppearance(dragGhost, 0.5f);
+                SetLayerRecursively(dragGhost, 2); // Ignore Raycast
+                PositionGhostAtPointer(eventData);
             }
-            Debug.Log($"Kullanılan kamera: {cam?.name}");
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvas.transform as RectTransform,
-                eventData.position,
-                cam,
-                out localPointerPosition);
-            iconRect.anchoredPosition = localPointerPosition;
-            Debug.Log($"DragIcon pozisyonu: {localPointerPosition}, Boyutu: {iconRect.sizeDelta}");
+            catch
+            {
+                // Fallback to icon if instantiation fails
+                CreateOrMoveDragIcon(eventData);
+            }
         }
         else
         {
-            Debug.LogWarning("DragIcon could not be created!");
+            // No prefab defined: fallback to 2D icon drag
+            CreateOrMoveDragIcon(eventData);
         }
     }
 
@@ -138,7 +127,11 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             return;
         }
 
-        if (dragIcon != null)
+        if (dragGhost != null)
+        {
+            PositionGhostAtPointer(eventData);
+        }
+        else if (dragIcon != null)
         {
             Vector2 localPointerPosition;
             Camera cam = null;
@@ -160,7 +153,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
         else
         {
-            Debug.LogWarning("OnDrag: dragIcon is null!");
+            // nothing to move (no ghost or icon)
         }
     }
 
@@ -194,12 +187,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             return;
         }
 
-        // DragIcon'u kesin destroy et - her durumda
-        if (dragIcon != null)
-        {
-            Destroy(dragIcon);
-            dragIcon = null;
-        }
+    // Destroy previews (ghost/icon)
+    if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
+    if (dragIcon != null) { Destroy(dragIcon); dragIcon = null; }
         canvasGroup.blocksRaycasts = true;
 
         // Aktif slot
@@ -376,16 +366,146 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     private void ResetPosition()
     {
-        if (dragIcon != null)
-        {
-            Destroy(dragIcon);
-            dragIcon = null;
-        }
+        if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
+        if (dragIcon != null) { Destroy(dragIcon); dragIcon = null; }
         transform.SetParent(originalParent, false);
         rectTransform.anchoredPosition = originalPosition;
         if (canvasGroup != null)
         {
             canvasGroup.blocksRaycasts = true;
+        }
+    }
+
+    private void CreateOrMoveDragIcon(PointerEventData eventData)
+    {
+        if (dragIcon == null && inventorySlot != null && inventorySlot.itemIcon != null && inventorySlot.itemIcon.sprite != null && canvas != null)
+        {
+            dragIcon = new GameObject("DragIcon");
+            dragIcon.SetActive(true);
+            dragIcon.transform.SetParent(canvas.transform, false);
+            var iconImage = dragIcon.AddComponent<Image>();
+            iconImage.sprite = inventorySlot.itemIcon.sprite;
+            iconImage.raycastTarget = false;
+            iconImage.color = new Color(1f, 1f, 1f, 0.8f);
+            iconImage.enabled = true;
+            var iconRect = dragIcon.GetComponent<RectTransform>();
+            iconRect.sizeDelta = new Vector2(50, 50);
+            dragIcon.transform.SetAsLastSibling();
+
+            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+            iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+            iconRect.pivot = new Vector2(0.5f, 0.5f);
+        }
+        if (dragIcon != null)
+        {
+            Vector2 localPointerPosition;
+            Camera cam = null;
+            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                cam = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            }
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvas.transform as RectTransform,
+                eventData.position,
+                cam,
+                out localPointerPosition);
+            dragIcon.GetComponent<RectTransform>().anchoredPosition = localPointerPosition;
+        }
+    }
+
+    private void PositionGhostAtPointer(PointerEventData eventData)
+    {
+        if (dragGhost == null) return;
+        Camera mainCamera = Camera.main != null ? Camera.main : FindObjectOfType<Camera>();
+        if (mainCamera == null) return;
+        Ray ray = mainCamera.ScreenPointToRay(eventData.position);
+        if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+        {
+            dragGhost.transform.position = hit.point + Vector3.up * 0.02f; // slight lift
+            // Optional: align with surface normal yaw only
+            Vector3 forward = Vector3.ProjectOnPlane(mainCamera.transform.forward, hit.normal).normalized;
+            if (forward.sqrMagnitude > 0.01f)
+                dragGhost.transform.rotation = Quaternion.LookRotation(forward, hit.normal);
+        }
+        else
+        {
+            Vector3 pos = ray.GetPoint(6f);
+            pos.y = 0.02f;
+            dragGhost.transform.position = pos;
+        }
+    }
+
+    private void PrepareGhostAppearance(GameObject go, float opacity)
+    {
+        // Disable physics/collisions
+        var rbs = go.GetComponentsInChildren<Rigidbody>(true);
+        foreach (var rb in rbs) { rb.isKinematic = true; rb.useGravity = false; }
+        var cols = go.GetComponentsInChildren<Collider>(true);
+        foreach (var c in cols) { c.enabled = false; }
+
+        // Make materials semi-transparent
+        var rends = go.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < rends.Length; i++)
+        {
+            var rend = rends[i];
+            if (rend == null) continue;
+            // ensure we get unique instances to avoid modifying shared assets
+            var mats = rend.materials;
+            for (int m = 0; m < mats.Length; m++)
+            {
+                var mat = mats[m];
+                if (mat == null) continue;
+                TrySetMaterialTransparent(mat);
+                if (mat.HasProperty("_Color"))
+                {
+                    var c = mat.color; c.a = Mathf.Clamp01(opacity); mat.color = c;
+                }
+                if (mat.HasProperty("_BaseColor"))
+                {
+                    var c2 = mat.GetColor("_BaseColor"); c2.a = Mathf.Clamp01(opacity); mat.SetColor("_BaseColor", c2);
+                }
+                mat.renderQueue = 3000;
+            }
+            rend.materials = mats;
+        }
+    }
+
+    private void TrySetMaterialTransparent(Material mat)
+    {
+        if (mat == null) return;
+        var shaderName = mat.shader != null ? mat.shader.name : string.Empty;
+        // Legacy Standard
+        if (shaderName == "Standard")
+        {
+            mat.SetFloat("_Mode", 3f); // Transparent
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.EnableKeyword("_ALPHABLEND_ON");
+            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.renderQueue = 3000;
+            return;
+        }
+        // URP/Lit
+        if (shaderName.Contains("Universal Render Pipeline/Lit") || shaderName.Contains("URP/Lit"))
+        {
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // Transparent
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = 3000;
+            return;
+        }
+        // Fallback: rely on alpha channel if respected
+    }
+
+    private void SetLayerRecursively(GameObject obj, int layer)
+    {
+        if (obj == null) return;
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            if (child == null) continue;
+            SetLayerRecursively(child.gameObject, layer);
         }
     }
 }
