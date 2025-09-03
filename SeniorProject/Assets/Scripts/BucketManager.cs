@@ -756,7 +756,9 @@ public class BucketManager : MonoBehaviour, ISaveable
         isCarried = true;
     CurrentCarried = this;
     onPickedUp?.Invoke();
-    // Carry-bucket animation disabled per request
+    // Trigger carry animation on
+    var anim = FindObjectOfType<PlayerAnimationController>();
+    if (anim != null) anim.SetCarryBucket(true);
     }
 
     public void Drop()
@@ -812,7 +814,9 @@ public class BucketManager : MonoBehaviour, ISaveable
     NudgeUpIfOverlapping();
 
         onDropped?.Invoke();
-    // Carry-bucket animation disabled per request
+    // Trigger carry animation off
+    var anim = FindObjectOfType<PlayerAnimationController>();
+    if (anim != null) anim.SetCarryBucket(false);
 
         if (stabilizeAfterDrop)
         {

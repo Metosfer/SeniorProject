@@ -5,6 +5,7 @@ public class PlayerAnimationController : MonoBehaviour
 {
     private Animator animator;
     private bool isSpuding = false;
+    private bool _carryBucketCached = false;
     private bool _checkedTakeItemParam = false;
     private bool _hasTakeItemParam = true; // assume true; will verify on first use
 
@@ -13,6 +14,7 @@ public class PlayerAnimationController : MonoBehaviour
     private int groundedHash;
     private int spudingTriggerHash;
     private int takeItemTriggerHash;
+    private int isCarryBucketHash;
 
     private void Awake()
     {
@@ -37,6 +39,7 @@ public class PlayerAnimationController : MonoBehaviour
         groundedHash = Animator.StringToHash("Grounded");
         spudingTriggerHash = Animator.StringToHash("SpudingTrigger");
     takeItemTriggerHash = Animator.StringToHash("TakeItem");
+    isCarryBucketHash = Animator.StringToHash("isCarryBucket");
     }
 
     /// <summary>
@@ -97,7 +100,26 @@ public class PlayerAnimationController : MonoBehaviour
         }
     }
 
-    // Note: Carry-bucket animation removed per request
+    /// <summary>
+    /// Kovanın taşınma durumuna göre taşıma (CatCarryBucket) animasyonunu aç/kapat.
+    /// </summary>
+    public void SetCarryBucket(bool isCarrying)
+    {
+        if (animator == null) return;
+        if (_carryBucketCached == isCarrying) return; // no-op if unchanged
+        _carryBucketCached = isCarrying;
+        animator.SetBool(isCarryBucketHash, isCarrying);
+    }
+
+    private void Update()
+    {
+        // BucketManager.CurrentCarried durumunu izleyip animator bool’unu senkronla
+        bool shouldCarry = BucketManager.CurrentCarried != null;
+        if (shouldCarry != _carryBucketCached)
+        {
+            SetCarryBucket(shouldCarry);
+        }
+    }
 
     /// <summary>
     /// Spuding animasyonu durumunu sürekli kontrol eder
