@@ -755,7 +755,8 @@ public class BucketManager : MonoBehaviour, ISaveable
         SetCarriedPhysics(true);
         isCarried = true;
     CurrentCarried = this;
-        onPickedUp?.Invoke();
+    onPickedUp?.Invoke();
+    // Carry-bucket animation disabled per request
     }
 
     public void Drop()
@@ -811,6 +812,7 @@ public class BucketManager : MonoBehaviour, ISaveable
     NudgeUpIfOverlapping();
 
         onDropped?.Invoke();
+    // Carry-bucket animation disabled per request
 
         if (stabilizeAfterDrop)
         {

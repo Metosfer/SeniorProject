@@ -5,11 +5,14 @@ public class PlayerAnimationController : MonoBehaviour
 {
     private Animator animator;
     private bool isSpuding = false;
+    private bool _checkedTakeItemParam = false;
+    private bool _hasTakeItemParam = true; // assume true; will verify on first use
 
     // Animasyon parametre hash'leri (Performans için)
     private int speedHash;
     private int groundedHash;
     private int spudingTriggerHash;
+    private int takeItemTriggerHash;
 
     private void Awake()
     {
@@ -33,6 +36,7 @@ public class PlayerAnimationController : MonoBehaviour
         speedHash = Animator.StringToHash("Speed");
         groundedHash = Animator.StringToHash("Grounded");
         spudingTriggerHash = Animator.StringToHash("SpudingTrigger");
+    takeItemTriggerHash = Animator.StringToHash("TakeItem");
     }
 
     /// <summary>
@@ -69,6 +73,31 @@ public class PlayerAnimationController : MonoBehaviour
         // Coroutine ile animasyon süresini takip et
         StartCoroutine(CheckSpudingAnimation());
     }
+
+    /// <summary>
+    /// "TakeItem" animasyonunu tetikler (bitki harici eşyaları yerden alma). Spuding oynarken tetiklenmez.
+    /// </summary>
+    public void TriggerTakeItem()
+    {
+        if (animator == null) return;
+        if (isSpuding) return; // Spuding öncelikli
+        // Validate parameter exists once to help diagnose missing Animator setup
+        if (!_checkedTakeItemParam)
+        {
+            _hasTakeItemParam = AnimatorHasParameter("TakeItem", AnimatorControllerParameterType.Trigger);
+            _checkedTakeItemParam = true;
+            if (!_hasTakeItemParam)
+            {
+                Debug.LogWarning("Animator 'TakeItem' trigger param missing. Please add a Trigger named 'TakeItem' and transition to your pickup animation.", this);
+            }
+        }
+        if (_hasTakeItemParam)
+        {
+            animator.SetTrigger(takeItemTriggerHash);
+        }
+    }
+
+    // Note: Carry-bucket animation removed per request
 
     /// <summary>
     /// Spuding animasyonu durumunu sürekli kontrol eder
@@ -141,5 +170,16 @@ public class PlayerAnimationController : MonoBehaviour
     public void DebugCurrentState()
     {
         Debug.Log($"Current Animator State: {GetCurrentStateName()}, IsSpuding: {IsSpuding()}");
+    }
+
+    // Helpers
+    private bool AnimatorHasParameter(string name, AnimatorControllerParameterType type)
+    {
+        if (animator == null) return false;
+        foreach (var p in animator.parameters)
+        {
+            if (p.type == type && p.name == name) return true;
+        }
+        return false;
     }
 }

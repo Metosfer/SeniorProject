@@ -83,6 +83,11 @@ public class Plant : MonoBehaviour
         // If this Plant represents a seed item, don't play Spuding; pickup immediately
         if (item != null && item.isSeed)
         {
+            // Seeds: pickup immediately but still play TakeItem for feedback
+            if (playerAnimation != null && !playerAnimation.IsSpuding())
+            {
+                playerAnimation.TriggerTakeItem();
+            }
             TryPickup();
             return;
         }

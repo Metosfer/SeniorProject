@@ -70,6 +70,9 @@ public class WorldItem : MonoBehaviour
             
             if (added)
             {
+                // Trigger TakeItem for non-plant pickups
+                var anim = FindObjectOfType<PlayerAnimationController>();
+                if (anim != null) anim.TriggerTakeItem();
                 Debug.Log($"Picked up: {item.itemName} x{quantity}");
                 // Notify save system immediately
                 if (GameSaveManager.Instance != null)
