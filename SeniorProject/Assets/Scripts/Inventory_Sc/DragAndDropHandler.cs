@@ -2,12 +2,30 @@ using UnityEngine;
 using UnityEngine.UI;
 using EazyCamera;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     // Static tracking for current drag
     public static DragAndDropHandler CurrentDragHandler { get; private set; }
     public static bool IsDragging => CurrentDragHandler != null;
+    
+    // ESC consumption flag for this frame to prevent PauseMenu from reacting
+    private static int s_lastEscapeConsumedFrame = -1;
+    public static bool DidConsumeEscapeThisFrame() => s_lastEscapeConsumedFrame == Time.frameCount;
+
+    // Public helper to ensure any ESC press while dragging cancels the drag first
+    public static bool TryCancelCurrentDragAndConsumeEsc()
+    {
+        if (CurrentDragHandler != null)
+        {
+            s_lastEscapeConsumedFrame = Time.frameCount;
+            // Call instance cancel; OnEndDrag will be safely skipped by _dragCancelled
+            try { CurrentDragHandler.CancelDragOperation(); } catch {}
+            return true;
+        }
+        return false;
+    }
     
     private Canvas canvas;
     private CanvasGroup canvasGroup;
@@ -22,6 +40,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     private EazyCam _cam;
     private bool _prevOrbitEnabled;
     private bool _camStateCaptured;
+    private bool _dragCancelled = false;
     
     public int slotIndex { get; set; }
     public SCInventory inventory { get; set; }
@@ -48,6 +67,16 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         rectTransform = GetComponent<RectTransform>();
         inventorySlot = GetComponent<InventorySlotUI>();
     }
+    
+    private void Update()
+    {
+        // If this handler is currently dragging, cancel on ESC even without pointer movement
+        if (CurrentDragHandler == this && Input.GetKeyDown(KeyCode.Escape))
+        {
+            s_lastEscapeConsumedFrame = Time.frameCount;
+            CancelDragOperation();
+        }
+    }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
@@ -61,6 +90,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         {
             return;
         }
+
+        // Reset cancellation flag for new drag
+        _dragCancelled = false;
 
         // Set static drag tracking
         CurrentDragHandler = this;
@@ -82,34 +114,50 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         canvasGroup.blocksRaycasts = false;
 
-        // Prefer 3D ghost of the actual world item prefab if available
+        // Check current scene to determine ghost type
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        bool isShopScene = currentScene == "ShopScene";
+        bool isFarmScene = currentScene == "FarmScene";
+
+        // Prefer 3D ghost of the actual world item prefab if available (FarmScene)
+        // Use 2D icon for ShopScene
         var slot = inventory.inventorySlots[slotIndex];
         var item = slot != null ? slot.item : null;
-        GameObject prefabForGhost = null;
-        if (item != null)
+        
+        if (isShopScene)
         {
-            // When dropping from inventory, dropPrefab is used first; mirror that for preview
-            prefabForGhost = item.dropPrefab != null ? item.dropPrefab : item.itemPrefab;
+            // ShopScene: Always use 2D icon
+            CreateOrMoveDragIcon(eventData);
         }
-        if (prefabForGhost != null)
+        else if (isFarmScene && item != null)
         {
-            try
+            // FarmScene: Try 3D ghost first
+            GameObject prefabForGhost = item.dropPrefab != null ? item.dropPrefab : item.itemPrefab;
+            if (prefabForGhost != null)
             {
-                dragGhost = Instantiate(prefabForGhost);
-                dragGhost.name = $"DragGhost_{item.itemName}";
-                PrepareGhostAppearance(dragGhost, 0.5f);
-                SetLayerRecursively(dragGhost, 2); // Ignore Raycast
-                PositionGhostAtPointer(eventData);
+                try
+                {
+                    dragGhost = Instantiate(prefabForGhost);
+                    dragGhost.name = $"DragGhost_{item.itemName}";
+                    PrepareGhostAppearance(dragGhost, 0.5f);
+                    SetLayerRecursively(dragGhost, 2); // Ignore Raycast
+                    PositionGhostAtPointer(eventData);
+                }
+                catch
+                {
+                    // Fallback to icon if instantiation fails
+                    CreateOrMoveDragIcon(eventData);
+                }
             }
-            catch
+            else
             {
-                // Fallback to icon if instantiation fails
+                // No prefab defined: fallback to 2D icon drag
                 CreateOrMoveDragIcon(eventData);
             }
         }
         else
         {
-            // No prefab defined: fallback to 2D icon drag
+            // Other scenes: Use 2D icon as default
             CreateOrMoveDragIcon(eventData);
         }
     }
@@ -124,6 +172,15 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
             inventory.inventorySlots[slotIndex].item == null)
         {
+            return;
+        }
+
+        // Check for ESC key to cancel drag operation
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            // Mark ESC as consumed to prevent PauseMenu from opening
+            s_lastEscapeConsumedFrame = Time.frameCount;
+            CancelDragOperation();
             return;
         }
 
@@ -149,7 +206,6 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
                 cam,
                 out localPointerPosition);
             dragIcon.GetComponent<RectTransform>().anchoredPosition = localPointerPosition;
-            
         }
         else
         {
@@ -159,6 +215,13 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        // If drag was cancelled by ESC, skip normal end drag logic
+        if (_dragCancelled)
+        {
+            _dragCancelled = false; // Reset for next drag
+            return;
+        }
+
         // Clear static drag tracking
         CurrentDragHandler = null;
 
@@ -169,27 +232,22 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             _camStateCaptured = false;
         }
         
-        if (canvasGroup != null && !canvasGroup.interactable)
+        // Ensure drag previews are always destroyed
+        try
         {
-            // DragIcon'u kesin destroy et
-            if (dragIcon != null)
-            {
-                Destroy(dragIcon);
-                dragIcon = null;
-            }
-            return;
+            if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
+            if (dragIcon != null) { Destroy(dragIcon); dragIcon = null; }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Error destroying drag previews: {e.Message}");
         }
         
-        if (inventory == null || slotIndex >= inventory.inventorySlots.Count || 
-            inventory.inventorySlots[slotIndex].item == null)
+        if (canvasGroup != null && !canvasGroup.interactable)
         {
-            ResetPosition();
+            // Canvas is not interactable, just return
             return;
         }
-
-    // Destroy previews (ghost/icon)
-    if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
-    if (dragIcon != null) { Destroy(dragIcon); dragIcon = null; }
         canvasGroup.blocksRaycasts = true;
 
         // Aktif slot
@@ -227,6 +285,8 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             // Bu durumda dünyaya bırakma fallbacklerini ÇALIŞTIRMAYIN.
             if (genericDrop != null)
             {
+                // Ensure dragGhost is destroyed when dropping to UI
+                if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
                 ResetPosition();
                 return;
             }
@@ -261,6 +321,8 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
                         drop.OnDrop(eventData);
                     }
                     catch { }
+                    // Ensure dragGhost is destroyed when dropping to UI
+                    if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
                     ResetPosition();
                     return;
                 }
@@ -289,7 +351,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             }
             RemoveSingleItemFromInventory();
         }
-    else if (hitObject == null || (!IsUIElement(hitObject)))
+        else if (hitObject == null || (!IsUIElement(hitObject)))
         {
             Vector3 worldPosition = GetWorldDropPosition(eventData);
             WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
@@ -299,7 +361,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             }
             RemoveSingleItemFromInventory();
         }
-    else
+        else
         {
             ResetPosition();
         }
@@ -362,6 +424,36 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
 
         ResetPosition();
+    }
+
+    private void CancelDragOperation()
+    {
+        // Mark as cancelled to prevent OnEndDrag from running
+        _dragCancelled = true;
+
+        // Clear static drag tracking
+        CurrentDragHandler = null;
+
+        // Restore camera orbit if we disabled it
+        if (_cam != null && _camStateCaptured)
+        {
+            _cam.SetOrbitEnabled(_prevOrbitEnabled ? EnabledState.Enabled : EnabledState.Disabled);
+            _camStateCaptured = false;
+        }
+
+        // Destroy drag previews
+        if (dragGhost != null) { Destroy(dragGhost); dragGhost = null; }
+        if (dragIcon != null) { Destroy(dragIcon); dragIcon = null; }
+
+        // Reset position and raycast blocking
+        transform.SetParent(originalParent, false);
+        rectTransform.anchoredPosition = originalPosition;
+        if (canvasGroup != null)
+        {
+            canvasGroup.blocksRaycasts = true;
+        }
+
+        Debug.Log("Drag operation cancelled by ESC key");
     }
 
     private void ResetPosition()
@@ -470,6 +562,38 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
     }
 
+    private void OnDestroy()
+    {
+        // Ensure drag previews are destroyed when this component is destroyed
+        if (dragGhost != null)
+        {
+            Destroy(dragGhost);
+            dragGhost = null;
+        }
+        if (dragIcon != null)
+        {
+            Destroy(dragIcon);
+            dragIcon = null;
+        }
+        
+        // Clear static reference if this was the current drag handler
+        if (CurrentDragHandler == this)
+        {
+            CurrentDragHandler = null;
+        }
+    }
+
+    private void SetLayerRecursively(GameObject obj, int layer)
+    {
+        if (obj == null) return;
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            if (child == null) continue;
+            SetLayerRecursively(child.gameObject, layer);
+        }
+    }
+
     private void TrySetMaterialTransparent(Material mat)
     {
         if (mat == null) return;
@@ -496,16 +620,5 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
             return;
         }
         // Fallback: rely on alpha channel if respected
-    }
-
-    private void SetLayerRecursively(GameObject obj, int layer)
-    {
-        if (obj == null) return;
-        obj.layer = layer;
-        foreach (Transform child in obj.transform)
-        {
-            if (child == null) continue;
-            SetLayerRecursively(child.gameObject, layer);
-        }
     }
 }

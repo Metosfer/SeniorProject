@@ -89,8 +89,18 @@ public partial class PauseMenuController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            // If any drag is in progress, cancel it first and consume ESC
+            if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc())
+            {
+                return; // drag cancelled; do not open/close pause this frame
+            }
             // If Market consumed ESC this frame, do nothing
             if (MarketManager.DidConsumeEscapeThisFrame())
+            {
+                return;
+            }
+            // If DragAndDrop consumed ESC this frame, do nothing
+            if (DragAndDropHandler.DidConsumeEscapeThisFrame())
             {
                 return;
             }

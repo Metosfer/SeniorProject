@@ -55,9 +55,22 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     void Update()
     {
         // ESC tuşuna basıldığında ve panel açıksa, paneli kapat
-        if (Input.GetKeyDown(KeyCode.Escape) && isPanelActive)
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
-            ClosePanel();
+            // If any drag is in progress, cancel it first and consume ESC
+            if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc())
+            {
+                return;
+            }
+            // If drag-and-drop consumed ESC for cancel, ignore here
+            if (DragAndDropHandler.DidConsumeEscapeThisFrame())
+            {
+                return;
+            }
+            if (isPanelActive)
+            {
+                ClosePanel();
+            }
         }
     }
     

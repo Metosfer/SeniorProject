@@ -86,15 +86,28 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
         CheckPlayerDistance();
 
         // ESC ile panel kapama ve pause menüyü bloklama
-        if (Input.GetKeyDown(KeyCode.Escape) && IsDryingUIOpen())
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
-            // Mark ESC consumed so PauseMenuController ignores it this frame
-            MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
-            if (dryingUI != null)
+            // If any drag is in progress, cancel it first and consume ESC
+            if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc())
             {
-                dryingUI.TogglePanel();
+                return;
             }
-            return; // early return to avoid processing other inputs this frame
+            // If drag-and-drop consumed ESC for cancel, ignore here
+            if (DragAndDropHandler.DidConsumeEscapeThisFrame())
+            {
+                return;
+            }
+            if (IsDryingUIOpen())
+            {
+                // Mark ESC consumed so PauseMenuController ignores it this frame
+                MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
+                if (dryingUI != null)
+                {
+                    dryingUI.TogglePanel();
+                }
+                return; // early return to avoid processing other inputs this frame
+            }
         }
 
         // T tuşu kontrolü (input işlemleri Update'te olmalı)
