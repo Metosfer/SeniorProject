@@ -314,6 +314,8 @@ public class HarrowManager : MonoBehaviour, ISaveable
         _isCarried = true;
         CurrentCarried = this;
         SetEquipped(true);
+
+    // (No TakeItem animation on picking up harrow per request)
     }
 
     public void Drop()

@@ -169,8 +169,8 @@ public class PlayerMovement : MonoBehaviour
             currentSpeed = 0f;
             return;
         }
-        // Animasyon oynarken hareket girişini engelle
-        if (animController != null && animController.IsSpuding())
+    // Animasyon oynarken hareket girişini engelle
+    if (animController != null && (animController.IsSpuding() || animController.IsTakingItem()))
         {
             // Spuding sırasında hareket etmeyi engelle
             currentSpeed = 0f;

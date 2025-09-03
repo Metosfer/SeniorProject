@@ -13,6 +13,8 @@ public class WorldItem : MonoBehaviour
     
     private bool playerInRange = false;
     private Inventory playerInventory;
+    private bool pendingPickup = false; // wait until TakeItem anim finishes
+    private PlayerAnimationController playerAnim;
 
     private void Start()
     {
@@ -32,14 +34,17 @@ public class WorldItem : MonoBehaviour
         {
             pickupUI.SetActive(false);
         }
+
+    // Player anim controller (opsiyonel)
+    playerAnim = FindObjectOfType<PlayerAnimationController>();
     }
 
     private void Update()
     {
         // Player range'de ise pickup kontrolü
-        if (playerInRange && Input.GetKeyDown(pickupKey))
+        if (!pendingPickup && playerInRange && Input.GetKeyDown(pickupKey))
         {
-            TryPickup();
+            BeginPickupSequence();
         }
     }
 
@@ -61,6 +66,42 @@ public class WorldItem : MonoBehaviour
         }
     }
 
+    private void BeginPickupSequence()
+    {
+        if (pendingPickup) return;
+        // Hide prompt during animation
+        ShowPickupUI(false);
+
+        // Trigger TakeItem anim and wait until it finishes, then attempt pickup
+        if (playerAnim != null)
+        {
+            pendingPickup = true;
+            playerAnim.TriggerTakeItem();
+            StartCoroutine(WaitTakeItemThenPickup());
+        }
+        else
+        {
+            // Fallback: no animator found
+            TryPickup();
+        }
+    }
+
+    private System.Collections.IEnumerator WaitTakeItemThenPickup()
+    {
+        // small delay to register trigger
+        yield return new WaitForEndOfFrame();
+        // Wait while animation is reported active (with a safety timeout)
+        float t = 0f;
+        const float timeout = 2.0f;
+        while (playerAnim != null && playerAnim.IsTakingItem() && t < timeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        pendingPickup = false;
+        TryPickup();
+    }
+
     private void TryPickup()
     {
         if (playerInventory != null && item != null)
@@ -70,9 +111,6 @@ public class WorldItem : MonoBehaviour
             
             if (added)
             {
-                // Trigger TakeItem for non-plant pickups
-                var anim = FindObjectOfType<PlayerAnimationController>();
-                if (anim != null) anim.TriggerTakeItem();
                 Debug.Log($"Picked up: {item.itemName} x{quantity}");
                 // Notify save system immediately
                 if (GameSaveManager.Instance != null)
@@ -97,6 +135,8 @@ public class WorldItem : MonoBehaviour
             {
                 Debug.Log("Inventory full! Cannot pickup item.");
                 // UI feedback verilebilir (inventory dolu mesajı vs.)
+                // Re-show prompt so player knows they can try again later
+                ShowPickupUI(true);
             }
         }
     }

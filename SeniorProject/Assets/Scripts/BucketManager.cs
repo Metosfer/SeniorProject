@@ -163,6 +163,13 @@ public class BucketManager : MonoBehaviour, ISaveable
     public bool IsFilled => isFilled;
     public bool IsCarried => isCarried;
     
+    [Header("Animation")]
+    [Tooltip("Optional Animator on the bucket for playing watering animation.")]
+    public Animator animator;
+    private bool _checkedWateringParamBucket = false;
+    private bool _hasWateringParamBucket = false;
+    private string _wateringBucketParamName = null; // e.g., "WateringBucket" | fallback names
+    
     [Header("Save")]
     [Tooltip("Persistent ID for save/load. Set a unique value per bucket in the scene.")]
     public string saveId;
@@ -172,6 +179,10 @@ public class BucketManager : MonoBehaviour, ISaveable
         _rb = GetComponent<Rigidbody>();
         _colliders = GetComponentsInChildren<Collider>(true);
         _originalLocalScale = transform.localScale;
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>(true);
+        }
         if (waterVisual != null)
         {
             _waterBaseScale = waterVisual.transform.localScale;
@@ -417,7 +428,9 @@ public class BucketManager : MonoBehaviour, ISaveable
     // Empties the bucket after watering; returns true if water was consumed
     public bool TryConsumeAllWater()
     {
-        if (!isFilled && waterCharges <= 0) return false;
+    if (!isFilled && waterCharges <= 0) return false;
+    // Play watering bucket animation when water is consumed
+    TriggerWateringBucketAnimation();
         isFilled = false;
         waterCharges = 0;
         ApplyVisual();
@@ -443,6 +456,11 @@ public class BucketManager : MonoBehaviour, ISaveable
         }
         int used = Mathf.Min(count, waterCharges);
         waterCharges -= used;
+        if (used > 0)
+        {
+            // Trigger watering animation when consuming charges
+            TriggerWateringBucketAnimation();
+        }
     // Defer visual update until after potential empty transition
         if (waterCharges <= 0)
         {
@@ -754,11 +772,13 @@ public class BucketManager : MonoBehaviour, ISaveable
 
         SetCarriedPhysics(true);
         isCarried = true;
-    CurrentCarried = this;
-    onPickedUp?.Invoke();
-    // Trigger carry animation on
-    var anim = FindObjectOfType<PlayerAnimationController>();
-    if (anim != null) anim.SetCarryBucket(true);
+        CurrentCarried = this;
+        onPickedUp?.Invoke();
+        // Trigger carry animation on
+        var anim = FindObjectOfType<PlayerAnimationController>();
+        if (anim != null) {
+            anim.SetCarryBucket(true);
+        }
     }
 
     public void Drop()
@@ -1152,6 +1172,46 @@ public class BucketManager : MonoBehaviour, ISaveable
             transform.localScale = _initialScale;
             _hoverScaleActive = false;
         }
+    }
+
+    // --- Animation helpers ---
+    public void TriggerWateringBucketAnimation()
+    {
+        if (animator == null) return;
+        if (!_checkedWateringParamBucket)
+        {
+            string[] candidates = { "WateringBucket", "Watering", "Water" };
+            foreach (var name in candidates)
+            {
+                if (AnimatorHasParameter(animator, name, AnimatorControllerParameterType.Trigger))
+                {
+                    _wateringBucketParamName = name;
+                    _hasWateringParamBucket = true;
+                    break;
+                }
+            }
+            _checkedWateringParamBucket = true;
+            if (!_hasWateringParamBucket)
+            {
+                Debug.LogWarning("Bucket Animator watering trigger not found. Add a Trigger named 'WateringBucket' (or 'Watering'/'Water') to play watering anim.", this);
+            }
+        }
+        if (_hasWateringParamBucket && !string.IsNullOrEmpty(_wateringBucketParamName))
+        {
+            animator.SetTrigger(_wateringBucketParamName);
+        }
+    }
+
+    private static bool AnimatorHasParameter(Animator anim, string name, AnimatorControllerParameterType type)
+    {
+        if (anim == null) return false;
+        var pars = anim.parameters;
+        for (int i = 0; i < pars.Length; i++)
+        {
+            var p = pars[i];
+            if (p.type == type && p.name == name) return true;
+        }
+        return false;
     }
 
     private static bool NearlyEqual(in Vector3 a, in Vector3 b, float eps = 0.0005f)

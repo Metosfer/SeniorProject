@@ -81,13 +81,17 @@ public class Plant : MonoBehaviour
         ShowPickupUI(false);
 
         // If this Plant represents a seed item, don't play Spuding; pickup immediately
-        if (item != null && item.isSeed)
+    if (item != null && item.isSeed)
         {
-            // Seeds: pickup immediately but still play TakeItem for feedback
+            // Seeds: play TakeItem and wait until it finishes, then pickup
             if (playerAnimation != null && !playerAnimation.IsSpuding())
             {
-                playerAnimation.TriggerTakeItem();
+        playerAnimation.TriggerTakeItem();
+        pendingPickup = true;
+        StartCoroutine(WaitTakeItemThenPickup());
+                return;
             }
+            // Fallback
             TryPickup();
             return;
         }
@@ -124,6 +128,20 @@ public class Plant : MonoBehaviour
             yield return null;
         }
         pendingPickup = false;
+        TryPickup();
+    }
+
+    private System.Collections.IEnumerator WaitTakeItemThenPickup()
+    {
+        // Allow trigger to register
+        yield return new WaitForEndOfFrame();
+        float t = 0f; const float timeout = 2.0f;
+        while (playerAnimation != null && playerAnimation.IsTakingItem() && t < timeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    pendingPickup = false;
         TryPickup();
     }
 

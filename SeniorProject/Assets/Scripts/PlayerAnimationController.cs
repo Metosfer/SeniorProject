@@ -8,6 +8,13 @@ public class PlayerAnimationController : MonoBehaviour
     private bool _carryBucketCached = false;
     private bool _checkedTakeItemParam = false;
     private bool _hasTakeItemParam = true; // assume true; will verify on first use
+    private bool _checkedWateringParam = false;
+    private bool _hasWateringParam = false;
+    private string _wateringParamName = null; // cache the actual trigger name found
+    // TakeItem movement lock tracking
+    private bool isTakingItem = false;
+    private Coroutine _takeItemCo;
+    [SerializeField] private float takeItemFallbackDuration = 0.8f; // used if state name not found
 
     // Animasyon parametre hash'leri (Performans için)
     private int speedHash;
@@ -15,6 +22,7 @@ public class PlayerAnimationController : MonoBehaviour
     private int spudingTriggerHash;
     private int takeItemTriggerHash;
     private int isCarryBucketHash;
+    // Watering trigger uses string lookup (supports multiple possible names)
 
     private void Awake()
     {
@@ -97,6 +105,43 @@ public class PlayerAnimationController : MonoBehaviour
         if (_hasTakeItemParam)
         {
             animator.SetTrigger(takeItemTriggerHash);
+        }
+    // Block movement while TakeItem plays (similar to Spuding)
+    if (_takeItemCo != null) StopCoroutine(_takeItemCo);
+    isTakingItem = true;
+    _takeItemCo = StartCoroutine(CheckTakeItemAnimation());
+    }
+
+    /// <summary>
+    /// Watering animasyonunu tetikler (kova ile sulama anında). Parametre adını otomatik bulur: "Watering" | "WateringTrigger" | "Water".
+    /// </summary>
+    public void TriggerWatering()
+    {
+        if (animator == null) return;
+
+        if (!_checkedWateringParam)
+        {
+            // Try common names in order
+            string[] candidates = { "Watering", "WateringTrigger", "Water" };
+            foreach (var name in candidates)
+            {
+                if (AnimatorHasParameter(name, AnimatorControllerParameterType.Trigger))
+                {
+                    _wateringParamName = name;
+                    _hasWateringParam = true;
+                    break;
+                }
+            }
+            _checkedWateringParam = true;
+            if (!_hasWateringParam)
+            {
+                Debug.LogWarning("Animator watering trigger not found. Add a Trigger named 'Watering' (or 'WateringTrigger'/'Water') and a transition to your watering animation.", this);
+            }
+        }
+
+        if (_hasWateringParam && !string.IsNullOrEmpty(_wateringParamName))
+        {
+            animator.SetTrigger(_wateringParamName);
         }
     }
 
@@ -203,5 +248,42 @@ public class PlayerAnimationController : MonoBehaviour
             if (p.type == type && p.name == name) return true;
         }
         return false;
+    }
+
+    // TakeItem state tracking similar to Spuding but with a fallback timeout
+    private System.Collections.IEnumerator CheckTakeItemAnimation()
+    {
+        // allow trigger to register
+        yield return new WaitForEndOfFrame();
+        // Try to wait until we enter CatTakeItem (with a small timeout)
+        float t = 0f;
+        bool entered = false;
+        while (t < 0.6f)
+        {
+            if (IsInState("CatTakeItem")) { entered = true; break; }
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        if (entered)
+        {
+            // Wait while in CatTakeItem
+            while (IsInState("CatTakeItem"))
+            {
+                yield return null;
+            }
+            isTakingItem = false;
+        }
+        else
+        {
+            // Fallback: clear after a fixed duration
+            yield return new WaitForSeconds(takeItemFallbackDuration);
+            isTakingItem = false;
+        }
+        _takeItemCo = null;
+    }
+
+    public bool IsTakingItem()
+    {
+        return isTakingItem;
     }
 }

@@ -6,6 +6,7 @@ public class FarmingManager : MonoBehaviour
 {
     [Header("References")]
     public FarmingAreaManager farmingArea;
+    public PlayerAnimationController playerAnimation; // optional reference for animation hooks
 
     // Example hooks for integrating with pickup system
     public void OnRakePickedUp()
@@ -16,6 +17,13 @@ public class FarmingManager : MonoBehaviour
     public void OnRakeDropped()
     {
         HarrowManager.SetEquipped(false);
+    }
+
+    // Optional: expose a method to play watering anim from external triggers
+    public void PlayWateringAnimation()
+    {
+        if (playerAnimation == null) playerAnimation = FindObjectOfType<PlayerAnimationController>();
+        if (playerAnimation != null) playerAnimation.TriggerWatering();
     }
 
     // Optional utility to prepare all empty plots (debug/testing)

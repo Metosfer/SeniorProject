@@ -1259,6 +1259,9 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                     _pendingWaterPressUntil = 0f;
                     // Watering logic also deducts charges internally (or falls back to empty when no API),
                     // so we must not consume again here to avoid double-deduction.
+                    // Trigger watering animation on player if available
+                    var anim = FindObjectOfType<PlayerAnimationController>();
+                    if (anim != null) anim.TriggerWatering();
                     int started = WaterAllWaiting(bucket);
                     // No extra consumption here; WaterAllWaiting handles it.
                 }
@@ -1428,11 +1431,14 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     private int WaterAllWaiting(BucketManager bucket)
     {
         int count = 0;
-        if (wateringVFX != null)
+    if (wateringVFX != null)
         {
             wateringVFX.SetActive(false);
             wateringVFX.SetActive(true);
         }
+    // Also trigger watering animation as we start watering action (safety)
+    var anim = FindObjectOfType<PlayerAnimationController>();
+    if (anim != null) anim.TriggerWatering();
         // Determine how many plots we can water based on bucket charges
         int maxToWater = int.MaxValue;
         var chargesProp = typeof(BucketManager).GetProperty("RemainingWaterCharges", BindingFlags.Public | BindingFlags.Instance);
