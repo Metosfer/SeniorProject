@@ -957,13 +957,14 @@ Transform:
   m_GameObject: {fileID: 52110350}
   serializedVersion: 2
   m_LocalRotation: {x: -0.027512133, y: -0, z: -0, w: 0.9996215}
-  m_LocalPosition: {x: -9.43, y: 1.04, z: 21.3}
+  m_LocalPosition: {x: 6.267743, y: -15.609742, z: 33.777542}
   m_LocalScale: {x: 0.9767632, y: 0.44568497, z: 0.44568497}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1288322105}
   - {fileID: 765029680}
-  m_Father: {fileID: 0}
+  - {fileID: 712515124}
+  m_Father: {fileID: 1075961542}
   m_LocalEulerAnglesHint: {x: -3.153, y: 0, z: 0}
 --- !u!1 &52764514
 GameObject:
@@ -12525,16 +12526,16 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 712515121}
-  m_LocalRotation: {x: -0.021281471, y: -0.63352, z: -0.017436076, w: 0.77323705}
-  m_LocalPosition: {x: 0, y: 0, z: 21.595}
-  m_LocalScale: {x: 0.11860434, y: 0.12188669, z: 0.12188669}
+  m_LocalRotation: {x: -0.000000016763806, y: -0.6328005, z: -0.034858964, w: 0.7735299}
+  m_LocalPosition: {x: 0, y: 0, z: 0.7904846}
+  m_LocalScale: {x: 0.254389, y: 0.27253723, z: 0.12767394}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 52110351}
   m_LocalEulerAnglesHint: {x: -3.153, y: -78.656, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -5.5439, y: 2.09}
+  m_AnchoredPosition: {x: 3.9785495, y: 2.3159506}
   m_SizeDelta: {x: 20, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &722534137 stripped
@@ -19345,6 +19346,7 @@ Transform:
   - {fileID: 184361564}
   - {fileID: 1542922379}
   - {fileID: 307557965}
+  - {fileID: 52110351}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1094414043
@@ -42467,6 +42469,7 @@ SceneRoots:
   - {fileID: 2444353398045877876}
   - {fileID: 6580437291509564321}
   - {fileID: 1400289674}
+  - {fileID: 1687583178}
   - {fileID: 601457061468995713}
   - {fileID: 1710462774}
   - {fileID: 1932686720}
@@ -42478,6 +42481,7 @@ SceneRoots:
   - {fileID: 1416402811}
   - {fileID: 1732426200}
   - {fileID: 502741696}
+  - {fileID: 1122159000}
   - {fileID: 1026245610}
   - {fileID: 99518960}
   - {fileID: 575624434}
@@ -42491,7 +42495,3 @@ SceneRoots:
   - {fileID: 1681755258}
   - {fileID: 243867255}
   - {fileID: 1075961542}
-  - {fileID: 1122159000}
-  - {fileID: 1687583178}
-  - {fileID: 52110351}
-  - {fileID: 712515124}
