@@ -4,14 +4,21 @@ using UnityEngine;
 public class SCItem : ScriptableObject
 {
     [Header("Basic Info")]
+    [Tooltip("Item'ın görünecek adı")]
     public string itemName;
+    [Tooltip("Item'ın açıklama metni")]
     public string itemDescription;
+    [Tooltip("Bu item yığılabilir mi? (aynı türden birden fazla slot'ta toplanabilir)")]
     public bool canStackable;
+    [Tooltip("Envanterde görünecek ikon sprite'ı")]
     public Sprite itemIcon;
 
     [Header("3D Models")]
+    [Tooltip("Dünyada bulunurken kullanılan prefab (örn: Aloe bitkisi, balık)")]
     public GameObject itemPrefab; // Dünyada bulunurken kullanılan prefab (örn: Aloe bitkisi)
+    [Tooltip("Envanter'den atıldığında kullanılan prefab (örn: Aloe yaprağı, yakalanan balık)")]
     public GameObject dropPrefab; // Inventory'den atıldığında kullanılan prefab (örn: Aloe yaprağı)
+    [Tooltip("Kurutma alanında kullanılan prefab (örn: kurutulmuş Aloe yaprağı)")]
     public GameObject dryPrefab; // Kurutma alanında kullanılan prefab (örn: kurutulmuş Aloe yaprağı)
 
     [Header("Farming Settings")]
@@ -25,11 +32,31 @@ public class SCItem : ScriptableObject
     public SCItem harvestItem;
 
     [Header("Drying Settings")]
+    [Tooltip("Bu item kurutulabilir mi?")]
     public bool canBeDried = false; // Bu item kurutulabilir mi?
+    [Tooltip("Kurutma süresi (saniye cinsinden)")]
     public float dryingTime = 10f; // Kurutma süresi (saniye cinsinden)
+    [Tooltip("Kurutulmuş hali (envanter'e eklenecek item)")]
     public SCItem driedVersion; // Kurutulmuş hali (inventory'e eklenecek)
     
     [Header("Expiration")]
+    [Tooltip("Bu item bozulabilir mi?")]
     public bool isExpirable;
+    [Tooltip("Bozulma süresi (saniye cinsinden)")]
     public float expirationTime;
+    
+    [Header("Fish Settings")]
+    [Tooltip("Bu item bir balık mı? (FishingManager için)")]
+    public bool isFish = false; // Bu item bir balık mı?
+    [Tooltip("Balığın değeri (puan, para vs.)")]
+    public int fishValue = 1; // Balığın değeri (puan, para vs.)
+    [Tooltip("Balığın ağırlığı (kilogram)")]
+    public float fishWeight = 1f; // Balığın ağırlığı
+    [Tooltip("Balık türü: Common, Rare, Epic, Legendary")]
+    public string fishType = "Common"; // Balık türü (Common, Rare, Epic vs.)
+    [Tooltip("Balık tutulduğunda oyuncuya verilecek XP")]
+    public int fishingXP = 10;
+    [Tooltip("Balık yakalanma zorluğu (1=Çok Kolay, 2=Kolay, 3=Orta, 4=Zor, 5=Çok Zor)")]
+    [Range(1, 5)]
+    public int fishDifficulty = 3; // Balık yakalanma zorluğu
 }

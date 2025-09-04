@@ -1,366 +1,741 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Events;
 
-// Attach this to the lake/water object. Press E near the lake while holding the Fishing Rod
-// to start a simple Stardew-like fishing minigame: keep the bobber window over the moving fish
-// to fill the catch progress. When full, a fish is awarded.
 public class FishingManager : MonoBehaviour
 {
-    [Header("Player & Start Conditions")]
-    [Tooltip("Player transform used for distance checks. If null, uses tagged 'Player'.")]
-    public Transform player;
-    [Tooltip("Press this key near the lake to start fishing.")]
-    public KeyCode startKey = KeyCode.E;
-    [Tooltip("Maximum distance from this object to allow starting the minigame.")]
-    public float interactRange = 3.0f;
-    [Tooltip("Require that the Fishing Rod is currently carried to start.")]
-    public bool requireRodEquipped = true;
-
-    [Header("Minigame UI (Screen-space)")]
-    [Tooltip("CanvasGroup that contains the minigame UI. Will be auto-created if empty and autoCreateRuntimeUI is enabled.")]
-    public CanvasGroup uiGroup;
-    [Tooltip("Vertical bar area in which fish/bobber move (RectTransform).")]
-    public RectTransform barArea;
-    [Tooltip("Our controllable catch window.")]
-    public RectTransform bobberWindow;
-    [Tooltip("Fish icon that moves up/down.")]
-    public RectTransform fishIcon;
-    [Tooltip("Progress fill image (fillAmount 0..1).")]
-    public Image progressFill;
-    [Tooltip("Automatically create a basic UI if references are not assigned.")]
-    public bool autoCreateRuntimeUI = true;
-
-    [Header("Minigame Tuning")]
-    [Tooltip("How many seconds of overlap are required to catch the fish (cumulative).")]
-    public float requiredOverlapSeconds = 3.0f;
-    [Tooltip("Rate per second to decrease progress when not overlapping (0 = no decay).")]
-    public float decayPerSecond = 0.5f;
-    [Tooltip("Gravity pulling the bobber window down.")]
-    public float bobberGravity = 6f;
-    [Tooltip("Upward thrust when holding the action key (Space/Mouse0).")]
-    public float bobberThrust = 10f;
-    [Tooltip("Max bobber vertical speed.")]
-    public float bobberMaxSpeed = 10f;
-    [Tooltip("Fish base vertical speed.")]
-    public float fishSpeed = 2.5f;
-    [Tooltip("How often the fish changes its target position (seconds).")]
-    public Vector2 fishRetargetInterval = new Vector2(0.6f, 1.6f);
-    [Tooltip("How close to target before picking a new target.")]
-    public float fishTargetTolerance = 0.05f;
-
-    [Header("Catch Rewards")]
-    [Tooltip("Fish item ID to award on success (hook up your inventory via event below).")]
-    public string fishItemId = "Fish_Common";
-    [Tooltip("Quantity awarded on success.")]
-    public int fishQuantity = 1;
-
-    [System.Serializable]
-    public class StringEvent : UnityEvent<string> { }
-    [System.Serializable]
-    public class IntEvent : UnityEvent<int> { }
-    [Header("Events")]
-    [Tooltip("Invoked when the player successfully catches a fish (passes fishItemId and quantity).")]
-    public StringEvent onFishCaughtId;
-    public IntEvent onFishCaughtQuantity;
-
-    [Header("Color Feedback")]
-    [Tooltip("Neutral color (center of scale). White by default.")]
-    public Color neutralColor = Color.white;
-    [Tooltip("Color when very close/on target (goes from neutral to this as you overlap more).")]
-    public Color nearGreenColor = new Color(0.1f, 0.6f, 0.1f, 1f);
-    [Tooltip("Color when far (goes from neutral to this as you get farther away).")]
-    public Color farRedColor = new Color(0.85f, 0.2f, 0.2f, 1f);
-    [Tooltip("How far beyond the capture radius becomes fully red (multiplier of capture radius).")]
-    public float farDistanceFactor = 2.5f;
-
-    // Runtime state
-    private bool _active;
-    private float _progress; // 0..1
-    private float _accumOverlap; // seconds overlapped
-    private float _bobberY01; // normalized 0..1 inside bar
-    private float _bobberVel;
-    private float _fishY01;
-    private float _fishTargetY01;
-    private float _nextRetargetTime;
-
-    private Camera _uiCamera;
-
-    private void Start()
+    [Header("UI Elements")]
+    [Tooltip("Balık tutma mini oyunu panel'ı")]
+    public GameObject fishingPanel;
+    [Tooltip("Etkileşim metni gösterecek GameObject (Press E to Open Fishing)")]
+    public GameObject promptText;
+    [Tooltip("UI Text component referansı (Canvas üzerindeki text için)")]
+    public Text promptTextComponent; // UI Text için
+    [Tooltip("3D dünyada gösterilecek TextMeshPro component referansı")]
+    public TMPro.TextMeshPro promptTextMeshPro; // 3D TextMeshPro için
+    [Tooltip("Panel içindeki balığın Transform component'i (hareket için)")]
+    public Transform fishTransform;
+    [Tooltip("Panel içindeki oltanın Transform component'i (hareket için)")]
+    public Transform bobberTransform;
+    [Tooltip("Yakalama ilerlemesini gösteren Slider component'i")]
+    public Slider fishingProgressBar;
+    [Tooltip("Balığın görselini gösterecek Image component'i (balık ikonu için)")]
+    public Image fishImage; // Balık ikonunu gösterecek Image component
+    
+    [Header("Fishing Settings")]
+    [Tooltip("Balığın dikey hareket hızı (1-5 arası önerilir)")]
+    public float fishSpeed = 2f;
+    [Tooltip("Balığın oltadan kaçma kuvveti (Seçilen balığın zorluğuna göre otomatik ayarlanır)")]
+    public float fishEscapeForce = 1f; // Balığın bobber'dan kaçma kuvveti (düşük tutuldu)
+    [Tooltip("Space tuşu ile oltanın yukarı çıkma hızı (100-200 arası)")]
+    public float bobberMoveSpeed = 150f; // Space ile yukarı çıkma hızı
+    [Tooltip("Oltayı aşağı çeken yerçekimi kuvveti (50-150 arası)")]
+    public float gravityForce = 100f; // Yerçekimi kuvveti
+    [Tooltip("Balığı yakalamak için gereken süre (saniye cinsinden)")]
+    public float catchTimeRequired = 3f;
+    [Tooltip("Başarılı yakalama için olta-balık arası maksimum mesafe")]
+    public float successZoneSize = 50f;
+    
+    [Header("Movement Ranges")]
+    [Tooltip("Balığın panel içinde hareket edebileceği minimum Y pozisyonu")]
+    public float fishMinY = -100f; // Balığın minimum Y pozisyonu
+    [Tooltip("Balığın panel içinde hareket edebileceği maksimum Y pozisyonu")]
+    public float fishMaxY = 100f;  // Balığın maksimum Y pozisyonu
+    [Tooltip("Oltanın panel içinde inebileceği minimum Y pozisyonu")]
+    public float bobberMinY = -100f; // Bobber'ın minimum Y pozisyonu
+    [Tooltip("Oltanın panel içinde çıkabileceği maksimum Y pozisyonu")]
+    public float bobberMaxY = 100f;  // Bobber'ın maksimum Y pozisyonu
+    
+    [Header("Player Detection")]
+    [Tooltip("Oyuncunun balık tutma noktasına yaklaşma mesafesi (E tuşu aktif olur)")]
+    public float interactionRange = 3f;
+    [Tooltip("Oyuncunun uzaklaşma mesafesi (prompt gizlenir, flicker önlenir)")]
+    public float exitRange = 4f; // Range'den çıkış mesafesi (flickering önlemek için)
+    [Tooltip("Oyuncu karakterinin Transform component'i")]
+    public Transform playerTransform;
+    
+    [Header("Fish Rewards")]
+    [Tooltip("Yakalanabilecek balık türlerinin dizisi (otomatik oluşturulur)")]
+    public SCItem[] fishItems; // Yakalanabilecek balık türleri
+    [Tooltip("Her balığın yakalanma olasılığı (otomatik hesaplanır)")]
+    public float[] fishProbabilities; // Her balığın yakalanma olasılığı (0-1 arası)
+    
+    [Header("Available Fish List")]
+    [Tooltip("Bu listeye tüm balık ScriptableObject'lerini ekleyin (isFish=true olanlar)")]
+    public List<SCItem> availableFishList = new List<SCItem>(); // Inspector'dan assign edilecek balık listesi
+    
+    // Inventory System Reference (bu referansı inspector'dan atayacaksınız)
+    [Header("Inventory System")]
+    [Tooltip("Oyuncunun envanter yönetici script'i (AddItem metodu olan MonoBehaviour)")]
+    public MonoBehaviour inventoryManager; // Inventory manager referansı
+    
+    [Header("Animation")]
+    [Tooltip("Balık yakalama animasyonu için Animator component'i")]
+    public Animator fishingAnimator; // Balık yakalama animasyonu için
+    
+    [Header("Fish Spawn Settings")]
+    [Tooltip("Yakalanan balığın dünyada spawn edileceği konum (Transform)")]
+    public Transform fishSpawnPoint; // Balığın spawn edileceği nokta
+    [Tooltip("Spawn edilirken balığa uygulanacak kuvvet miktarı (0-10 arası)")]
+    public float spawnForce = 5f; // Spawn edilirken uygulanan kuvvet
+    [Tooltip("Spawn edilirken balığa uygulanacak yukarı doğru kuvvet")]
+    public float spawnUpwardForce = 2f; // Yukarı doğru kuvvet
+    [Tooltip("Balık yakalandığında dünyada spawn edilsin mi?")]
+    public bool spawnFishOnCatch = true; // Balık yakalandığında spawn edilsin mi?
+    
+    private bool playerInRange = false;
+    private bool isFishingActive = false;
+    private float currentCatchTime = 0f;
+    private float fishDirection = 1f;
+    private float bobberVelocity = 0f; // Bobber'ın dikey hızı
+    private RectTransform fishRect;
+    private RectTransform bobberRect;
+    private SCItem currentTargetFish; // Şu an yakalanacak olan balık
+    private bool escapeKeyConsumed = false; // ESC tuşunun bu frame'de tüketilip tüketilmediği
+    private float escapeKeyConsumedTime = 0f; // ESC tuşunun tüketildiği zaman
+    
+    void Start()
     {
-        if (player == null)
+        if (promptText != null)
+            promptText.SetActive(false);
+            
+        if (fishingPanel != null)
+            fishingPanel.SetActive(false);
+            
+        if (fishTransform != null)
+            fishRect = fishTransform.GetComponent<RectTransform>();
+            
+        if (bobberTransform != null)
+            bobberRect = bobberTransform.GetComponent<RectTransform>();
+            
+        if (fishingProgressBar != null)
         {
-            var go = GameObject.FindGameObjectWithTag("Player");
-            if (go != null) player = go.transform;
+            fishingProgressBar.value = 0f;
+            fishingProgressBar.maxValue = catchTimeRequired;
         }
-
-        if ((uiGroup == null || barArea == null || bobberWindow == null || fishIcon == null || progressFill == null) && autoCreateRuntimeUI)
-        {
-            CreateRuntimeUI();
-        }
-
-        ShowUI(false);
+        
+        // Balık olasılıklarını kontrol et
+        ValidateFishProbabilities();
+        
+        // Available fish listesinden fishItems ve probabilities dizilerini oluştur
+        InitializeFishArraysFromList();
     }
 
-    private void Update()
+    void Update()
     {
-        if (!_active)
+        // ESC key consumed flag'ini kontrol et ve belirli bir süre sonra resetle
+        if (escapeKeyConsumed && Time.time - escapeKeyConsumedTime > 0.1f)
         {
-            // Start when near and conditions met
-            if (Input.GetKeyDown(startKey) && IsPlayerInRange() && IsRodEquippedIfRequired())
+            escapeKeyConsumed = false;
+        }
+        
+        CheckPlayerDistance();
+        HandleInput();
+        
+        if (isFishingActive)
+        {
+            UpdateFishingGame();
+        }
+    }
+    
+    void CheckPlayerDistance()
+    {
+        if (playerTransform == null) return;
+        
+        float distance = Vector3.Distance(transform.position, playerTransform.position);
+        
+        // Hysteresis sistemi: Giriş ve çıkış için farklı mesafeler
+        if (!playerInRange && distance <= interactionRange)
+        {
+            playerInRange = true;
+            ShowPrompt();
+        }
+        else if (playerInRange && distance > exitRange)
+        {
+            playerInRange = false;
+            HidePrompt();
+        }
+    }
+    
+    void HandleInput()
+    {
+        if (playerInRange && Input.GetKeyDown(KeyCode.E) && !isFishingActive)
+        {
+            StartFishing();
+        }
+        
+        if (isFishingActive && Input.GetKey(KeyCode.Space))
+        {
+            MoveBobberUp();
+        }
+        
+        if (isFishingActive && Input.GetKeyDown(KeyCode.Escape))
+        {
+            EndFishing(false);
+            escapeKeyConsumed = true; // ESC tuşunu tüket
+            escapeKeyConsumedTime = Time.time; // Tüketilme zamanını kaydet
+            
+            // Input event'ini tamamen durdurmak için bir coroutine başlat
+            StartCoroutine(ConsumeEscapeInputForOneFrame());
+        }
+    }
+    
+    void ShowPrompt()
+    {
+        if (promptText != null)
+        {
+            promptText.SetActive(true);
+            
+            // UI Text için
+            if (promptTextComponent != null)
+                promptTextComponent.text = "Press E to Open Fishing";
+                
+            // 3D TextMeshPro için
+            if (promptTextMeshPro != null)
+                promptTextMeshPro.text = "Press E to Open Fishing";
+        }
+    }
+    
+    void HidePrompt()
+    {
+        if (promptText != null)
+            promptText.SetActive(false);
+    }
+    
+    void StartFishing()
+    {
+        isFishingActive = true;
+        HidePrompt();
+        
+        // Balık tutma başlama animasyonu trigger'ını tetikle
+        TriggerFishingStartAnimation();
+        
+        if (fishingPanel != null)
+            fishingPanel.SetActive(true);
+            
+        ResetFishingGame();
+    }
+    
+    void ResetFishingGame()
+    {
+        currentCatchTime = 0f;
+        bobberVelocity = 0f;
+        
+        // Random bir balık seç ve görselini değiştir
+        currentTargetFish = GetRandomFishFromList();
+        UpdateFishVisual();
+        
+        // Seçilen balığın zorluğuna göre Fish Escape Force'u ayarla
+        AdjustDifficultyBasedOnFish();
+        
+        if (fishRect != null)
+            fishRect.anchoredPosition = new Vector2(fishRect.anchoredPosition.x, Random.Range(fishMinY, fishMaxY));
+            
+        if (bobberRect != null)
+            bobberRect.anchoredPosition = new Vector2(bobberRect.anchoredPosition.x, 0f);
+            
+        if (fishingProgressBar != null)
+            fishingProgressBar.value = 0f;
+            
+        fishDirection = Random.Range(0, 2) == 0 ? -1f : 1f;
+    }
+    
+    void UpdateFishingGame()
+    {
+        MoveFish();
+        UpdateBobberPhysics();
+        CheckCatchProgress();
+    }
+    
+    void MoveFish()
+    {
+        if (fishRect == null || bobberRect == null) return;
+        
+        float currentY = fishRect.anchoredPosition.y;
+        float bobberY = bobberRect.anchoredPosition.y;
+        
+        // Temel dikey hareket
+        float basicMovement = fishDirection * fishSpeed * Time.deltaTime * 50f;
+        
+        // Bobber'dan kaçma hareketi (yumuşak)
+        float distanceToBobber = bobberY - currentY;
+        float escapeMovement = 0f;
+        
+        // Eğer bobber çok yakınsa, ondan uzaklaş
+        if (Mathf.Abs(distanceToBobber) < successZoneSize * 2f)
+        {
+            // Bobber yukarıdaysa aşağı kaç, aşağıdaysa yukarı kaç
+            escapeMovement = -Mathf.Sign(distanceToBobber) * fishEscapeForce * Time.deltaTime * 30f;
+        }
+        
+        // Toplam hareket
+        float newY = currentY + basicMovement + escapeMovement;
+        
+        // Balığın dikey sınırları kontrol et
+        if (newY > fishMaxY || newY < fishMinY)
+        {
+            fishDirection *= -1f;
+            newY = Mathf.Clamp(newY, fishMinY, fishMaxY);
+        }
+        
+        // Son pozisyonu ayarla
+        newY = Mathf.Clamp(newY, fishMinY, fishMaxY);
+        fishRect.anchoredPosition = new Vector2(fishRect.anchoredPosition.x, newY);
+    }
+    
+    void MoveBobberUp()
+    {
+        bobberVelocity = bobberMoveSpeed;
+    }
+    
+    void UpdateBobberPhysics()
+    {
+        if (bobberRect == null) return;
+        
+        // Yerçekimi uygula
+        bobberVelocity -= gravityForce * Time.deltaTime;
+        
+        // Bobber'ı hareket ettir
+        float currentY = bobberRect.anchoredPosition.y;
+        float newY = currentY + (bobberVelocity * Time.deltaTime);
+        
+        // Sınırları kontrol et
+        newY = Mathf.Clamp(newY, bobberMinY, bobberMaxY);
+        
+        // Sınırlara çarptığında hızı sıfırla
+        if (newY <= bobberMinY || newY >= bobberMaxY)
+        {
+            bobberVelocity = 0f;
+        }
+        
+        bobberRect.anchoredPosition = new Vector2(bobberRect.anchoredPosition.x, newY);
+    }
+    
+    void CheckCatchProgress()
+    {
+        if (fishRect == null || bobberRect == null) return;
+        
+        float distance = Mathf.Abs(fishRect.anchoredPosition.y - bobberRect.anchoredPosition.y);
+        
+        if (distance <= successZoneSize)
+        {
+            currentCatchTime += Time.deltaTime;
+            
+            if (fishingProgressBar != null)
+                fishingProgressBar.value = currentCatchTime;
+                
+            if (currentCatchTime >= catchTimeRequired)
             {
-                BeginMinigame();
+                EndFishing(true);
             }
-            return;
-        }
-
-        // Active minigame loop
-        UpdateFishMovement();
-        UpdateBobberMovement();
-        UpdateProgress();
-
-        // ESC to cancel
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            EndMinigame(false);
-        }
-    }
-
-    private bool IsPlayerInRange()
-    {
-        if (player == null) return false;
-        return Vector3.Distance(player.position, transform.position) <= interactRange;
-    }
-
-    private bool IsRodEquippedIfRequired()
-    {
-        if (!requireRodEquipped) return true;
-        // FishingRodManager.CurrentCarried indicates the rod is held
-        return FishingRodManager.CurrentCarried != null;
-    }
-
-    private void BeginMinigame()
-    {
-        _active = true;
-        _progress = 0f;
-        _accumOverlap = 0f;
-        _bobberY01 = 0.5f;
-        _bobberVel = 0f;
-        _fishY01 = Random.Range(0.2f, 0.8f);
-        _fishTargetY01 = Random.Range(0.1f, 0.9f);
-        _nextRetargetTime = Time.time + Random.Range(fishRetargetInterval.x, fishRetargetInterval.y);
-        ApplyUIPositions();
-        ShowUI(true);
-    }
-
-    private void EndMinigame(bool success)
-    {
-        _active = false;
-        ShowUI(false);
-        if (success)
-        {
-            // Notify inventory via events
-            onFishCaughtId?.Invoke(fishItemId);
-            onFishCaughtQuantity?.Invoke(Mathf.Max(1, fishQuantity));
-        }
-    }
-
-    private void UpdateFishMovement()
-    {
-        if (Time.time >= _nextRetargetTime || Mathf.Abs(_fishTargetY01 - _fishY01) < fishTargetTolerance)
-        {
-            _fishTargetY01 = Mathf.Clamp01(_fishY01 + Random.Range(-0.6f, 0.6f));
-            _nextRetargetTime = Time.time + Random.Range(fishRetargetInterval.x, fishRetargetInterval.y);
-        }
-        float dir = Mathf.Sign(_fishTargetY01 - _fishY01);
-        _fishY01 += dir * fishSpeed * Time.deltaTime;
-        _fishY01 = Mathf.Clamp01(_fishY01);
-        ApplyUIPositions();
-    }
-
-    private void UpdateBobberMovement()
-    {
-        // Input model: hold Space or Left Mouse to go up, otherwise gravity pulls down
-        bool thrust = Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0);
-        float acc = (thrust ? bobberThrust : 0f) - bobberGravity;
-        _bobberVel += acc * Time.deltaTime;
-        _bobberVel = Mathf.Clamp(_bobberVel, -bobberMaxSpeed, bobberMaxSpeed);
-        _bobberY01 += _bobberVel * Time.deltaTime;
-        if (_bobberY01 < 0f)
-        {
-            _bobberY01 = 0f; _bobberVel = 0f;
-        }
-        else if (_bobberY01 > 1f)
-        {
-            _bobberY01 = 1f; _bobberVel = 0f;
-        }
-        ApplyUIPositions();
-    }
-
-    private void UpdateProgress()
-    {
-        // Consider overlap if centers are within bobber window height range
-        if (barArea == null || bobberWindow == null || fishIcon == null || progressFill == null) return;
-
-        float h = barArea.rect.height;
-        float bobberH = bobberWindow.rect.height;
-        float fishH = fishIcon.rect.height;
-        float bobberCenter = _bobberY01 * h;
-        float fishCenter = _fishY01 * h;
-        float halfBobber = bobberH * 0.5f;
-        float halfFish = fishH * 0.5f;
-        float distance = Mathf.Abs(bobberCenter - fishCenter);
-        float captureRadius = (halfBobber + halfFish) * 0.5f;
-
-        bool overlapping = distance <= captureRadius;
-        if (overlapping)
-        {
-            _accumOverlap += Time.deltaTime;
-            _progress = Mathf.Clamp01(_accumOverlap / Mathf.Max(0.1f, requiredOverlapSeconds));
-        }
-        else if (decayPerSecond > 0f)
-        {
-            _accumOverlap = Mathf.Max(0f, _accumOverlap - decayPerSecond * Time.deltaTime);
-            _progress = Mathf.Clamp01(_accumOverlap / Mathf.Max(0.1f, requiredOverlapSeconds));
-        }
-
-        progressFill.fillAmount = _progress;
-        UpdateProximityColor(distance, captureRadius);
-        if (_progress >= 1f)
-        {
-            EndMinigame(true);
-        }
-    }
-
-    private void UpdateProximityColor(float distance, float captureRadius)
-    {
-        if (progressFill == null) return;
-        // Inside capture radius: white -> green based on closeness
-        if (distance <= captureRadius)
-        {
-            float t = Mathf.InverseLerp(captureRadius, 0f, distance); // d=captureRadius -> 0, d=0 -> 1
-            progressFill.color = Color.Lerp(neutralColor, nearGreenColor, t);
         }
         else
         {
-            // Outside capture: white -> red as distance grows (up to captureRadius * farDistanceFactor)
-            float maxFar = Mathf.Max(0.0001f, captureRadius * Mathf.Max(1f, farDistanceFactor));
-            float t = Mathf.InverseLerp(captureRadius, maxFar, distance); // at edge -> 0, very far -> 1
-            progressFill.color = Color.Lerp(neutralColor, farRedColor, t);
+            currentCatchTime = Mathf.Max(0, currentCatchTime - Time.deltaTime * 0.5f);
+            
+            if (fishingProgressBar != null)
+                fishingProgressBar.value = currentCatchTime;
         }
     }
-
-    private void ApplyUIPositions()
+    
+    void EndFishing(bool success)
     {
-        if (barArea == null) return;
-        if (bobberWindow != null)
+        isFishingActive = false;
+        
+        if (fishingPanel != null)
+            fishingPanel.SetActive(false);
+            
+        if (success)
         {
-            var p = bobberWindow.anchoredPosition;
-            p.y = Mathf.Lerp(0f, barArea.rect.height, _bobberY01);
-            bobberWindow.anchoredPosition = p;
+            // Yakalanan balık zaten currentTargetFish olarak belirlenmişti
+            if (currentTargetFish != null)
+            {
+                // Balık yakalama animasyonu trigger'ını tetikle
+                TriggerFishCaughtAnimation();
+                
+                // Balığı dünyaya spawn et
+                if (spawnFishOnCatch)
+                {
+                    SpawnCaughtFish(currentTargetFish);
+                }
+                
+                // Balığı enventere ekle
+                AddFishToInventory(currentTargetFish);
+                Debug.Log($"Balık tutuldu! {currentTargetFish.itemName} yakalandı!");
+            }
+            else
+            {
+                Debug.Log("Balık tutuldu ama envantere eklenemedi!");
+            }
         }
-        if (fishIcon != null)
+        else
         {
-            var p2 = fishIcon.anchoredPosition;
-            p2.y = Mathf.Lerp(0f, barArea.rect.height, _fishY01);
-            fishIcon.anchoredPosition = p2;
+            Debug.Log("Balık kaçtı!");
+            
+            // Balık kaçma animasyonu trigger'ını tetikle
+            TriggerFishEscapedAnimation();
+        }
+        
+        if (playerInRange)
+            ShowPrompt();
+    }
+    
+    void InitializeFishArraysFromList()
+    {
+        if (availableFishList == null || availableFishList.Count == 0)
+        {
+            Debug.LogWarning("Available Fish List boş! Balık listesini doldurun.");
+            return;
+        }
+        
+        // Sadece isFish = true olan itemları filtrele
+        List<SCItem> filteredFish = new List<SCItem>();
+        foreach (SCItem item in availableFishList)
+        {
+            if (item != null && item.isFish)
+            {
+                filteredFish.Add(item);
+            }
+        }
+        
+        if (filteredFish.Count == 0)
+        {
+            Debug.LogWarning("Available Fish List'te isFish = true olan item yok!");
+            return;
+        }
+        
+        // Dizileri oluştur
+        fishItems = filteredFish.ToArray();
+        fishProbabilities = new float[fishItems.Length];
+        
+        // Balık türlerine göre otomatik olasılık ata
+        for (int i = 0; i < fishItems.Length; i++)
+        {
+            switch (fishItems[i].fishType.ToLower())
+            {
+                case "common":
+                    fishProbabilities[i] = 0.6f;
+                    break;
+                case "rare":
+                    fishProbabilities[i] = 0.3f;
+                    break;
+                case "epic":
+                    fishProbabilities[i] = 0.08f;
+                    break;
+                case "legendary":
+                    fishProbabilities[i] = 0.02f;
+                    break;
+                default:
+                    fishProbabilities[i] = 0.5f; // Varsayılan
+                    break;
+            }
+        }
+        
+        Debug.Log($"Balık sistemi hazırlandı: {fishItems.Length} farklı balık türü");
+    }
+    
+    SCItem GetRandomFishFromList()
+    {
+        if (availableFishList == null || availableFishList.Count == 0)
+        {
+            Debug.LogWarning("Available Fish List boş!");
+            return null;
+        }
+        
+        // Sadece isFish = true olan itemları filtrele
+        List<SCItem> validFish = new List<SCItem>();
+        foreach (SCItem item in availableFishList)
+        {
+            if (item != null && item.isFish)
+            {
+                validFish.Add(item);
+            }
+        }
+        
+        if (validFish.Count == 0)
+        {
+            Debug.LogWarning("Geçerli balık bulunamadı!");
+            return null;
+        }
+        
+        // Random balık seç
+        int randomIndex = Random.Range(0, validFish.Count);
+        return validFish[randomIndex];
+    }
+    
+    void UpdateFishVisual()
+    {
+        if (currentTargetFish == null || fishImage == null)
+        {
+            Debug.LogWarning("Current target fish veya fish image null!");
+            return;
+        }
+        
+        if (currentTargetFish.itemIcon != null)
+        {
+            fishImage.sprite = currentTargetFish.itemIcon;
+            Debug.Log($"Balık görseli güncellendi: {currentTargetFish.itemName}");
+        }
+        else
+        {
+            Debug.LogWarning($"{currentTargetFish.itemName} balığının ikonu yok!");
         }
     }
-
-    private void ShowUI(bool show)
+    
+    void AdjustDifficultyBasedOnFish()
     {
-        if (uiGroup == null) return;
-        uiGroup.alpha = show ? 1f : 0f;
-        uiGroup.interactable = show;
-        uiGroup.blocksRaycasts = show;
+        if (currentTargetFish == null)
+        {
+            Debug.LogWarning("Current target fish null, zorluğu ayarlanamıyor!");
+            return;
+        }
+        
+        // Balığın zorluğuna göre Fish Escape Force'u ayarla
+        switch (currentTargetFish.fishDifficulty)
+        {
+            case 1: // Çok Kolay
+                fishEscapeForce = 0.2f;
+                Debug.Log($"{currentTargetFish.itemName} - Zorluk: Çok Kolay (Escape Force: {fishEscapeForce})");
+                break;
+            case 2: // Kolay
+                fishEscapeForce = 0.5f;
+                Debug.Log($"{currentTargetFish.itemName} - Zorluk: Kolay (Escape Force: {fishEscapeForce})");
+                break;
+            case 3: // Orta
+                fishEscapeForce = 1.0f;
+                Debug.Log($"{currentTargetFish.itemName} - Zorluk: Orta (Escape Force: {fishEscapeForce})");
+                break;
+            case 4: // Zor
+                fishEscapeForce = 1.5f;
+                Debug.Log($"{currentTargetFish.itemName} - Zorluk: Zor (Escape Force: {fishEscapeForce})");
+                break;
+            case 5: // Çok Zor
+                fishEscapeForce = 2.0f;
+                Debug.Log($"{currentTargetFish.itemName} - Zorluk: Çok Zor (Escape Force: {fishEscapeForce})");
+                break;
+            default:
+                fishEscapeForce = 1.0f; // Varsayılan orta zorluk
+                Debug.LogWarning($"Geçersiz balık zorluğu: {currentTargetFish.fishDifficulty}, varsayılan kullanılıyor");
+                break;
+        }
     }
-
-    // Create a minimal runtime UI so the system works out-of-the-box
-    private void CreateRuntimeUI()
+    
+    void TriggerFishCaughtAnimation()
     {
-        // Canvas
-        var canvasGO = new GameObject("FishingUI", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(CanvasGroup));
-        var canvas = canvasGO.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        var scaler = canvasGO.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
-        uiGroup = canvasGO.GetComponent<CanvasGroup>();
-
-        // Panel background (optional semi-transparent)
-        var panelGO = new GameObject("Panel", typeof(Image));
-        panelGO.transform.SetParent(canvasGO.transform, false);
-        var panelImg = panelGO.GetComponent<Image>();
-        panelImg.color = new Color(0f, 0f, 0f, 0.2f);
-        var panelRect = panelGO.GetComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
-        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
-        panelRect.sizeDelta = new Vector2(300, 500);
-        panelRect.anchoredPosition = Vector2.zero;
-
-        // Bar area
-        var barGO = new GameObject("BarArea", typeof(Image));
-        barGO.transform.SetParent(panelGO.transform, false);
-        var barImg = barGO.GetComponent<Image>();
-        barImg.color = new Color(1f, 1f, 1f, 0.05f);
-        barArea = barGO.GetComponent<RectTransform>();
-        barArea.anchorMin = new Vector2(0.5f, 0.5f);
-        barArea.anchorMax = new Vector2(0.5f, 0.5f);
-        barArea.sizeDelta = new Vector2(80, 380);
-        barArea.anchoredPosition = Vector2.zero;
-
-        // Bobber window
-        var bobGO = new GameObject("BobberWindow", typeof(Image));
-        bobGO.transform.SetParent(barGO.transform, false);
-        var bobImg = bobGO.GetComponent<Image>();
-        bobImg.color = new Color(0.2f, 0.9f, 0.2f, 0.4f);
-        bobberWindow = bobGO.GetComponent<RectTransform>();
-        bobberWindow.pivot = new Vector2(0.5f, 0f);
-        bobberWindow.sizeDelta = new Vector2(70, 110);
-        bobberWindow.anchoredPosition = new Vector2(0, barArea.rect.height * 0.5f);
-
-        // Fish icon
-        var fishGO = new GameObject("FishIcon", typeof(Image));
-        fishGO.transform.SetParent(barGO.transform, false);
-        var fishImg = fishGO.GetComponent<Image>();
-        fishImg.color = new Color(0.2f, 0.6f, 1f, 0.9f);
-        fishIcon = fishGO.GetComponent<RectTransform>();
-        fishIcon.pivot = new Vector2(0.5f, 0.5f);
-        fishIcon.sizeDelta = new Vector2(40, 40);
-        fishIcon.anchoredPosition = new Vector2(0, barArea.rect.height * 0.5f);
-
-        // Progress fill (top)
-        var progBG = new GameObject("ProgressBG", typeof(Image));
-        progBG.transform.SetParent(panelGO.transform, false);
-        var progBgImg = progBG.GetComponent<Image>();
-        progBgImg.color = new Color(1f, 1f, 1f, 0.1f);
-        var progBGRect = progBG.GetComponent<RectTransform>();
-        progBGRect.anchorMin = new Vector2(0.5f, 1f);
-        progBGRect.anchorMax = new Vector2(0.5f, 1f);
-        progBGRect.sizeDelta = new Vector2(200, 20);
-        progBGRect.anchoredPosition = new Vector2(0, -20);
-
-        var progFillGO = new GameObject("ProgressFill", typeof(Image));
-        progFillGO.transform.SetParent(progBG.transform, false);
-        progressFill = progFillGO.GetComponent<Image>();
-        progressFill.color = new Color(0.2f, 0.9f, 0.2f, 0.9f);
-        var progFillRect = progressFill.GetComponent<RectTransform>();
-        progFillRect.anchorMin = new Vector2(0f, 0f);
-        progFillRect.anchorMax = new Vector2(0f, 1f);
-        progFillRect.pivot = new Vector2(0f, 0.5f);
-        progFillRect.sizeDelta = new Vector2(200, 20);
-
-        // Use fillAmount by parenting under mask? Simpler: scale X by progress
-        // We'll update width manually in UpdateProgress if no sprite is set for radial fills
-        // To keep simple, we rely on Image.fillAmount by setting type to Filled
-        progressFill.type = Image.Type.Filled;
-        progressFill.fillMethod = Image.FillMethod.Horizontal;
-        progressFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-        progressFill.fillAmount = 0f;
-
-        // Initialize states
-        _uiCamera = null;
+        if (fishingAnimator != null)
+        {
+            // FishCaught trigger'ını tetikle
+            fishingAnimator.SetTrigger("FishCaught");
+            Debug.Log("FishCaught animasyon trigger'ı tetiklendi!");
+        }
+        else
+        {
+            Debug.LogWarning("Fishing Animator atanmamış! Animasyon tetiklenemiyor.");
+        }
+    }
+    
+    void TriggerFishingStartAnimation()
+    {
+        if (fishingAnimator != null)
+        {
+            // FishingStart trigger'ını tetikle
+            fishingAnimator.SetTrigger("FishingStart");
+            Debug.Log("FishingStart animasyon trigger'ı tetiklendi!");
+        }
+        else
+        {
+            Debug.LogWarning("Fishing Animator atanmamış! Animasyon tetiklenemiyor.");
+        }
+    }
+    
+    void TriggerFishEscapedAnimation()
+    {
+        if (fishingAnimator != null)
+        {
+            // FishEscaped trigger'ını tetikle
+            fishingAnimator.SetTrigger("FishEscaped");
+            Debug.Log("FishEscaped animasyon trigger'ı tetiklendi!");
+        }
+        else
+        {
+            Debug.LogWarning("Fishing Animator atanmamış! Animasyon tetiklenemiyor.");
+        }
+    }
+    
+    void ValidateFishProbabilities()
+    {
+        if (fishItems == null || fishItems.Length == 0)
+        {
+            Debug.LogWarning("Balık türleri atanmamış! FishingManager'da fishItems dizisini doldurmanız gerekiyor.");
+            return;
+        }
+        
+        if (fishProbabilities == null || fishProbabilities.Length != fishItems.Length)
+        {
+            Debug.LogWarning("Balık olasılıkları yanlış! fishProbabilities dizisi fishItems dizisi ile aynı boyutta olmalı.");
+            return;
+        }
+        
+        float totalProbability = 0f;
+        for (int i = 0; i < fishProbabilities.Length; i++)
+        {
+            totalProbability += fishProbabilities[i];
+        }
+        
+        if (totalProbability <= 0)
+        {
+            Debug.LogWarning("Toplam balık olasılığı 0 veya negatif! En az bir balığın olasılığı 0'dan büyük olmalı.");
+        }
+    }
+    
+    SCItem GetRandomFish()
+    {
+        if (fishItems == null || fishItems.Length == 0 || fishProbabilities == null)
+            return null;
+        
+        float totalWeight = 0f;
+        for (int i = 0; i < fishProbabilities.Length; i++)
+        {
+            totalWeight += fishProbabilities[i];
+        }
+        
+        if (totalWeight <= 0)
+            return null;
+        
+        float randomValue = Random.Range(0f, totalWeight);
+        float currentWeight = 0f;
+        
+        for (int i = 0; i < fishItems.Length; i++)
+        {
+            currentWeight += fishProbabilities[i];
+            if (randomValue <= currentWeight)
+            {
+                return fishItems[i];
+            }
+        }
+        
+        // Fallback - son balığı döndür
+        return fishItems[fishItems.Length - 1];
+    }
+    
+    void SpawnCaughtFish(SCItem fish)
+    {
+        if (fish == null)
+        {
+            Debug.LogError("Spawn edilecek balık null!");
+            return;
+        }
+        
+        // Spawn prefabını belirle (dropPrefab varsa onu kullan, yoksa itemPrefab)
+        GameObject prefabToSpawn = fish.dropPrefab != null ? fish.dropPrefab : fish.itemPrefab;
+        
+        if (prefabToSpawn == null)
+        {
+            Debug.LogWarning($"{fish.itemName} balığının spawn prefabı yok!");
+            return;
+        }
+        
+        // Spawn pozisyonunu belirle
+        Vector3 spawnPosition;
+        if (fishSpawnPoint != null)
+        {
+            spawnPosition = fishSpawnPoint.position;
+        }
+        else
+        {
+            // Spawn point yoksa fishing manager'ın yanında spawn et
+            spawnPosition = transform.position + Vector3.up * 1f + Vector3.forward * 1f;
+        }
+        
+        // Balığı spawn et
+        GameObject spawnedFish = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
+        
+        // Rigidbody varsa kuvvet uygula
+        Rigidbody rb = spawnedFish.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            // Random yön hesapla
+            Vector3 randomDirection = new Vector3(
+                Random.Range(-1f, 1f),
+                spawnUpwardForce,
+                Random.Range(-1f, 1f)
+            ).normalized;
+            
+            // Kuvvet uygula
+            rb.AddForce(randomDirection * spawnForce, ForceMode.Impulse);
+            
+            Debug.Log($"{fish.itemName} spawn edildi ve kuvvet uygulandı!");
+        }
+        else
+        {
+            Debug.Log($"{fish.itemName} spawn edildi (Rigidbody yok)!");
+        }
+    }
+    
+    void AddFishToInventory(SCItem fish)
+    {
+        if (fish == null)
+        {
+            Debug.LogError("Null balık enventere eklenemez!");
+            return;
+        }
+        
+        // Inventory Manager ile etkileşim
+        if (inventoryManager != null)
+        {
+            // Reflection ile AddItem metodunu çağırmaya çalış
+            var addItemMethod = inventoryManager.GetType().GetMethod("AddItem");
+            if (addItemMethod != null)
+            {
+                // AddItem(SCItem item, int quantity) formatında çağır
+                addItemMethod.Invoke(inventoryManager, new object[] { fish, 1 });
+                Debug.Log($"{fish.itemName} enventere eklendi!");
+            }
+            else
+            {
+                Debug.LogWarning("Inventory Manager'da AddItem metodu bulunamadı!");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Inventory Manager atanmamış!");
+        }
+    }
+    
+    void OnDrawGizmosSelected()
+    {
+        // Etkileşim alanını görselleştir (yeşil)
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, interactionRange);
+        
+        // Çıkış alanını görselleştir (kırmızı)
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, exitRange);
+    }
+    
+    // Public method - Diğer scriptler ESC tuşunun tüketilip tüketilmediğini kontrol edebilir
+    public bool IsEscapeKeyConsumed()
+    {
+        return escapeKeyConsumed;
+    }
+    
+    // Public method - Balık tutma oyunu aktif mi kontrol et
+    public bool IsFishingGameActive()
+    {
+        return isFishingActive;
+    }
+    
+    // ESC tuşunu bir frame boyunca tamamen tüketmek için coroutine
+    private System.Collections.IEnumerator ConsumeEscapeInputForOneFrame()
+    {
+        // Bir frame bekle
+        yield return null;
+        
+        // Bir frame daha bekle güvenlik için
+        yield return null;
+        
+        Debug.Log("ESC tuşu input'u tamamen tüketildi.");
     }
 }
