@@ -4876,7 +4876,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &307557965
 Transform:
@@ -6281,6 +6281,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: SM_PalmTree (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 2762468248660280221, guid: 1e83d65eb842f254284c0df2f1ed61a0,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
       objectReference: {fileID: 0}
     - target: {fileID: 5286794729481929242, guid: 1e83d65eb842f254284c0df2f1ed61a0,
         type: 3}
@@ -14844,6 +14849,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: SM_PalmTree
       objectReference: {fileID: 0}
+    - target: {fileID: 2762468248660280221, guid: 1e83d65eb842f254284c0df2f1ed61a0,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     - target: {fileID: 5286794729481929242, guid: 1e83d65eb842f254284c0df2f1ed61a0,
         type: 3}
       propertyPath: m_LocalScale.x
@@ -15187,6 +15197,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: SM_Stool
       objectReference: {fileID: 0}
+    - target: {fileID: 5894964898111999301, guid: 8c1f2950185cdc94db604a727a3cada1,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     - target: {fileID: 6070590418150044543, guid: 8c1f2950185cdc94db604a727a3cada1,
         type: 3}
       propertyPath: m_Materials.Array.data[0]
@@ -15347,8 +15362,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -636, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: -674.1907, y: -46.643}
+  m_SizeDelta: {x: 145.075, y: 110.44}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &959048224
 MonoBehaviour:
@@ -20030,6 +20045,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: SM_Table
       objectReference: {fileID: 0}
+    - target: {fileID: 8517376752722024200, guid: 180e24a0c03348c4998aa3edff3a551f,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -22690,14 +22710,14 @@ RectTransform:
   m_GameObject: {fileID: 1421980945}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1.6908, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1122159000}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -631, y: 0}
+  m_AnchoredPosition: {x: -662, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1421980947
@@ -22980,7 +23000,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -629, y: 0}
+  m_AnchoredPosition: {x: -660, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1442743543
@@ -25102,6 +25122,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: SM_Storage
+      objectReference: {fileID: 0}
+    - target: {fileID: 4683501569932450457, guid: fec330bf16339bf4cb4e977d813b1f55,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
       objectReference: {fileID: 0}
     - target: {fileID: 7339586333907175359, guid: fec330bf16339bf4cb4e977d813b1f55,
         type: 3}
@@ -35983,6 +36008,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: SM_Port
+      objectReference: {fileID: 0}
+    - target: {fileID: 8381011535054399256, guid: 4432124abccd66943b2d93c9764773fd,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
