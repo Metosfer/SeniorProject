@@ -192,20 +192,32 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
             _uiDesiredSince = Time.unscaledTime;
             return;
         }
+        // Entering range: gösterimi geciktirmeden aç (hızlı feedback)
+        if (desiredVisible)
+        {
+            if (!_uiShown)
+            {
+                interactionUI.SetActive(true);
+                _uiShown = true;
+            }
+            // Track state
+            _uiDesiredLast = true;
+            _uiDesiredSince = Time.unscaledTime;
+            return;
+        }
 
+        // Çıkarken/hide için küçük stabilite penceresi uygula (flicker önleme)
         if (desiredVisible != _uiDesiredLast)
         {
             _uiDesiredLast = desiredVisible;
             _uiDesiredSince = Time.unscaledTime;
         }
-
-        // Stabil kaldıysa uygula
         if (Time.unscaledTime - _uiDesiredSince >= Mathf.Max(0f, uiStateStabilityTime))
         {
             if (_uiShown != desiredVisible)
             {
-                interactionUI.SetActive(desiredVisible);
-                _uiShown = desiredVisible;
+                interactionUI.SetActive(false);
+                _uiShown = false;
             }
         }
     }

@@ -3,13 +3,16 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
-public class DryingSlotUI : MonoBehaviour, IDropHandler
+public class DryingSlotUI : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("UI Components")]
     public Image itemIcon;
     public TextMeshProUGUI timerText;
     public Button collectButton;
     public Image slotBackground;
+    [Tooltip("Sürükleme sırasında slot üzerinde gösterilecek ghost ikon")]
+    public Image hoverGhostIcon;
+    [Tooltip("Ghost ikon opaklığı")] public float ghostIconAlpha = 0.6f;
     
     [Header("Visual Feedback")]
     public Color normalColor = Color.white;
@@ -116,6 +119,64 @@ public class DryingSlotUI : MonoBehaviour, IDropHandler
             {
                 Debug.Log("Bu item kurutma için uygun değil!");
             }
+        }
+    }
+
+    // Hover ghost preview for dragged item
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (hoverGhostIcon == null) return;
+        var dd = DragAndDropHandler.CurrentDragHandler;
+        if (dd == null || dd.inventory == null) { hoverGhostIcon.gameObject.SetActive(false); return; }
+        var slot = dd.inventory.inventorySlots[dd.slotIndex];
+        var draggedItem = slot != null ? slot.item : null;
+        if (draggedItem != null)
+        {
+            var spr = draggedItem.itemIcon;
+            if (spr != null)
+            {
+                hoverGhostIcon.sprite = spr;
+                var c = hoverGhostIcon.color; c.a = Mathf.Clamp01(ghostIconAlpha); hoverGhostIcon.color = c;
+                hoverGhostIcon.gameObject.SetActive(true);
+            }
+            else
+            {
+                hoverGhostIcon.gameObject.SetActive(false);
+            }
+        }
+        else
+        {
+            hoverGhostIcon.gameObject.SetActive(false);
+        }
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (hoverGhostIcon != null)
+        {
+            hoverGhostIcon.gameObject.SetActive(false);
+        }
+    }
+
+    // Called by DragAndDropHandler to explicitly control ghost preview
+    public void ShowHoverGhost(Sprite sprite)
+    {
+        if (hoverGhostIcon == null) return;
+        if (sprite == null)
+        {
+            hoverGhostIcon.gameObject.SetActive(false);
+            return;
+        }
+        hoverGhostIcon.sprite = sprite;
+        var c = hoverGhostIcon.color; c.a = Mathf.Clamp01(ghostIconAlpha); hoverGhostIcon.color = c;
+        hoverGhostIcon.gameObject.SetActive(true);
+    }
+
+    public void HideHoverGhost()
+    {
+        if (hoverGhostIcon != null)
+        {
+            hoverGhostIcon.gameObject.SetActive(false);
         }
     }
 }

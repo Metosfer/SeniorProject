@@ -35,6 +35,8 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     private InventorySlotUI inventorySlot;
     private GameObject dragIcon;
     private GameObject dragGhost;
+    // Track hovered drying slot for ghost previews
+    private static DryingSlotUI s_currentHoveredDryingSlot;
     
     // Camera orbit control during drag
     private EazyCam _cam;
@@ -211,6 +213,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         {
             // nothing to move (no ghost or icon)
         }
+
+    // Update DryingSlot hover ghost preview (UI side)
+    UpdateDryingSlotHoverGhost(eventData);
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -224,6 +229,12 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         // Clear static drag tracking
         CurrentDragHandler = null;
+        // Hide any drying slot hover ghost
+        if (s_currentHoveredDryingSlot != null)
+        {
+            try { s_currentHoveredDryingSlot.HideHoverGhost(); } catch {}
+            s_currentHoveredDryingSlot = null;
+        }
 
         // Restore camera orbit if we disabled it
         if (_cam != null && _camStateCaptured)
@@ -367,6 +378,58 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
     }
 
+    private void UpdateDryingSlotHoverGhost(PointerEventData eventData)
+    {
+        // Determine DryingSlotUI under pointer, if any
+        DryingSlotUI target = null;
+        var hitObject = eventData.pointerCurrentRaycast.gameObject;
+        if (hitObject != null)
+        {
+            target = hitObject.GetComponentInParent<DryingSlotUI>();
+        }
+        if (target == null)
+        {
+            // Fallback raycast across all UI canvases
+            var raycasters = GameObject.FindObjectsOfType<GraphicRaycaster>();
+            if (raycasters != null && raycasters.Length > 0)
+            {
+                PointerEventData ped = new PointerEventData(EventSystem.current) { position = eventData.position, pointerDrag = eventData.pointerDrag };
+                var allResults = new System.Collections.Generic.List<RaycastResult>();
+                foreach (var gr in raycasters)
+                {
+                    if (gr == null || !gr.isActiveAndEnabled) continue;
+                    var results = new System.Collections.Generic.List<RaycastResult>();
+                    gr.Raycast(ped, results);
+                    foreach (var rr in results)
+                    {
+                        if (rr.gameObject == null) continue;
+                        var ui = rr.gameObject.GetComponentInParent<DryingSlotUI>();
+                        if (ui != null) { target = ui; break; }
+                    }
+                    if (target != null) break;
+                }
+            }
+        }
+
+        if (target == s_currentHoveredDryingSlot) return; // no change
+
+        // Hide previous
+        if (s_currentHoveredDryingSlot != null)
+        {
+            try { s_currentHoveredDryingSlot.HideHoverGhost(); } catch {}
+            s_currentHoveredDryingSlot = null;
+        }
+
+        // Show new if any
+        if (target != null)
+        {
+            var slot = CurrentDraggedItem;
+            var sprite = (slot != null && slot.item != null) ? slot.item.itemIcon : null;
+            try { target.ShowHoverGhost(sprite); } catch {}
+            s_currentHoveredDryingSlot = target;
+        }
+    }
+
     private bool IsUIElement(GameObject obj)
     {
         return obj.GetComponent<RectTransform>() != null || 
@@ -433,6 +496,11 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         // Clear static drag tracking
         CurrentDragHandler = null;
+        if (s_currentHoveredDryingSlot != null)
+        {
+            try { s_currentHoveredDryingSlot.HideHoverGhost(); } catch {}
+            s_currentHoveredDryingSlot = null;
+        }
 
         // Restore camera orbit if we disabled it
         if (_cam != null && _camStateCaptured)

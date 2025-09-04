@@ -202,6 +202,7 @@ GameObject:
   - component: {fileID: 3549056893044183731}
   - component: {fileID: 6183028190482254251}
   - component: {fileID: 7746977589380208771}
+  - component: {fileID: 6926647538817035970}
   m_Layer: 10
   m_Name: Bucket
   m_TagString: Untagged
@@ -308,6 +309,7 @@ MonoBehaviour:
   minYOnDrop: 0.1
   forceFixedDropY: 1
   fixedDropY: 0.05
+  animator: {fileID: 0}
   saveId: 1
 --- !u!65 &6183028190482254251
 BoxCollider:
@@ -357,6 +359,27 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 126
   m_CollisionDetection: 0
+--- !u!95 &6926647538817035970
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1023467552404986694}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 34631aae8ab714efe95f2e2c00fd491b, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &1857627221825868326
 GameObject:
   m_ObjectHideFlags: 0
