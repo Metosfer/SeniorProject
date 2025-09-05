@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class FishingManager : MonoBehaviour
 {
@@ -15,6 +16,8 @@ public class FishingManager : MonoBehaviour
     public Text promptTextComponent; // UI Text için
     [Tooltip("3D dünyada gösterilecek TextMeshPro component referansı")]
     public TMPro.TextMeshPro promptTextMeshPro; // 3D TextMeshPro için
+    [Tooltip("Balık bekleme mesajı için TextMeshPro component'i (Waiting to catch fish..)")]
+    public TMPro.TextMeshProUGUI waitingText; // Balık bekleme mesajı için
     [Tooltip("Panel içindeki balığın Transform component'i (hareket için)")]
     public Transform fishTransform;
     [Tooltip("Panel içindeki oltanın Transform component'i (hareket için)")]
@@ -23,6 +26,8 @@ public class FishingManager : MonoBehaviour
     public Slider fishingProgressBar;
     [Tooltip("Balığın görselini gösterecek Image component'i (balık ikonu için)")]
     public Image fishImage; // Balık ikonunu gösterecek Image component
+    [Tooltip("Oyun durumunu gösteren TextMeshPro component'i (Caught, Missed etc.)")]
+    public TMPro.TextMeshProUGUI statusText; // Durum mesajları için
     
     [Header("Fishing Settings")]
     [Tooltip("Balığın dikey hareket hızı (1-5 arası önerilir)")]
@@ -37,6 +42,8 @@ public class FishingManager : MonoBehaviour
     public float catchTimeRequired = 3f;
     [Tooltip("Başarılı yakalama için olta-balık arası maksimum mesafe")]
     public float successZoneSize = 50f;
+    [Tooltip("Bu süre boyunca balık yakalanamazsa oyun biter (saniye)")]
+    public float maxFishingTime = 15f; // Maksimum balık tutma süresi
     
     [Header("Movement Ranges")]
     [Tooltip("Balığın panel içinde hareket edebileceği minimum Y pozisyonu")]
@@ -87,6 +94,9 @@ public class FishingManager : MonoBehaviour
     
     private bool playerInRange = false;
     private bool isFishingActive = false;
+    private bool isWaitingForFish = false; // Balık bekleme durumu
+    private float waitStartTime = 0f; // Bekleme başlangıç zamanı
+    private float currentWaitTime = 0f; // Mevcut bekleme süresi
     private float currentCatchTime = 0f;
     private float fishDirection = 1f;
     private float bobberVelocity = 0f; // Bobber'ın dikey hızı
@@ -95,6 +105,8 @@ public class FishingManager : MonoBehaviour
     private SCItem currentTargetFish; // Şu an yakalanacak olan balık
     private bool escapeKeyConsumed = false; // ESC tuşunun bu frame'de tüketilip tüketilmediği
     private float escapeKeyConsumedTime = 0f; // ESC tuşunun tüketildiği zaman
+    private float fishingStartTime = 0f; // Balık tutma başlangıç zamanı
+    private string lastStatusMessage = ""; // Son durum mesajı (tekrar göstermemek için)
     
     void Start()
     {
@@ -116,6 +128,12 @@ public class FishingManager : MonoBehaviour
             fishingProgressBar.maxValue = catchTimeRequired;
         }
         
+        // Status text'i temizle
+        if (statusText != null)
+        {
+            statusText.text = "";
+        }
+        
         // Balık olasılıklarını kontrol et
         ValidateFishProbabilities();
         
@@ -134,7 +152,11 @@ public class FishingManager : MonoBehaviour
         CheckPlayerDistance();
         HandleInput();
         
-        if (isFishingActive)
+        if (isWaitingForFish)
+        {
+            UpdateWaitingForFish();
+        }
+        else if (isFishingActive)
         {
             UpdateFishingGame();
         }
@@ -161,9 +183,9 @@ public class FishingManager : MonoBehaviour
     
     void HandleInput()
     {
-        if (playerInRange && Input.GetKeyDown(KeyCode.E) && !isFishingActive)
+        if (playerInRange && Input.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
         {
-            StartFishing();
+            StartWaitingForFish();
         }
         
         if (isFishingActive && Input.GetKey(KeyCode.Space))
@@ -171,7 +193,7 @@ public class FishingManager : MonoBehaviour
             MoveBobberUp();
         }
         
-        if (isFishingActive && Input.GetKeyDown(KeyCode.Escape))
+        if ((isFishingActive || isWaitingForFish) && Input.GetKeyDown(KeyCode.Escape))
         {
             EndFishing(false);
             escapeKeyConsumed = true; // ESC tuşunu tüket
@@ -204,6 +226,64 @@ public class FishingManager : MonoBehaviour
             promptText.SetActive(false);
     }
     
+    void StartWaitingForFish()
+    {
+        isWaitingForFish = true;
+        HidePrompt();
+        
+        // Rastgele bir balık seç (bekleme süresi hesaplamak için)
+        currentTargetFish = GetRandomFishFromList();
+        
+        // Balığın zorluğuna göre bekleme süresi belirle (difficulty 1-5 arası)
+        // Difficulty 1: 2 saniye, Difficulty 5: 6 saniye
+        if (currentTargetFish != null && currentTargetFish.isFish)
+        {
+            currentWaitTime = 1f + currentTargetFish.fishDifficulty; // 2-6 saniye arası
+        }
+        else
+        {
+            currentWaitTime = 3f; // Varsayılan bekleme süresi
+        }
+        
+        waitStartTime = Time.time;
+        
+        // Panel'i göster ve waiting text'i güncelle
+        if (fishingPanel != null)
+            fishingPanel.SetActive(true);
+            
+        if (waitingText != null)
+            waitingText.text = "Waiting to catch fish..";
+        
+        Debug.Log($"Balık bekleniyor... Süre: {currentWaitTime} saniye (Balık: {currentTargetFish?.itemName}, Zorluk: {currentTargetFish?.fishDifficulty})");
+    }
+    
+    void UpdateWaitingForFish()
+    {
+        float elapsedTime = Time.time - waitStartTime;
+        
+        if (elapsedTime >= currentWaitTime)
+        {
+            // Bekleme süresi doldu, balık tutmaya başla
+            StartFishingAfterWait();
+        }
+    }
+    
+    void StartFishingAfterWait()
+    {
+        isWaitingForFish = false;
+        isFishingActive = true;
+        
+        // Waiting text'i temizle
+        if (waitingText != null)
+            waitingText.text = "";
+        
+        // Balık tutma başlama animasyonu trigger'ını tetikle
+        TriggerFishingStartAnimation();
+        
+        ResetFishingGame();
+    }
+
+    // DEPRECATED: Bu method artık kullanılmıyor. Yeni sistem StartWaitingForFish() kullanıyor.
     void StartFishing()
     {
         isFishingActive = true;
@@ -222,9 +302,16 @@ public class FishingManager : MonoBehaviour
     {
         currentCatchTime = 0f;
         bobberVelocity = 0f;
+        fishingStartTime = Time.time; // Balık tutma başlangıç zamanını kaydet
+        lastStatusMessage = "";
         
-        // Random bir balık seç ve görselini değiştir
-        currentTargetFish = GetRandomFishFromList();
+        // Eğer zaten bir balık seçilmemişse (eski sistem için), random balık seç
+        if (currentTargetFish == null)
+        {
+            currentTargetFish = GetRandomFishFromList();
+        }
+        
+        // Seçilen balığın görselini güncelle
         UpdateFishVisual();
         
         // Seçilen balığın zorluğuna göre Fish Escape Force'u ayarla
@@ -240,6 +327,9 @@ public class FishingManager : MonoBehaviour
             fishingProgressBar.value = 0f;
             
         fishDirection = Random.Range(0, 2) == 0 ? -1f : 1f;
+        
+        // Başlangıç status mesajı
+        UpdateStatusText("Catch the Fish!", Color.white);
     }
     
     void UpdateFishingGame()
@@ -247,6 +337,8 @@ public class FishingManager : MonoBehaviour
         MoveFish();
         UpdateBobberPhysics();
         CheckCatchProgress();
+        CheckFishingTimeout(); // Zaman aşımı kontrolü
+        UpdateGameStatus(); // Durum mesajları
     }
     
     void MoveFish()
@@ -343,6 +435,11 @@ public class FishingManager : MonoBehaviour
     void EndFishing(bool success)
     {
         isFishingActive = false;
+        isWaitingForFish = false; // Bekleme durumunu da sıfırla
+        
+        // Waiting text'i temizle
+        if (waitingText != null)
+            waitingText.text = "";
         
         if (fishingPanel != null)
             fishingPanel.SetActive(false);
@@ -354,6 +451,9 @@ public class FishingManager : MonoBehaviour
             {
                 // Balık yakalama animasyonu trigger'ını tetikle
                 TriggerFishCaughtAnimation();
+                
+                // Başarı mesajı göster
+                UpdateStatusText("Fish Caught!", Color.green);
                 
                 // Balığı dünyaya spawn et
                 if (spawnFishOnCatch)
@@ -367,11 +467,14 @@ public class FishingManager : MonoBehaviour
             }
             else
             {
+                UpdateStatusText("Failed to add to inventory!", Color.red);
                 Debug.Log("Balık tutuldu ama envantere eklenemedi!");
             }
         }
         else
         {
+            // Başarısızlık mesajı göster
+            UpdateStatusText("Fish Escaped!", Color.red);
             Debug.Log("Balık kaçtı!");
             
             // Balık kaçma animasyonu trigger'ını tetikle
@@ -561,6 +664,80 @@ public class FishingManager : MonoBehaviour
         else
         {
             Debug.LogWarning("Fishing Animator atanmamış! Animasyon tetiklenemiyor.");
+        }
+    }
+    
+    void UpdateStatusText(string message, Color textColor = default)
+    {
+        if (statusText != null && message != lastStatusMessage)
+        {
+            statusText.text = message;
+            if (textColor != default(Color))
+            {
+                statusText.color = textColor;
+            }
+            lastStatusMessage = message;
+            Debug.Log($"Status güncellendi: {message}");
+        }
+    }
+    
+    void CheckFishingTimeout()
+    {
+        float elapsedTime = Time.time - fishingStartTime;
+        
+        if (elapsedTime >= maxFishingTime)
+        {
+            // Zaman doldu, balığı kaçır
+            UpdateStatusText("Time's Up! Fish Escaped!", Color.red);
+            
+            // 2 saniye bekle ve oyunu kapat (oyuncu mesajı okuyabilsin)
+            Invoke("EndFishingTimeoutCallback", 2.0f);
+        }
+    }
+    
+    void EndFishingTimeoutCallback()
+    {
+        EndFishing(false);
+    }
+    
+    void UpdateGameStatus()
+    {
+        if (fishRect == null || bobberRect == null) return;
+        
+        float distance = Mathf.Abs(fishRect.anchoredPosition.y - bobberRect.anchoredPosition.y);
+        float catchProgress = currentCatchTime / catchTimeRequired;
+        float timeRemaining = maxFishingTime - (Time.time - fishingStartTime);
+        
+        // Durum mesajlarını belirle
+        if (distance <= successZoneSize)
+        {
+            if (catchProgress >= 0.8f)
+            {
+                UpdateStatusText("Almost There!", Color.green);
+            }
+            else if (catchProgress >= 0.5f)
+            {
+                UpdateStatusText("About to Catch!", new Color(0.5f, 1f, 0.5f)); // Light green
+            }
+            else
+            {
+                UpdateStatusText("Good! Keep Going!", Color.yellow);
+            }
+        }
+        else
+        {
+            if (timeRemaining <= 3f)
+            {
+                UpdateStatusText("Time Running Out!", new Color(1f, 0.5f, 0f)); // Orange
+            }
+            else if (distance > successZoneSize * 3f)
+            {
+                UpdateStatusText("Too Far Away!", Color.red);
+            }
+            else
+            {
+                UpdateStatusText("Get Closer to Fish!", new Color(1f, 0.8f, 0f)); // Light orange
+            }
         }
     }
     
