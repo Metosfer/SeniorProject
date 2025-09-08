@@ -67,6 +67,9 @@ public class HarrowManager : MonoBehaviour, ISaveable
     public static HarrowManager CurrentCarried { get; private set; }
     private Rigidbody _rb;
     private Collider[] _colliders;
+    [Header("Animation")]
+    [Tooltip("Play a small TakeItem animation when picking up the harrow (rake).")]
+    public bool playPickupAnimation = false; // disabled by default per request
     private Transform _originalParent;
     private Vector3 _originalLocalScale;
     private Camera _cachedCamera;
@@ -315,7 +318,12 @@ public class HarrowManager : MonoBehaviour, ISaveable
         CurrentCarried = this;
         SetEquipped(true);
 
-    // (No TakeItem animation on picking up harrow per request)
+        // Opsiyonel: TakeItem animasyonu tetikle
+        var anim = FindObjectOfType<PlayerAnimationController>();
+        if (anim != null && playPickupAnimation)
+        {
+            anim.TriggerTakeItem();
+        }
     }
 
     public void Drop()

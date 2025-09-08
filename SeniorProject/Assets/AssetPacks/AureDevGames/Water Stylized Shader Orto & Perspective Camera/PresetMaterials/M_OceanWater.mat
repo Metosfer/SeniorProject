@@ -21,20 +21,24 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: M_OceanWater
-  m_Shader: {fileID: -6465566751694194690, guid: d17a14960bf347545ad50aa79b9012e6,
-    type: 3}
+  m_Shader: {fileID: 4800000, guid: efcaf526ceb1f4efd9eb4e4c30c6ade6, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
+  - _COLORMODE_LINEAR
+  - _FOAMMODE_TEXTURE
+  - _WAVEMODE_GRID
+  m_InvalidKeywords:
+  - _OPAQUE_OFF
   - _PERSPECTIVE
   - _REFLECTIONS
   - _WORLD_SPACE_UV
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 3000
-  stringTagMap: {}
+  m_CustomRenderQueue: 2951
+  stringTagMap:
+    RenderType: Transparent
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
@@ -48,8 +52,16 @@ Material:
         m_Texture: {fileID: 2800000, guid: cc833db1ba1caeb4bb10ff0a50364204, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _ColorGradient:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _IntersectionFoamTexture:
         m_Texture: {fileID: 2800000, guid: 834c2a530966bd34eb9762c13c919276, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseMap:
+        m_Texture: {fileID: 2800000, guid: b7ccb6bfe9bc44f3e81dac10ff8e7e23, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalTexture:
@@ -101,9 +113,23 @@ Material:
     - _BoilingTiling: 0
     - _CaveBlend: 0
     - _CaveDistortion: 0
+    - _ColorMode: 0
+    - _CrestSharpness: 0
+    - _CrestSize: 0.37
     - _DepthCompareDistance: 0.1
     - _DepthFadeDistance: 10
+    - _FadeDistance: -0.26
+    - _FoamAmount: 1.03
     - _FoamBlend: 0.09
+    - _FoamDepth: 0.5
+    - _FoamDirection: 0
+    - _FoamMode: 2
+    - _FoamNoiseAmount: 0.078
+    - _FoamScale: 0.21
+    - _FoamSharpness: 0
+    - _FoamSpeed: 0.1
+    - _FoamStretchX: 0.71
+    - _FoamStretchY: 0.42
     - _FresnelPower: 1
     - _GradientRefractionScale: 10
     - _HorizonDistance: 123
@@ -114,11 +140,13 @@ Material:
     - _IntersectionFoamFade: 0
     - _IntersectionFoamSpeed: 0
     - _IntersectionFoamTiling: 0
+    - _LightContribution: 0.343
     - _LightingHardness: 0.39
     - _LightingSmoothness: 12.34
     - _NormalScale: 1
     - _NormalSpeed: 0.1
     - _NormalStrength: 1
+    - _Opaque: 0
     - _OrthographicCamSize: 0
     - _PERSPECTIVE: 1
     - _PosterizeSteps: 0
@@ -127,11 +155,14 @@ Material:
     - _REFLECTIONS: 1
     - _ReflectionBlend: 0.887
     - _ReflectionDistortion: 0.38
-    - _RefractionScale: 10
+    - _RefractionAmplitude: 0.01
+    - _RefractionFrequency: 61.73
+    - _RefractionScale: 12.3
     - _RefractionSpeed: 0.05
     - _RefractionStrength: 0.01
     - _RippleStrength: 83.62
     - _SecondaryFoamBlend: 0.06
+    - _ShadowStrength: 0.554
     - _SkyboxForce: 2.5
     - _Steps: 50
     - _SurfaceFoamDirection: 1
@@ -141,10 +172,17 @@ Material:
     - _TileSize: 200
     - _WORLD_SPACE_UV: 1
     - _WaterAlpha: 0.92
+    - _WaterClearness: 0.048
+    - _WaterDepth: 4.94
     - _WaterMetallic: 0.4
     - _WaterSmoothness: 0.34
+    - _WaveAmplitude: 0.25
+    - _WaveDirection: -0.5
+    - _WaveFrequency: 1
     - _WaveLength: 1
-    - _WaveSpeed: 0.3
+    - _WaveMode: 2
+    - _WaveNoise: 0
+    - _WaveSpeed: 0.28
     - _WaveSteepness: 0
     - _WaveStepness: 0.35
     m_Colors:
@@ -153,7 +191,11 @@ Material:
     - _CaveOffset: {r: -0.45, g: 0, b: 0, a: 0}
     - _CaveScale: {r: 0.01, g: 0.01, b: 0, a: 0}
     - _CaveSecondaryColor: {r: 0, g: 0, b: 0, a: 0}
+    - _ColorDeep: {r: 0.38768244, g: 0.7058892, b: 0.8301887, a: 1}
+    - _ColorShallow: {r: 0.4408152, g: 0.6259345, b: 0.735849, a: 0.8}
+    - _CrestColor: {r: 0.9575472, g: 0.9858491, b: 1, a: 0.9}
     - _DeepColor: {r: 0, g: 0.697165, b: 1, a: 1}
+    - _FoamColor: {r: 0.2569865, g: 0.8235151, b: 0.990566, a: 1}
     - _FoamUVsOffset: {r: 1, g: 1, b: 0, a: 0}
     - _FresnelColor: {r: 2.670157, g: 2.670157, b: 2.670157, a: 0}
     - _HorizonColor: {r: 1.3472904, g: 9.849155, b: 5.5112967, a: 1}

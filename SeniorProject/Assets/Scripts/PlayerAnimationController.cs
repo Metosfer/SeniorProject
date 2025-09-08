@@ -6,15 +6,21 @@ public class PlayerAnimationController : MonoBehaviour
     private Animator animator;
     private bool isSpuding = false;
     private bool _carryBucketCached = false;
+    private bool _isDancingCached = false;
     private bool _checkedTakeItemParam = false;
     private bool _hasTakeItemParam = true; // assume true; will verify on first use
     private bool _checkedWateringParam = false;
     private bool _hasWateringParam = false;
     private string _wateringParamName = null; // cache the actual trigger name found
+    private bool _checkedDancingParam = false;
+    private bool _hasDancingParam = false;
     // TakeItem movement lock tracking
     private bool isTakingItem = false;
     private Coroutine _takeItemCo;
     [SerializeField] private float takeItemFallbackDuration = 0.8f; // used if state name not found
+    // Dancing: rely on Animator transitions; no forced loop to avoid flicker
+    [Header("Dancing")]
+    [SerializeField] private string danceStateName = "CatDance"; // optional: state name for debug helpers
 
     // Animasyon parametre hash'leri (Performans için)
     private int speedHash;
@@ -22,6 +28,7 @@ public class PlayerAnimationController : MonoBehaviour
     private int spudingTriggerHash;
     private int takeItemTriggerHash;
     private int isCarryBucketHash;
+    private int isDancingHash;
     // Watering trigger uses string lookup (supports multiple possible names)
 
     private void Awake()
@@ -48,6 +55,7 @@ public class PlayerAnimationController : MonoBehaviour
         spudingTriggerHash = Animator.StringToHash("SpudingTrigger");
     takeItemTriggerHash = Animator.StringToHash("TakeItem");
     isCarryBucketHash = Animator.StringToHash("isCarryBucket");
+    isDancingHash = Animator.StringToHash("isDancing");
     }
 
     /// <summary>
@@ -55,7 +63,8 @@ public class PlayerAnimationController : MonoBehaviour
     /// </summary>
     public void UpdateSpeed(float currentSpeed, float maxSpeed, float smoothTime)
     {
-        if (animator == null) return;
+    if (animator == null) return;
+    if (_isDancingCached) return; // don't fight dancing state
         float normalizedSpeed = (maxSpeed > 0) ? currentSpeed / maxSpeed : 0f;
         animator.SetFloat(speedHash, normalizedSpeed, smoothTime, Time.deltaTime);
     }
@@ -65,7 +74,8 @@ public class PlayerAnimationController : MonoBehaviour
     /// </summary>
     public void UpdateGrounded(bool grounded)
     {
-        if (animator == null) return;
+    if (animator == null) return;
+    if (_isDancingCached) return; // avoid transitions while dancing
         animator.SetBool(groundedHash, grounded);
     }
 
@@ -113,6 +123,26 @@ public class PlayerAnimationController : MonoBehaviour
     }
 
     /// <summary>
+    /// Alınan item'a göre doğru pickup animasyonunu tetikler.
+    /// Balık (isFish=true) ise TakeItem, değilse Spuding oynatır.
+    /// </summary>
+    public void TriggerPickupForItem(SCItem item)
+    {
+        bool isFish = (item != null && item.isFish);
+        TriggerPickup(isFish);
+    }
+
+    /// <summary>
+    /// isFish parametresine göre pickup animasyonunu tetikler.
+    /// true => TakeItem, false => Spuding.
+    /// </summary>
+    public void TriggerPickup(bool isFish)
+    {
+        if (isFish) TriggerTakeItem();
+        else TriggerSpuding();
+    }
+
+    /// <summary>
     /// Watering animasyonunu tetikler (kova ile sulama anında). Parametre adını otomatik bulur: "Watering" | "WateringTrigger" | "Water".
     /// </summary>
     public void TriggerWatering()
@@ -146,6 +176,29 @@ public class PlayerAnimationController : MonoBehaviour
     }
 
     /// <summary>
+    /// Dans animasyonunu aç/kapatmak için Animator'daki 'isDancing' bool parametresini ayarlar.
+    /// </summary>
+    public void SetDancing(bool isDancing)
+    {
+        if (animator == null) return;
+        if (!_checkedDancingParam)
+        {
+            _hasDancingParam = AnimatorHasParameter("isDancing", AnimatorControllerParameterType.Bool);
+            _checkedDancingParam = true;
+            if (!_hasDancingParam)
+            {
+                Debug.LogWarning("Animator 'isDancing' bool param missing. Please add a Bool named 'isDancing' and wire it to your dance state.", this);
+            }
+        }
+        if (!_hasDancingParam) return;
+        if (_isDancingCached == isDancing) return; // no change
+        _isDancingCached = isDancing;
+        animator.SetBool(isDancingHash, isDancing);
+    }
+
+    // No dance loop coroutine; animator state machine handles single-play or clip-looping.
+
+    /// <summary>
     /// Kovanın taşınma durumuna göre taşıma (CatCarryBucket) animasyonunu aç/kapat.
     /// </summary>
     public void SetCarryBucket(bool isCarrying)
@@ -159,7 +212,8 @@ public class PlayerAnimationController : MonoBehaviour
     private void Update()
     {
         // BucketManager.CurrentCarried durumunu izleyip animator bool’unu senkronla
-        bool shouldCarry = BucketManager.CurrentCarried != null;
+    if (_isDancingCached) return; // keep animator stable while dancing
+    bool shouldCarry = BucketManager.CurrentCarried != null;
         if (shouldCarry != _carryBucketCached)
         {
             SetCarryBucket(shouldCarry);
@@ -285,5 +339,10 @@ public class PlayerAnimationController : MonoBehaviour
     public bool IsTakingItem()
     {
         return isTakingItem;
+    }
+
+    public bool IsDancing()
+    {
+        return _isDancingCached;
     }
 }

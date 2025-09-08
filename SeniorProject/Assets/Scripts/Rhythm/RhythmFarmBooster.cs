@@ -11,6 +11,7 @@ public class RhythmFarmBooster : MonoBehaviour
     public RythmGameManager rhythm;
     public FarmingAreaManager farmingArea; // optional; if null, finds nearest in scene
     public Transform player; // optional; auto-find by tag "Player"
+    private PlayerAnimationController _playerAnim;
     [Tooltip("If true and no area is assigned, bind to the nearest FarmingAreaManager on Awake")] public bool bindNearestOnAwake = true;
     [Tooltip("Max distance to bind when searching nearest on Awake (0 = unlimited)")] public float bindMaxDistance = 0f;
     [Tooltip("TMP_Text to display the applied boost result")] public TMP_Text boostResultText;
@@ -37,6 +38,10 @@ public class RhythmFarmBooster : MonoBehaviour
         {
             var go = GameObject.FindGameObjectWithTag("Player");
             if (go != null) player = go.transform;
+        }
+        if (player != null)
+        {
+            _playerAnim = player.GetComponent<PlayerAnimationController>();
         }
         // Bind to nearest area once if not assigned
         if (farmingArea == null && bindNearestOnAwake)
@@ -78,6 +83,7 @@ public class RhythmFarmBooster : MonoBehaviour
             if (rhythm.rootUI != null && !rhythm.rootUI.activeSelf)
             {
                 _playing = false;
+                if (_playerAnim != null) _playerAnim.SetDancing(false);
                 if (interactPromptUI != null && _inRange) interactPromptUI.SetActive(true);
                 return;
             }
@@ -120,6 +126,7 @@ public class RhythmFarmBooster : MonoBehaviour
             if (rhythm.rootUI != null) rhythm.rootUI.SetActive(true);
             if (boostResultText != null) boostResultText.text = string.Empty;
             rhythm.StartGame();
+            if (_playerAnim != null) _playerAnim.SetDancing(true);
         }
     }
 
@@ -132,6 +139,7 @@ public class RhythmFarmBooster : MonoBehaviour
     private void OnRhythmFinished(int score, int maxCombo)
     {
         _playing = false;
+    if (_playerAnim != null) _playerAnim.SetDancing(false);
         if (interactPromptUI != null && _inRange) interactPromptUI.SetActive(true);
 
         // Map score/combo to seconds

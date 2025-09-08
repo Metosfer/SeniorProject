@@ -80,8 +80,8 @@ public class Plant : MonoBehaviour
         // Hide prompt before any action
         ShowPickupUI(false);
 
-        // If this Plant represents a seed item, don't play Spuding; pickup immediately
-    if (item != null && item.isSeed)
+    // Eğer bu Plant bir tohum veya balık item'ını temsil ediyorsa Spuding oynatma; TakeItem oynat
+    if (item != null && (item.isSeed || item.isFish))
         {
             // Seeds: play TakeItem and wait until it finishes, then pickup
             if (playerAnimation != null && !playerAnimation.IsSpuding())
@@ -100,6 +100,7 @@ public class Plant : MonoBehaviour
             pendingPickup = true;
             if (!playerAnimation.IsSpuding())
             {
+                // Non-seed, non-fish: varsayılan spuding
                 playerAnimation.TriggerSpuding();
             }
             StartCoroutine(WaitSpudingThenPickup());

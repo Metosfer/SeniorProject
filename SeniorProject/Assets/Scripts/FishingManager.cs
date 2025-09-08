@@ -92,6 +92,22 @@ public class FishingManager : MonoBehaviour
     [Tooltip("Balık yakalandığında dünyada spawn edilsin mi?")]
     public bool spawnFishOnCatch = true; // Balık yakalandığında spawn edilsin mi?
     
+    [Header("Waiting Spin (Slot Machine)")]
+    [Tooltip("'Waiting to catch fish' aşamasında ikonlar dönsün mü?")]
+    public bool enableWaitingSpin = true;
+    [Tooltip("Dönüş başındaki ikon değiştirme aralığı (saniye)")]
+    public float spinStartInterval = 0.08f;
+    [Tooltip("Dönüş sonuna doğru ikon değiştirme aralığı (saniye)")]
+    public float spinEndInterval = 0.25f;
+    [Tooltip("Dönüş sırasında ikonun ölçek nabzı (0-0.5 önerilir)")]
+    public float spinScalePulse = 0.1f;
+    [Tooltip("Dönüş sırasında ikonun Z rotasyon salınımı (derece)")]
+    public float spinRotationAmplitude = 12f;
+    [Tooltip("Finalde dururken küçük bir vurgu skalası")]
+    public float settleScalePunch = 0.15f;
+    [Tooltip("Final vurgu süresi (saniye)")]
+    public float settleDuration = 0.25f;
+
     private bool playerInRange = false;
     private bool isFishingActive = false;
     private bool isWaitingForFish = false; // Balık bekleme durumu
@@ -107,6 +123,8 @@ public class FishingManager : MonoBehaviour
     private float escapeKeyConsumedTime = 0f; // ESC tuşunun tüketildiği zaman
     private float fishingStartTime = 0f; // Balık tutma başlangıç zamanı
     private string lastStatusMessage = ""; // Son durum mesajı (tekrar göstermemek için)
+    private Coroutine waitingSpinCoroutine; // Waiting ikon döndürme coroutine'i
+    private List<SCItem> waitingSpinCandidates = new List<SCItem>();
     
     void Start()
     {
@@ -253,6 +271,13 @@ public class FishingManager : MonoBehaviour
             
         if (waitingText != null)
             waitingText.text = "Waiting to catch fish..";
+
+        // Waiting spin hazırlıkları
+        if (enableWaitingSpin)
+        {
+            BuildWaitingSpinCandidates();
+            StartWaitingVisualSpin();
+        }
         
         Debug.Log($"Balık bekleniyor... Süre: {currentWaitTime} saniye (Balık: {currentTargetFish?.itemName}, Zorluk: {currentTargetFish?.fishDifficulty})");
     }
@@ -276,6 +301,12 @@ public class FishingManager : MonoBehaviour
         // Waiting text'i temizle
         if (waitingText != null)
             waitingText.text = "";
+
+        // Spin'i final balıkta durdur
+        if (enableWaitingSpin)
+        {
+            StopWaitingVisualSpin(true);
+        }
         
         // Balık tutma başlama animasyonu trigger'ını tetikle
         TriggerFishingStartAnimation();
@@ -339,6 +370,145 @@ public class FishingManager : MonoBehaviour
         CheckCatchProgress();
         CheckFishingTimeout(); // Zaman aşımı kontrolü
         UpdateGameStatus(); // Durum mesajları
+    }
+
+    // -------- Waiting Spin Helpers --------
+    private void BuildWaitingSpinCandidates()
+    {
+        waitingSpinCandidates.Clear();
+        if (availableFishList != null)
+        {
+            for (int i = 0; i < availableFishList.Count; i++)
+            {
+                var it = availableFishList[i];
+                if (it != null && it.isFish && it.itemIcon != null)
+                    waitingSpinCandidates.Add(it);
+            }
+        }
+        // Fallback: include currentTargetFish if list empty
+        if (waitingSpinCandidates.Count == 0 && currentTargetFish != null && currentTargetFish.itemIcon != null)
+        {
+            waitingSpinCandidates.Add(currentTargetFish);
+        }
+    }
+
+    private void StartWaitingVisualSpin()
+    {
+        if (waitingSpinCoroutine != null)
+        {
+            StopCoroutine(waitingSpinCoroutine);
+            waitingSpinCoroutine = null;
+        }
+        waitingSpinCoroutine = StartCoroutine(WaitingSpinCoroutine());
+    }
+
+    private void StopWaitingVisualSpin(bool settleOnFinal)
+    {
+        if (waitingSpinCoroutine != null)
+        {
+            StopCoroutine(waitingSpinCoroutine);
+            waitingSpinCoroutine = null;
+        }
+        if (settleOnFinal)
+        {
+            // Set final sprite to currentTargetFish
+            if (fishImage != null && currentTargetFish != null && currentTargetFish.itemIcon != null)
+            {
+                fishImage.sprite = currentTargetFish.itemIcon;
+                // Small settle effect
+                StartCoroutine(SettlePunchEffect());
+            }
+        }
+    }
+
+    private IEnumerator WaitingSpinCoroutine()
+    {
+        if (fishImage == null || waitingSpinCandidates.Count == 0)
+            yield break;
+
+        float startTime = Time.time;
+        float duration = currentWaitTime > 0 ? currentWaitTime : 2f;
+        float t = 0f;
+        int idx = 0;
+        float baseScale = fishImage.rectTransform.localScale.x;
+        Quaternion baseRot = fishImage.rectTransform.localRotation;
+
+        while (t < duration && isWaitingForFish)
+        {
+            float normalized = Mathf.Clamp01(t / duration);
+            // Lerp interval from fast to slow
+            float interval = Mathf.Lerp(spinStartInterval, spinEndInterval, normalized * normalized);
+
+            // Choose next sprite
+            if (waitingSpinCandidates.Count > 0)
+            {
+                idx = (idx + 1) % waitingSpinCandidates.Count;
+                var cand = waitingSpinCandidates[idx];
+                if (cand != null && cand.itemIcon != null)
+                {
+                    fishImage.sprite = cand.itemIcon;
+                }
+            }
+
+            // Visual effects: scale pulse and slight rotation sway
+            if (spinScalePulse > 0f)
+            {
+                float pulse = 1f + Mathf.Sin(Time.time * 20f) * spinScalePulse;
+                fishImage.rectTransform.localScale = new Vector3(baseScale * pulse, baseScale * pulse, 1f);
+            }
+            if (spinRotationAmplitude != 0f)
+            {
+                float angle = Mathf.Sin(Time.time * 6f) * spinRotationAmplitude;
+                fishImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            }
+
+            // wait interval then advance time
+            float endWait = Time.time + interval;
+            while (Time.time < endWait)
+            {
+                yield return null;
+            }
+            t = Time.time - startTime;
+        }
+
+        // Restore rotation/scale and set final sprite to selected target
+        fishImage.rectTransform.localRotation = baseRot;
+        fishImage.rectTransform.localScale = new Vector3(baseScale, baseScale, 1f);
+        if (currentTargetFish != null && currentTargetFish.itemIcon != null)
+            fishImage.sprite = currentTargetFish.itemIcon;
+
+        // optional settle punch
+        yield return SettlePunchEffect();
+    }
+
+    private IEnumerator SettlePunchEffect()
+    {
+        if (fishImage == null || settleScalePunch <= 0f || settleDuration <= 0f)
+            yield break;
+        var rt = fishImage.rectTransform;
+        Vector3 start = rt.localScale;
+        Vector3 peak = start * (1f + settleScalePunch);
+        float half = settleDuration * 0.5f;
+        float t = 0f;
+        // up
+        while (t < half)
+        {
+            float k = t / half;
+            rt.localScale = Vector3.Lerp(start, peak, k);
+            t += Time.deltaTime;
+            yield return null;
+        }
+        rt.localScale = peak;
+        // down
+        t = 0f;
+        while (t < half)
+        {
+            float k = t / half;
+            rt.localScale = Vector3.Lerp(peak, start, k);
+            t += Time.deltaTime;
+            yield return null;
+        }
+        rt.localScale = start;
     }
     
     void MoveFish()
@@ -437,6 +607,12 @@ public class FishingManager : MonoBehaviour
         isFishingActive = false;
         isWaitingForFish = false; // Bekleme durumunu da sıfırla
         
+        // Stop waiting spin if any
+        if (enableWaitingSpin)
+        {
+            StopWaitingVisualSpin(true);
+        }
+
         // Waiting text'i temizle
         if (waitingText != null)
             waitingText.text = "";

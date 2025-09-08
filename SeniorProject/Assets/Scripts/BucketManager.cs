@@ -144,6 +144,10 @@ public class BucketManager : MonoBehaviour, ISaveable
 
     private Rigidbody _rb;
     private Collider[] _colliders;
+    [Header("Animation")]
+    [Tooltip("Play a small TakeItem animation when picking up the bucket.")]
+    public bool playPickupAnimation = false; // disabled by default per request
+
     private Transform _originalParent;
     private Vector3 _originalLocalScale;
 
@@ -777,6 +781,11 @@ public class BucketManager : MonoBehaviour, ISaveable
         // Trigger carry animation on
         var anim = FindObjectOfType<PlayerAnimationController>();
         if (anim != null) {
+            if (playPickupAnimation)
+            {
+                anim.TriggerTakeItem();
+            }
+            // Keep carry state regardless of pickup anim
             anim.SetCarryBucket(true);
         }
     }

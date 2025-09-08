@@ -72,12 +72,30 @@ public class WorldItem : MonoBehaviour
         // Hide prompt during animation
         ShowPickupUI(false);
 
-        // Trigger TakeItem anim and wait until it finishes, then attempt pickup
+        // Hangi durumlarda TakeItem oynatılacak?
+        bool shouldTakeItem = false;
+        // 1) Item referansı varsa ve balık veya tohum ise
+        if (item != null && (item.isFish || item.isSeed))
+            shouldTakeItem = true;
+        // 2) Bucket veya Harrow gibi özel objeler bu script ile temsilen yerdeyse isme göre ipucu (opsiyonel, güvenli)
+        string n = gameObject.name.ToLower();
+        if (n.Contains("bucket") || n.Contains("harrow"))
+            shouldTakeItem = true;
+
         if (playerAnim != null)
         {
             pendingPickup = true;
-            playerAnim.TriggerTakeItem();
-            StartCoroutine(WaitTakeItemThenPickup());
+            if (shouldTakeItem)
+            {
+                playerAnim.TriggerTakeItem();
+                StartCoroutine(WaitTakeItemThenPickup());
+            }
+            else
+            {
+                // Varsayılan davranış: Spuding yerine de TakeItem tercih edilebilir, ancak burada istenmiyor ise direkt pickup
+                // İstenirse: playerAnim.TriggerSpuding(); ve spuding bekleme mantığı eklenebilir.
+                StartCoroutine(WaitTakeItemThenPickup()); // kısa bekleme ile hizalı pickup
+            }
         }
         else
         {
