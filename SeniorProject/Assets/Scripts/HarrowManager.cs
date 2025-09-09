@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 // Harrow (rake) manager with mouse click pickup/drop like BucketManager.
 // - Sol tık ile yerden al
@@ -8,6 +9,7 @@ using System.Collections.Generic;
 // - Bırakınca oyuncunun önünde, zemine oturacak şekilde sabitlenir
 public class HarrowManager : MonoBehaviour, ISaveable
 {
+    public static HarrowManager Instance { get; private set; }
     // Global equip state used by farming logic
     public static bool IsEquipped { get; private set; }
 
@@ -20,6 +22,19 @@ public class HarrowManager : MonoBehaviour, ISaveable
     public Transform player;
     [Tooltip("Elde taşınırken bağlanacağı el soketi (oyuncu eli/kemik)")]
     public Transform handSocket;
+
+    [Header("UI - Tool Icon")]
+    [Tooltip("Optional UI Image to indicate this tool; will be tinted when selected.")]
+    public Image toolIcon;
+    [Tooltip("Color when the tool is not selected (default state).")]
+    public Color toolDefaultColor = Color.white;
+    [Tooltip("Color when this tool is selected/equipped.")]
+    public Color toolSelectedColor = new Color(0.2f, 0.85f, 0.2f, 1f);
+
+    [Header("Hotkey Equip")]
+    [Tooltip("Enable 2-key toggle equip/unequip; disables ground pickup/drop mechanics.")]
+    public bool enableHotkeyEquip = true;
+    [Tooltip("Key to toggle harrow in hand")] public KeyCode toggleKey = KeyCode.Alpha2;
 
     [Header("Etkileşim")]
     [Tooltip("Mouse ile tıklayıp alma/bırakma")]
@@ -113,9 +128,11 @@ public class HarrowManager : MonoBehaviour, ISaveable
 
     private void Awake()
     {
+        Instance = this;
         _rb = GetComponent<Rigidbody>();
         _colliders = GetComponentsInChildren<Collider>(true);
         _originalLocalScale = transform.localScale;
+        CacheRenderers();
     }
 
     private void Start()
@@ -135,11 +152,24 @@ public class HarrowManager : MonoBehaviour, ISaveable
     _cursorDirty = true;
     // Cache initial scale for non-compounding hover scaling
     _initialScale = _originalLocalScale;
+        // Start stowed by default in hotkey mode
+        if (enableHotkeyEquip)
+        {
+            StowNearPlayer(invisible: true);
+        }
+    // Initialize tool icon color
+    UpdateToolUI();
     }
 
     private void Update()
     {
-        if (!enableMouseInteraction) return;
+        // Hotkey toggle
+        if (enableHotkeyEquip && Input.GetKeyDown(toggleKey))
+        {
+            ToggleEquip();
+        }
+
+        if (enableHotkeyEquip) return; // skip mouse/hover interactions in hotkey mode
 
         // Sol tık: ya al, ya bırak
         if (Input.GetMouseButtonDown(0))
@@ -314,6 +344,8 @@ public class HarrowManager : MonoBehaviour, ISaveable
         }
 
         SetCarriedPhysics(true);
+    // Ensure all visuals are visible when equipped
+    SetVisible(true);
         _isCarried = true;
         CurrentCarried = this;
         SetEquipped(true);
@@ -324,56 +356,25 @@ public class HarrowManager : MonoBehaviour, ISaveable
         {
             anim.TriggerTakeItem();
         }
+    // Unequip bucket when harrow is picked up
+    var bucket = BucketManager.Instance ?? FindObjectOfType<BucketManager>();
+    if (bucket != null) bucket.ForceUnequip();
+    // Update UI to reflect selection
+    UpdateToolUI();
     }
 
     public void Drop()
     {
-        if (!_isCarried) return;
-        _isCarried = false;
-        if (CurrentCarried == this) CurrentCarried = null;
-
-        // Zemin bul ve yerleştir
-        Vector3 groundPoint;
-        Vector3 groundNormal;
-        if (!FindGroundPoint(out groundPoint, out groundNormal))
-        {
-            groundPoint = transform.position;
-            groundNormal = Vector3.up;
-        }
-
-        float halfHeight = GetHalfHeight();
-        Vector3 finalPos = groundPoint + Vector3.up * (Mathf.Max(0.01f, halfHeight) + dropClearance);
-        if (forceFixedDropY)
-        {
-            finalPos.y = fixedDropY;
-        }
-        else if (clampMinYOnDrop)
-        {
-            finalPos.y = Mathf.Max(finalPos.y, minYOnDrop);
-        }
-
-        transform.SetParent(_originalParent);
-        transform.position = finalPos;
-
-        if (alignUprightOnDrop)
-        {
-            float y = player != null ? player.eulerAngles.y : transform.eulerAngles.y;
-            transform.rotation = Quaternion.Euler(0f, y, 0f);
-        }
-
-        transform.localScale = _originalLocalScale;
-
-        SetCarriedPhysics(false);
-        RefreshCollidersList();
-        NudgeUpIfOverlapping();
-
-        if (stabilizeAfterDrop)
-        {
-            StopAllCoroutines();
-            StartCoroutine(StabilizeAfterDropCoroutine());
-        }
-
-        SetEquipped(false);
+    if (!_isCarried) return;
+    _isCarried = false;
+    if (CurrentCarried == this) CurrentCarried = null;
+    // In hotkey mode, "drop" means stow on the player, not put on ground.
+    // Keep physics kinematic so it doesn't fall.
+    SetVisible(false);
+    StowNearPlayer(invisible: true);
+    SetEquipped(false);
+    // Update UI to reflect deselection
+    UpdateToolUI();
     }
 
     private bool IsThisHarrowClicked()
@@ -449,6 +450,72 @@ public class HarrowManager : MonoBehaviour, ISaveable
             if (rb == _rb) continue;
             rb.isKinematic = true;
             rb.detectCollisions = false;
+        }
+    }
+
+    // --- Hotkey helpers ---
+    public void ToggleEquip()
+    {
+        if (_isCarried) Drop(); else PickUp();
+    }
+
+    public void ForceUnequip()
+    {
+    if (_isCarried) Drop(); else { SetVisible(false); StowNearPlayer(invisible: true); UpdateToolUI(); }
+    }
+
+    private void StowNearPlayer(bool invisible)
+    {
+        if (player == null) return;
+        transform.SetParent(player);
+        transform.localPosition = new Vector3(-0.2f, 0.0f, -0.3f); // small offset behind/left
+        transform.localRotation = Quaternion.identity;
+        transform.localScale = _originalLocalScale;
+    // Ensure stowed state is kinematic so it doesn't get pulled by physics
+    SetCarriedPhysics(true);
+    _isCarried = false;
+    if (CurrentCarried == this) CurrentCarried = null;
+    SetEquipped(false);
+        SetVisible(!invisible);
+        UpdateToolUI();
+    }
+
+    private void UpdateToolUI()
+    {
+        if (toolIcon == null) return;
+        toolIcon.color = _isCarried ? toolSelectedColor : toolDefaultColor;
+    }
+
+    private List<Renderer> _renderers;
+    private void CacheRenderers()
+    {
+        _renderers = new List<Renderer>(GetComponentsInChildren<Renderer>(true));
+    }
+    private void SetVisible(bool visible)
+    {
+        if (_renderers == null) CacheRenderers();
+        for (int i = 0; i < _renderers.Count; i++)
+        {
+            var r = _renderers[i];
+            if (r == null) continue;
+            // If making visible, ensure the GameObject is active so renderer can show
+            if (visible && !r.gameObject.activeSelf)
+            {
+                // Activate full path up to this harrow root to avoid inactive parents hiding it
+                ActivatePathTo(r.transform);
+            }
+            r.enabled = visible;
+        }
+    }
+
+    // Ensure any inactive ancestors under this harrow root are activated so children can render
+    private void ActivatePathTo(Transform node)
+    {
+        Transform t = node;
+        while (t != null && t != transform)
+        {
+            if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+            t = t.parent;
         }
     }
 

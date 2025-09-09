@@ -2,9 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 public class BucketManager : MonoBehaviour, ISaveable
 {
+    public static BucketManager Instance { get; private set; }
     // Single-owner cursor control to prevent flicker
     private static BucketManager s_cursorOwner;
     private static float s_lastCursorChangeTime;
@@ -29,6 +31,19 @@ public class BucketManager : MonoBehaviour, ISaveable
     public Transform player;
     [Tooltip("Socket transform on the player hand where the bucket will attach.")]
     public Transform handSocket;
+
+    [Header("UI - Tool Icon")]
+    [Tooltip("Optional UI Image to indicate this tool; will be tinted when selected.")]
+    public Image toolIcon;
+    [Tooltip("Color when the tool is not selected (default state).")]
+    public Color toolDefaultColor = Color.white;
+    [Tooltip("Color when this tool is selected/equipped.")]
+    public Color toolSelectedColor = new Color(0.2f, 0.85f, 0.2f, 1f);
+
+    [Header("Hotkey Equip")]
+    [Tooltip("Enable 1-key toggle equip/unequip; disables ground pickup/drop mechanics.")]
+    public bool enableHotkeyEquip = true;
+    [Tooltip("Key to toggle bucket in hand")] public KeyCode toggleKey = KeyCode.Alpha1;
 
     [Header("Interaction Modes")]
     [Tooltip("Enable mouse click to pick up/drop by clicking the bucket.")]
@@ -180,6 +195,7 @@ public class BucketManager : MonoBehaviour, ISaveable
 
     private void Awake()
     {
+        Instance = this;
         _rb = GetComponent<Rigidbody>();
         _colliders = GetComponentsInChildren<Collider>(true);
         _originalLocalScale = transform.localScale;
@@ -192,6 +208,7 @@ public class BucketManager : MonoBehaviour, ISaveable
             _waterBaseScale = waterVisual.transform.localScale;
             _hasWaterBaseScale = true;
         }
+        CacheRenderers();
     }
 
     private void Start()
@@ -203,7 +220,7 @@ public class BucketManager : MonoBehaviour, ISaveable
             var playerGO = GameObject.FindGameObjectWithTag("Player");
             if (playerGO != null) player = playerGO.transform;
         }
-        ApplyVisual();
+    ApplyVisual();
     if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
     if (fillPromptUI != null) fillPromptUI.SetActive(false);
         _cursorDirty = true;
@@ -218,6 +235,14 @@ public class BucketManager : MonoBehaviour, ISaveable
         {
             hoverMask &= ~(1 << uiLayerToExclude);
         }
+
+        // Start stowed by default in hotkey mode (not in hand but following player)
+        if (enableHotkeyEquip)
+        {
+            StowNearPlayer(invisible: true);
+        }
+    // Initialize tool icon color
+    UpdateToolUI();
     }
 
     private void ApplyVisual()
@@ -253,40 +278,50 @@ public class BucketManager : MonoBehaviour, ISaveable
 
     private void Update()
     {
-        // Mouse click toggle
-        if (enableMouseInteraction && Input.GetMouseButtonDown(0))
+        // Hotkey equip/unequip
+        if (enableHotkeyEquip && Input.GetKeyDown(toggleKey))
         {
-            // If any context menu (e.g., Well) is open, swallow left click to allow UI selection
-            var wmType = System.Type.GetType("WellManager");
-            if (wmType != null)
+            ToggleEquip();
+        }
+
+        // If using hotkey mode, skip ground pickup/hover cursor mechanics
+        if (!enableHotkeyEquip)
+        {
+            // Mouse click toggle
+            if (enableMouseInteraction && Input.GetMouseButtonDown(0))
             {
-                var prop = wmType.GetProperty("AnyContextMenuOpen", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                if (prop != null)
+                // If any context menu (e.g., Well) is open, swallow left click to allow UI selection
+                var wmType = System.Type.GetType("WellManager");
+                if (wmType != null)
                 {
-                    object val = prop.GetValue(null, null);
-                    if (val is bool open && open)
+                    var prop = wmType.GetProperty("AnyContextMenuOpen", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (prop != null)
                     {
-                        return; // Do not process pickup/drop while context menu is open
+                        object val = prop.GetValue(null, null);
+                        if (val is bool open && open)
+                        {
+                            return; // Do not process pickup/drop while context menu is open
+                        }
                     }
                 }
-            }
-            // If currently carried, drop on any left click (don't require raycast on trigger collider)
-            if (isCarried)
-            {
-                Drop();
-            }
-            else if (IsThisBucketClicked())
-            {
-                // Enforce player-to-bucket distance for mouse pickup
-                if (IsWithinMousePickupRange())
-                    PickUp();
-                else
-                    return;
+                // If currently carried, drop on any left click (don't require raycast on trigger collider)
+                if (isCarried)
+                {
+                    Drop();
+                }
+                else if (IsThisBucketClicked())
+                {
+                    // Enforce player-to-bucket distance for mouse pickup
+                    if (IsWithinMousePickupRange())
+                        PickUp();
+                    else
+                        return;
+                }
             }
         }
 
-        // Cursor feedback while hovering (throttled)
-    if (enableMouseInteraction && (enableCursorFeedback || enableHoverScale))
+        // Cursor feedback while hovering (skip in hotkey mode)
+        if (!enableHotkeyEquip && enableMouseInteraction && (enableCursorFeedback || enableHoverScale))
         {
             // Suppress hover cursor while carried or when any context menu is open to avoid flicker
             bool anyMenuOpen = false;
@@ -313,15 +348,22 @@ public class BucketManager : MonoBehaviour, ISaveable
             }
         }
 
-    // Prompts and keyboard (optional)
-    bool nearBucket = IsPlayerNearBucket();
-        if (pickupPromptUI != null)
+        // Prompts disabled in hotkey mode
+        if (enableHotkeyEquip)
         {
-            bool showPickup = !isCarried && nearBucket && enableKeyboardInteraction;
-            pickupPromptUI.SetActive(showPickup);
+            if (pickupPromptUI != null) pickupPromptUI.SetActive(false);
+        }
+        else
+        {
+            bool nearBucket = IsPlayerNearBucket();
+            if (pickupPromptUI != null)
+            {
+                bool showPickup = !isCarried && nearBucket && enableKeyboardInteraction;
+                pickupPromptUI.SetActive(showPickup);
+            }
         }
 
-    if (isCarried)
+        if (isCarried)
         {
             // Pressing fill always tries; acceptance is validated by WellManager
             if (Input.GetKeyDown(fillKey) && !isFilled)
@@ -331,12 +373,16 @@ public class BucketManager : MonoBehaviour, ISaveable
         }
         else
         {
-        // Fill prompt is managed by WellManager now
+            // Fill prompt is managed by WellManager now
         }
 
-        if (enableKeyboardInteraction && !isCarried && nearBucket && Input.GetKeyDown(pickupKey))
+        if (!enableHotkeyEquip)
         {
-            PickUp();
+            bool nearBucket = IsPlayerNearBucket();
+            if (enableKeyboardInteraction && !isCarried && nearBucket && Input.GetKeyDown(pickupKey))
+            {
+                PickUp();
+            }
         }
     }
 
@@ -775,6 +821,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         transform.localScale = carriedLocalScale;
 
         SetCarriedPhysics(true);
+        SetVisible(true);
         isCarried = true;
         CurrentCarried = this;
         onPickedUp?.Invoke();
@@ -788,70 +835,74 @@ public class BucketManager : MonoBehaviour, ISaveable
             // Keep carry state regardless of pickup anim
             anim.SetCarryBucket(true);
         }
+        // Unequip harrow when bucket is picked up (mutual exclusive in hand)
+        var harrow = HarrowManagerGlobal();
+        if (harrow != null) harrow.ForceUnequip();
+    // Update UI to reflect selection
+    UpdateToolUI();
     }
 
     public void Drop()
     {
         if (!isCarried) return;
+        // Stow near player invisibly instead of dropping to ground
         isCarried = false;
-    if (CurrentCarried == this) CurrentCarried = null;
-
-    // Find ground point near player
-    Vector3 groundPoint;
-    Vector3 groundNormal;
-    if (!FindGroundPoint(out groundPoint, out groundNormal))
-        {
-            // Fallback: current position treated as ground
-            groundPoint = transform.position;
-            groundNormal = Vector3.up;
-        }
-
-        // Compute half-height from colliders to keep above ground
-    float halfHeight = GetHalfHeight();
-        Vector3 finalPos = groundPoint + Vector3.up * (Mathf.Max(0.01f, halfHeight) + dropClearance);
-        if (forceFixedDropY)
-        {
-            finalPos.y = fixedDropY;
-        }
-        else if (clampMinYOnDrop)
-        {
-            finalPos.y = Mathf.Max(finalPos.y, minYOnDrop);
-        }
-
-        // Detach and place
-        transform.SetParent(_originalParent);
-        transform.position = finalPos;
-
-        if (alignUprightOnDrop)
-        {
-            float y = player != null ? player.eulerAngles.y : transform.eulerAngles.y;
-            transform.rotation = Quaternion.Euler(0f, y, 0f);
-        }
-
-        // Restore original scale (carried may have custom scale)
-        transform.localScale = _originalLocalScale;
-
-    // Enable physics with continuous collision to avoid tunneling
-    SetCarriedPhysics(false);
-    // Ensure collider list includes any newly-enabled colliders (e.g., water visuals)
-    RefreshCollidersList();
-
-        // Resolve any initial interpenetrations with the environment
-        ResolvePenetrations(5);
-
-    // Small upward nudge if overlapping after placement
-    NudgeUpIfOverlapping();
-
+        if (CurrentCarried == this) CurrentCarried = null;
+        SetCarriedPhysics(false);
+        SetVisible(false);
+        StowNearPlayer(invisible: true);
         onDropped?.Invoke();
-    // Trigger carry animation off
-    var anim = FindObjectOfType<PlayerAnimationController>();
-    if (anim != null) anim.SetCarryBucket(false);
+        var anim = FindObjectOfType<PlayerAnimationController>();
+        if (anim != null) anim.SetCarryBucket(false);
+    // Update UI to reflect deselection
+    UpdateToolUI();
+    }
 
-        if (stabilizeAfterDrop)
+    // --- Hotkey helpers ---
+    public void ToggleEquip()
+    {
+        if (isCarried) Drop(); else PickUp();
+    }
+
+    public void ForceUnequip()
+    {
+    if (isCarried) Drop(); else { SetVisible(false); StowNearPlayer(invisible: true); UpdateToolUI(); }
+    }
+
+    private void StowNearPlayer(bool invisible)
+    {
+        if (player == null) return;
+        transform.SetParent(player);
+        transform.localPosition = new Vector3(0.2f, 0.0f, -0.3f); // small offset behind/right
+        transform.localRotation = Quaternion.identity;
+        transform.localScale = _originalLocalScale;
+        SetVisible(!invisible);
+        UpdateToolUI();
+    }
+
+    private void UpdateToolUI()
+    {
+        if (toolIcon == null) return;
+        toolIcon.color = isCarried ? toolSelectedColor : toolDefaultColor;
+    }
+
+    private List<Renderer> _renderers;
+    private void CacheRenderers()
+    {
+        _renderers = new List<Renderer>(GetComponentsInChildren<Renderer>(true));
+    }
+    private void SetVisible(bool visible)
+    {
+        if (_renderers == null) CacheRenderers();
+        for (int i = 0; i < _renderers.Count; i++)
         {
-            StopAllCoroutines();
-            StartCoroutine(StabilizeAfterDropCoroutine());
+            var r = _renderers[i]; if (r != null) r.enabled = visible;
         }
+    }
+
+    private HarrowManager HarrowManagerGlobal()
+    {
+        return HarrowManager.CurrentCarried != null ? HarrowManager.CurrentCarried : FindObjectOfType<HarrowManager>();
     }
 
     private bool FindGroundPoint(out Vector3 point, out Vector3 normal)

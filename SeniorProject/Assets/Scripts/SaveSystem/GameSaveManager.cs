@@ -235,7 +235,8 @@ public class GameSaveManager : MonoBehaviour
     
     public void SaveGame()
     {
-        string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"); // label shown to user
+        string sanitized = SanitizeSaveTime(saveTime);                    // key-safe variant
         // Reuse existing save data to preserve cross-scene state (e.g., collected plants)
         if (currentSaveData == null)
         {
@@ -268,6 +269,10 @@ public class GameSaveManager : MonoBehaviour
     // Save data'yı JSON'a çevir ve PlayerPrefs'e kaydet
         string jsonData = JsonUtility.ToJson(currentSaveData, true);
         PlayerPrefs.SetString(SAVE_PREFIX + saveTime, jsonData);
+        if (sanitized != saveTime)
+        {
+            PlayerPrefs.SetString(SAVE_PREFIX + sanitized, jsonData);
+        }
         
         // Save times listesini güncelle
         UpdateSaveTimesList(saveTime);
@@ -279,13 +284,14 @@ public class GameSaveManager : MonoBehaviour
     public void LoadGame(string saveTime)
     {
         string saveKey = SAVE_PREFIX + saveTime;
-        if (!PlayerPrefs.HasKey(saveKey))
+        string altKey = SAVE_PREFIX + SanitizeSaveTime(saveTime);
+        if (!PlayerPrefs.HasKey(saveKey) && !PlayerPrefs.HasKey(altKey))
         {
             Debug.LogError($"Save data not found for time: {saveTime}");
             return;
         }
         
-        string jsonData = PlayerPrefs.GetString(saveKey);
+        string jsonData = PlayerPrefs.HasKey(saveKey) ? PlayerPrefs.GetString(saveKey) : PlayerPrefs.GetString(altKey);
         currentSaveData = JsonUtility.FromJson<GameSaveData>(jsonData);
         
         if (currentSaveData == null)
@@ -1397,12 +1403,23 @@ public class GameSaveManager : MonoBehaviour
     public List<string> GetSaveTimes()
     {
         string times = PlayerPrefs.GetString(SAVE_TIMES_KEY, "");
-        return new List<string>(times.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+        var list = new List<string>(times.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+        // prune entries that have no corresponding data (raw or sanitized)
+        list.RemoveAll(t => !HasSaveData(t));
+        return list;
     }
     
     public bool HasSaveData(string saveTime)
     {
-        return PlayerPrefs.HasKey(SAVE_PREFIX + saveTime);
+        if (PlayerPrefs.HasKey(SAVE_PREFIX + saveTime)) return true;
+        string alt = SanitizeSaveTime(saveTime);
+        return PlayerPrefs.HasKey(SAVE_PREFIX + alt);
+    }
+
+    private static string SanitizeSaveTime(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        return s.Replace(':', '-').Replace('\n', ' ').Replace('\r', ' ');
     }
     
     public void DeleteSave(string saveTime)
