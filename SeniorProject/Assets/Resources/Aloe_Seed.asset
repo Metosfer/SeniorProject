@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: AloeSeed
   itemDescription: Aloe vera herb's seed
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: dffcb410a6af90b4e93aceb209a09d01, type: 3}
+  itemIcon: {fileID: 21300000, guid: 5748c97b128f55e48bf7e1a190b342ac, type: 3}
   itemPrefab: {fileID: 3196120123495289164, guid: c8aeab1e49d934d34a170392ff3f5b46,
     type: 3}
   dropPrefab: {fileID: 3196120123495289164, guid: c8aeab1e49d934d34a170392ff3f5b46,
@@ -32,3 +32,9 @@ MonoBehaviour:
   driedVersion: {fileID: 11400000, guid: 61c2653c935f041cabed5e5ffc1a1af5, type: 2}
   isExpirable: 0
   expirationTime: 15
+  isFish: 0
+  fishValue: 1
+  fishWeight: 1
+  fishType: Common
+  fishingXP: 10
+  fishDifficulty: 3

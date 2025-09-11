@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: ValerianSeed
   itemDescription: Valerian herb's seed
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: 4ef53304bb2684246ab242e1dca86051, type: 3}
+  itemIcon: {fileID: 21300000, guid: 50cba4916b48e7d41a253be71c725a97, type: 3}
   itemPrefab: {fileID: 7240493839032158186, guid: 0b7b3e48ba72f440ba872b02535e49cd,
     type: 3}
   dropPrefab: {fileID: 7240493839032158186, guid: 0b7b3e48ba72f440ba872b02535e49cd,
@@ -32,3 +32,9 @@ MonoBehaviour:
   driedVersion: {fileID: 11400000, guid: 6c4abe47775ac4b33a09b484a3d9ba69, type: 2}
   isExpirable: 0
   expirationTime: 15
+  isFish: 0
+  fishValue: 1
+  fishWeight: 1
+  fishType: Common
+  fishingXP: 10
+  fishDifficulty: 3

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: DandelionSeed
   itemDescription: Dandelion herb's seed
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: e7bdc0c018d534e47816f88a1453b5fa, type: 3}
+  itemIcon: {fileID: 21300000, guid: 5bc310cbc8412994ebd65b5fa699479a, type: 3}
   itemPrefab: {fileID: 45863292906531986, guid: ad1fff4d01d2d4f65b06439bddf4a183,
     type: 3}
   dropPrefab: {fileID: 45863292906531986, guid: ad1fff4d01d2d4f65b06439bddf4a183,
@@ -28,6 +28,12 @@ MonoBehaviour:
   harvestItem: {fileID: 11400000, guid: 39db70c71a104bf4f9027dbddfd9dd1d, type: 2}
   canBeDried: 0
   dryingTime: 5
-  driedVersion: {fileID: 11400000, guid: 61c2653c935f041cabed5e5ffc1a1af5, type: 2}
+  driedVersion: {fileID: 11400000, guid: a7e86c1b55fc84671b1299b108ce1675, type: 2}
   isExpirable: 0
   expirationTime: 15
+  isFish: 0
+  fishValue: 1
+  fishWeight: 1
+  fishType: Common
+  fishingXP: 10
+  fishDifficulty: 3
