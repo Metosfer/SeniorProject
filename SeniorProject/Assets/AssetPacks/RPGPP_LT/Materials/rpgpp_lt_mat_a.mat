@@ -196,7 +196,7 @@ Material:
     - _MCIALO: 0
     - _MCapIntensity: 1
     - _MVCOL: 0
-    - _MaiColPo: 0.8
+    - _MaiColPo: 1.3
     - _MaxFadDistance: 2
     - _Metallic: 0
     - _MinFadDistance: 0
@@ -243,7 +243,7 @@ Material:
     - _Opacity: 1
     - _Oper: 0
     - _OutlineExtrudeMethod: 0
-    - _OutlineWidth: 1.58
+    - _OutlineWidth: 0.98
     - _OutlineWidthAffectedByViewDistance: 0
     - _OutlineZPostionInCamera: 0
     - _OverallShadowColorPower: 1

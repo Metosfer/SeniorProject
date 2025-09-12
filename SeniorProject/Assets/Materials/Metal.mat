@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-6998714705482551046
+--- !u!114 &-4966080130902913793
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
@@ -20,20 +20,19 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Bakery matket
+  m_Name: Metal
   m_Shader: {fileID: 4800000, guid: 6459b2db96a08ca41b0f9b39dc7ad59e, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - N_F_EAL_ON
-  - N_F_OFLMB_ON
   - N_F_O_ON
   - N_F_RELGI_ON
   - N_F_SS_ON
   - N_F_TRANSAFFSHA_ON
   m_InvalidKeywords: []
   m_LightmapFlags: 4
-  m_EnableInstancingVariants: 1
+  m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
@@ -43,7 +42,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: fbcaea10385462040a79c4950d5f65ed, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
@@ -83,7 +82,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: fbcaea10385462040a79c4950d5f65ed, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskGloss:
@@ -190,16 +189,16 @@ Material:
     - _GIShadeThreshold: 0
     - _GlossColorPower: 10
     - _GlossIntensity: 1
-    - _GlossMapScale: 0
+    - _GlossMapScale: 1
     - _GlossSoftness: 0
     - _GlossTextureFollowLight: 0
     - _GlossTextureFollowObjectRotation: 0
     - _GlossTextureRotate: 0
     - _GlossTextureSoftness: 0
-    - _Glossiness: 0
-    - _GlossyReflections: 0
+    - _Glossiness: 0.44957983
+    - _GlossyReflections: 1
     - _Glow_Edge_Width: 1
-    - _HighlightColorPower: 3.17
+    - _HighlightColorPower: 1
     - _LigIgnoYNorDir: 0
     - _LightAffectOutlineColor: 0
     - _LightAffectRimLightColor: 0
@@ -210,7 +209,7 @@ Material:
     - _MCIALO: 0
     - _MCapIntensity: 1
     - _MVCOL: 0
-    - _MaiColPo: 2.91
+    - _MaiColPo: 0.35
     - _MaxFadDistance: 2
     - _Metallic: 0
     - _MinFadDistance: 0
@@ -235,7 +234,7 @@ Material:
     - _N_F_NLASOBF: 0
     - _N_F_NM: 0
     - _N_F_O: 1
-    - _N_F_OFLMB: 1
+    - _N_F_OFLMB: 0
     - _N_F_PA: 0
     - _N_F_PT: 0
     - _N_F_R: 0
@@ -257,7 +256,7 @@ Material:
     - _Opacity: 1
     - _Oper: 0
     - _OutlineExtrudeMethod: 0
-    - _OutlineWidth: 0.5
+    - _OutlineWidth: -0.43
     - _OutlineWidthAffectedByViewDistance: 0
     - _OutlineZPostionInCamera: 0
     - _OverallShadowColorPower: 1
@@ -266,7 +265,7 @@ Material:
     - _PASmooTrans: 1
     - _PSGLOTEX: 0
     - _PTexturePower: 1
-    - _Parallax: 0.005
+    - _Parallax: 0.02
     - _PointSpotlightIntensity: 0
     - _PresAdju: 1
     - _QueueOffset: 0
@@ -308,7 +307,7 @@ Material:
     - _SimTrans: 0
     - _SkinMatrixIndex: 0
     - _SmoothObjectNormal: 0
-    - _Smoothness: 0
+    - _Smoothness: 0.44957983
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -331,14 +330,14 @@ Material:
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.40908948, g: 0.40908948, b: 0.40908948, a: 1}
+    - _Color: {r: 0.40908945, g: 0.40908945, b: 0.40908945, a: 1}
     - _CustomLightDirection: {r: 0, g: 0, b: 10, a: 0}
-    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 0}
     - _GlossColor: {r: 1, g: 1, b: 1, a: 1}
     - _Glow_Color: {r: 1, g: 1, b: 1, a: 1}
     - _HighlightColor: {r: 1, g: 1, b: 1, a: 1}
-    - _MainColor: {r: 0.9734455, g: 0.9734455, b: 0.9734455, a: 1}
+    - _MainColor: {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 1}
     - _ObjPosi: {r: 0, g: 0, b: 0, a: 0}
     - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
     - _OutlineOffset: {r: 0, g: 0, b: 0, a: 1}
