@@ -11,6 +11,55 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     // Panelin aktif olup olmadığını kontrol eden değişken
     private bool isPanelActive = false;
     
+    [Header("Bookmarks → Pages")]
+    [Tooltip("Bookmark tuşu (örn: 'D') ile sahnedeki target sayfa objesi eşleşmesi")] 
+    public List<BookmarkPage> bookmarkPages = new List<BookmarkPage>();
+    
+    [Tooltip("Sayfaları GameObject olarak kapat/aç yerine tek bir UI Image üzerinde sprite değişimi kullan")] 
+    public bool useImageSwap = false;
+    
+    [Tooltip("useImageSwap=true ise hedef UI Image")]
+    public UnityEngine.UI.Image pageImage;
+    
+    [Tooltip("useImageSwap=true ise harf → sprite eşleşmeleri")] 
+    public List<BookmarkSprite> bookmarkSprites = new List<BookmarkSprite>();
+
+    [Header("Dual Page (Image)")]
+    [Tooltip("Her harfin iki yüzü (sol/sağ) olarak iki UI Image kullanılacaksa işaretleyin")] 
+    public bool useDualPage = false;
+    
+    [Tooltip("useDualPage + useImageSwap: Sol sayfa Image")]
+    public UnityEngine.UI.Image leftPageImage;
+    
+    [Tooltip("useDualPage + useImageSwap: Sağ sayfa Image")]
+    public UnityEngine.UI.Image rightPageImage;
+    
+    [System.Serializable]
+    public class BookmarkDualSprite
+    {
+        [Tooltip("Harf veya anahtar (örn: D)")] public string key;
+        [Tooltip("Sol sayfa sprite'ı")] public Sprite left;
+        [Tooltip("Sağ sayfa sprite'ı")] public Sprite right;
+    }
+    
+    [Tooltip("useDualPage aktifken harf → (sol, sağ) sprite eşleşmeleri")] 
+    public List<BookmarkDualSprite> bookmarkDualSprites = new List<BookmarkDualSprite>();
+
+
+    [Tooltip("Sayfaları SpriteRenderer üzerinde sprite değişimi ile göster")] 
+    public bool useSpriteRendererSwap = false;
+    
+    [Tooltip("useSpriteRendererSwap=true ise hedef SpriteRenderer")]
+    public SpriteRenderer pageSpriteRenderer;
+    
+    [Tooltip("GameObject sayfa modu için tüm sayfaların bulunduğu parent (opsiyonel)")] 
+    public Transform pagesRoot;
+    
+    private readonly Dictionary<string, GameObject> _pageMap = new Dictionary<string, GameObject>();
+    private readonly Dictionary<string, Sprite> _spriteMap = new Dictionary<string, Sprite>();
+    private readonly Dictionary<string, (Sprite left, Sprite right)> _dualSpriteMap = new Dictionary<string, (Sprite left, Sprite right)>();
+    
+    
     [Header("Hover Feedback")]
     [Tooltip("Mouse ile kitap üzerindeyken uygulanacak opaklık (0-1 arası)")]
     [Range(0f, 1f)] public float hoverOpacity = 0.9f;
@@ -50,6 +99,33 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     _mpb = new MaterialPropertyBlock();
     CacheOriginalAlphas();
         _initialScale = transform.localScale;
+
+        InitBookmarkMaps();
+        if (!useImageSwap && !useSpriteRendererSwap)
+        {
+            HideAllPages();
+        }
+        else if (useImageSwap)
+        {
+            // Image-swap modunda başlangıçta gizle
+            if (!useDualPage && pageImage != null)
+            {
+                pageImage.enabled = false;
+            }
+            if (useDualPage)
+            {
+                if (leftPageImage != null) leftPageImage.enabled = false;
+                if (rightPageImage != null) rightPageImage.enabled = false;
+            }
+        }
+        else if (useSpriteRendererSwap)
+        {
+            // SpriteRenderer-swap modunda başlangıçta gizle
+            if (pageSpriteRenderer != null)
+            {
+                pageSpriteRenderer.enabled = false;
+            }
+        }
     }
 
     void Update()
@@ -150,6 +226,24 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         {
             panel.SetActive(false);
             isPanelActive = false;
+            // Panel kapanınca sayfaları gizle/görseli kapat
+            if (!useImageSwap && !useSpriteRendererSwap)
+            {
+                HideAllPages();
+            }
+            if (useImageSwap && !useDualPage && pageImage != null)
+            {
+                pageImage.enabled = false;
+            }
+            if (useImageSwap && useDualPage)
+            {
+                if (leftPageImage != null) leftPageImage.enabled = false;
+                if (rightPageImage != null) rightPageImage.enabled = false;
+            }
+            if (useSpriteRendererSwap && pageSpriteRenderer != null)
+            {
+                pageSpriteRenderer.enabled = false;
+            }
         }
     }
 
@@ -182,6 +276,191 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     public void OnPointerUp(PointerEventData eventData)
     {
         ReleaseClickScale();
+    }
+
+    // ========== Bookmark/Page Setup & Control ==========
+    [System.Serializable]
+    public class BookmarkPage
+    {
+        [Tooltip("Harf veya anahtar (örn: D, A, B...)")] public string key;
+        [Tooltip("Bu harfe karşılık gelen sayfa GameObject'i")] public GameObject pageObject;
+    }
+
+    [System.Serializable]
+    public class BookmarkSprite
+    {
+        [Tooltip("Harf veya anahtar (örn: D, A, B...)")] public string key;
+        [Tooltip("Bu harfe karşılık gelen sayfa sprite'ı")] public Sprite sprite;
+    }
+
+    private void InitBookmarkMaps()
+    {
+        _pageMap.Clear();
+        _spriteMap.Clear();
+        _dualSpriteMap.Clear();
+        
+
+        // Normalize keys to upper-invariant
+        for (int i = 0; i < bookmarkPages.Count; i++)
+        {
+            var bp = bookmarkPages[i];
+            if (bp == null || string.IsNullOrWhiteSpace(bp.key)) continue;
+            string k = bp.key.Trim().ToUpperInvariant();
+            if (!_pageMap.ContainsKey(k) && bp.pageObject != null)
+            {
+                _pageMap.Add(k, bp.pageObject);
+            }
+        }
+
+        // Single page sprite mapping
+        for (int i = 0; i < bookmarkSprites.Count; i++)
+        {
+            var bs = bookmarkSprites[i];
+            if (bs == null || string.IsNullOrWhiteSpace(bs.key)) continue;
+            string k = bs.key.Trim().ToUpperInvariant();
+            if (!_spriteMap.ContainsKey(k) && bs.sprite != null)
+            {
+                _spriteMap.Add(k, bs.sprite);
+            }
+        }
+
+        // Dual page sprite mapping (Image modu için)
+        for (int i = 0; i < bookmarkDualSprites.Count; i++)
+        {
+            var ds = bookmarkDualSprites[i];
+            if (ds == null || string.IsNullOrWhiteSpace(ds.key)) continue;
+            string k = ds.key.Trim().ToUpperInvariant();
+            if (!_dualSpriteMap.ContainsKey(k))
+            {
+                _dualSpriteMap.Add(k, (ds.left, ds.right));
+            }
+        }
+
+        
+    }
+
+    private void HideAllPages()
+    {
+        if (useImageSwap) return;
+        if (pagesRoot != null)
+        {
+            // Eğer parent belirtildiyse sadece onun altındakileri kapat
+            for (int i = 0; i < pagesRoot.childCount; i++)
+            {
+                var child = pagesRoot.GetChild(i);
+                if (child != null) child.gameObject.SetActive(false);
+            }
+        }
+        else
+        {
+            // Aksi halde listede olanları kapat
+            foreach (var kvp in _pageMap)
+            {
+                if (kvp.Value != null) kvp.Value.SetActive(false);
+            }
+        }
+    }
+
+    private void ShowPageByKey(string rawKey)
+    {
+        if (string.IsNullOrWhiteSpace(rawKey)) return;
+        string key = rawKey.Trim().ToUpperInvariant();
+
+        // Panel kapalıysa aç
+        if (!isPanelActive)
+        {
+            OpenPanel();
+        }
+
+        if (useImageSwap && !useDualPage)
+        {
+            if (pageImage == null)
+            {
+                Debug.LogWarning("useImageSwap etkin, fakat pageImage atanmadı.");
+                return;
+            }
+            if (_spriteMap.TryGetValue(key, out var sprite))
+            {
+                pageImage.enabled = true;
+                pageImage.sprite = sprite;
+                var c = pageImage.color; c.a = 1f; pageImage.color = c;
+            }
+            else
+            {
+                Debug.LogWarning($"'{key}' için sprite bulunamadı.");
+            }
+        }
+        else if (useImageSwap && useDualPage)
+        {
+            if (leftPageImage == null || rightPageImage == null)
+            {
+                Debug.LogWarning("useDualPage + useImageSwap etkin, fakat left/right Image atanmadı.");
+                return;
+            }
+            if (_dualSpriteMap.TryGetValue(key, out var pair))
+            {
+                leftPageImage.enabled = pair.left != null;
+                rightPageImage.enabled = pair.right != null;
+                if (pair.left != null)
+                {
+                    leftPageImage.sprite = pair.left;
+                    var cl = leftPageImage.color; cl.a = 1f; leftPageImage.color = cl;
+                }
+                if (pair.right != null)
+                {
+                    rightPageImage.sprite = pair.right;
+                    var cr = rightPageImage.color; cr.a = 1f; rightPageImage.color = cr;
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"'{key}' için (sol, sağ) sprite bulunamadı.");
+            }
+        }
+        else if (useSpriteRendererSwap)
+        {
+            if (pageSpriteRenderer == null)
+            {
+                Debug.LogWarning("useSpriteRendererSwap etkin, fakat pageSpriteRenderer atanmadı.");
+                return;
+            }
+            if (_spriteMap.TryGetValue(key, out var sprite))
+            {
+                pageSpriteRenderer.sprite = sprite;
+                var c = pageSpriteRenderer.color; c.a = 1f; pageSpriteRenderer.color = c;
+                pageSpriteRenderer.enabled = true;
+            }
+            else
+            {
+                Debug.LogWarning($"'{key}' için sprite bulunamadı.");
+            }
+        }
+        else
+        {
+            // Önce tüm sayfaları gizle
+            HideAllPages();
+            if (_pageMap.TryGetValue(key, out var pageObj))
+            {
+                if (pageObj != null)
+                {
+                    pageObj.SetActive(true);
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"'{key}' için sayfa GameObject bulunamadı.");
+            }
+        }
+    }
+
+    // UI Button veya 3D/2D Bookmark objelerinden bağlanacak genel handler
+    public void OnBookmarkClicked(string key)
+    {
+        // World click engellemeleri varsa burada da saygı göster
+        if (PauseMenuController.IsPausedGlobally) return;
+        if (MarketManager.IsAnyOpen) return;
+
+        ShowPageByKey(key);
     }
 
     private void StartHoverScale()

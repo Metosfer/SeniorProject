@@ -52,3 +52,6 @@ TagManager:
   - name: Door
     uniqueID: 1944264187
     locked: 0
+  - name: Front
+    uniqueID: 2302037161
+    locked: 0
