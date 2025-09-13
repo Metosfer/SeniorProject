@@ -208,7 +208,7 @@ Material:
     - _DynamicNoisyOutline: 0
     - _EmissionChannel: 4
     - _EnvironmentReflections: 1
-    - _EnvironmentalLightingIntensity: 1
+    - _EnvironmentalLightingIntensity: 1.54
     - _FarDistanceMaxWidth: 10
     - _FresnelMax: 1.5
     - _FresnelMin: 0
@@ -297,7 +297,7 @@ Material:
     - _OutlinePixelSizeType: 0
     - _OutlineTextureLOD: 5
     - _OutlineTextureType: 0
-    - _OutlineWidth: 1
+    - _OutlineWidth: 0
     - _OutlineWidthAffectedByViewDistance: 0
     - _OutlineZPostionInCamera: 0
     - _OverallShadowColorPower: 1

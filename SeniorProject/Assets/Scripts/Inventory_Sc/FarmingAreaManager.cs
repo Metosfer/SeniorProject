@@ -22,6 +22,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     public List<GameObject> soilPlaceRoots = new List<GameObject>();
     [Range(0f,1f)] public float unpreparedAlpha = 0.5f;
     [Range(0f,1f)] public float preparedAlpha = 1.0f;
+    [Tooltip("Alpha yerine renk tonu (tint) kullan (hazır değil: açık, hazır: koyu)")]
+    public bool useTintForSoil = true;
+    [Tooltip("Hazır DEĞİLKEN uygulanacak renk tonu (açık). Sprite/Mat rengi ile çarpılır.")]
+    public Color unpreparedTint = Color.white;
+    [Tooltip("Hazırken uygulanacak renk tonu (koyu). Örn: 0.6,0.6,0.6,1")]
+    public Color preparedTint = new Color(0.6f, 0.6f, 0.6f, 1f);
     [Header("Soil Auto-Assign")]
     [Tooltip("Inspector listesi boş/eksikse SoilPlace köklerini otomatik doldur")] public bool autoAssignSoilPlace = true;
     [Tooltip("Soil araması için kök (boşsa bu GameObject altında aranır)")] public Transform soilSearchRoot;
@@ -1070,12 +1076,17 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         if (index < 0 || index >= soilPlaceRoots.Count) return;
         var root = soilPlaceRoots[index];
         if (root == null) return;
-        float a = 0.5f;
-        if (index < _plots.Count && _plots[index] != null)
+        bool prepared = index < _plots.Count && _plots[index] != null && _plots[index].isPrepared;
+        if (useTintForSoil)
         {
-            a = _plots[index].isPrepared ? preparedAlpha : unpreparedAlpha;
+            var tint = prepared ? preparedTint : unpreparedTint;
+            ApplyTintToRoot(root, tint);
         }
-        ApplyAlphaToRoot(root, a);
+        else
+        {
+            float a = prepared ? preparedAlpha : unpreparedAlpha;
+            ApplyAlphaToRoot(root, a);
+        }
     }
 
     private static void ApplyAlphaToRoot(GameObject root, float a)
@@ -1115,6 +1126,38 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             {
                 r.SetPropertyBlock(mpb, mi);
             }
+        }
+    }
+
+    private static void ApplyTintToRoot(GameObject root, Color tint)
+    {
+        // SpriteRenderer: sr.color çarpan gibi çalışır; RGB'yi tint ile çarp, alpha'yı koru
+        var sr = root.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            var baseC = sr.color;
+            var target = new Color(baseC.r * tint.r, baseC.g * tint.g, baseC.b * tint.b, baseC.a);
+            sr.color = target;
+        }
+
+        // Mesh/Skinned renderers: _BaseColor/_Color'ı tint ile çarpıp PropertyBlock üzerinden uygula
+        var rends = root.GetComponentsInChildren<Renderer>(true);
+        var mpb = new MaterialPropertyBlock();
+        for (int i = 0; i < rends.Length; i++)
+        {
+            var r = rends[i]; if (r == null) continue;
+            var sharedMats = r.sharedMaterials; if (sharedMats == null || sharedMats.Length == 0) continue;
+            var refMat = sharedMats[0]; if (refMat == null) continue;
+            string colorProp = null;
+            if (refMat.HasProperty("_BaseColor")) colorProp = "_BaseColor";
+            else if (refMat.HasProperty("_Color")) colorProp = "_Color";
+            if (string.IsNullOrEmpty(colorProp)) continue;
+
+            Color baseCol = refMat.GetColor(colorProp);
+            Color target = new Color(baseCol.r * tint.r, baseCol.g * tint.g, baseCol.b * tint.b, baseCol.a);
+            r.GetPropertyBlock(mpb);
+            mpb.SetColor(colorProp, target);
+            r.SetPropertyBlock(mpb);
         }
     }
 
