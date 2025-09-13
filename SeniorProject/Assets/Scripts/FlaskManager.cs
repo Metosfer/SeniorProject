@@ -11,6 +11,12 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     
     // Panelin aktif olup olmadığını kontrol eden değişken
     private bool isPanelActive = false;
+    private CanvasGroup _panelCg;
+    private Coroutine _panelAnimCo;
+    private RectTransform _panelRt;
+    private Vector2 _panelInitialAnchoredPos;
+    private Vector3 _panelInitialLocalPos;
+    private bool _panelHasRectTransform;
 
     [Header("Hover Feedback")]
     [Tooltip("Mouse ile üstüne gelince uygulanacak opaklık (0-1)")]
@@ -59,6 +65,13 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         if (panel != null)
         {
             panel.SetActive(false);
+        }
+        if (panel != null)
+        {
+            _panelRt = panel.GetComponent<RectTransform>();
+            _panelHasRectTransform = _panelRt != null;
+            if (_panelHasRectTransform) _panelInitialAnchoredPos = _panelRt.anchoredPosition; else _panelInitialLocalPos = panel.transform.localPosition;
+            EnsureCanvasGroup();
         }
 
     // Hover görsel geri bildirim için renderer'ları hazırla
@@ -127,6 +140,8 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             if (isPanelActive)
             {
                 ClosePanel();
+                MarketManager.s_lastEscapeConsumedFrame = Time.frameCount; // PauseMenu açılmasın
+                return;
             }
         }
     }
@@ -159,7 +174,7 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             return;
         }
         // If Market or another modal UI is open, ignore world clicks
-        if (MarketManager.IsAnyOpen)
+        if (MarketManager.IsAnyOpen || ModalPanelManager.IsAnyOpen)
         {
             return;
         }
@@ -178,6 +193,13 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         {
             panel.SetActive(true);
             isPanelActive = true;
+            ModalPanelManager.Open();
+            if (_panelCg != null) _panelCg.alpha = 0f;
+            if (animatePanelOpen)
+            {
+                if (_panelAnimCo != null) StopCoroutine(_panelAnimCo);
+                _panelAnimCo = StartCoroutine(AnimatePanel(true, panelOpenDuration));
+            }
             // Panel arka planı varsa raycast'ı kapat ki slotlar drop alabilsin
             var panelImg = panel.GetComponent<Image>();
             if (panelImg != null)
@@ -210,8 +232,17 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     {
         if (panel != null)
         {
-            panel.SetActive(false);
-            isPanelActive = false;
+            if (animatePanelClose)
+            {
+                if (_panelAnimCo != null) StopCoroutine(_panelAnimCo);
+                _panelAnimCo = StartCoroutine(AnimatePanel(false, panelCloseDuration));
+            }
+            else
+            {
+                panel.SetActive(false);
+                isPanelActive = false;
+                ModalPanelManager.Close();
+            }
         }
     }
 
@@ -219,6 +250,71 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public bool IsPanelActive()
     {
         return isPanelActive;
+    }
+
+    [Header("Panel Animations")] 
+    [Tooltip("Panel açılırken animasyon")] public bool animatePanelOpen = true;
+    [Tooltip("Panel kapanırken animasyon")] public bool animatePanelClose = true;
+    [Tooltip("Açılış süresi")] public float panelOpenDuration = 0.18f;
+    [Tooltip("Kapanış süresi")] public float panelCloseDuration = 0.14f;
+    [Tooltip("Açılışta ölçek başlangıcı")] public float panelOpenScaleFrom = 0.9f;
+    [Tooltip("Easing eğrisi")] public AnimationCurve panelEase = AnimationCurve.EaseInOut(0, 0, 1, 1);
+    [Tooltip("Y ekseni mesafe (px)")] public float panelTravelY = 80f;
+    [Tooltip("Aşağıdan gelsin")] public bool panelOpenFromBottom = true;
+
+    private void EnsureCanvasGroup()
+    {
+        if (panel == null) return;
+        _panelCg = panel.GetComponent<CanvasGroup>();
+        if (_panelCg == null) _panelCg = panel.AddComponent<CanvasGroup>();
+    }
+
+    private IEnumerator AnimatePanel(bool opening, float duration)
+    {
+        if (panel == null) yield break;
+        EnsureCanvasGroup();
+        float d = Mathf.Max(0.01f, duration);
+        float t = 0f;
+        float startA = opening ? 0f : 1f;
+        float endA = opening ? 1f : 0f;
+        Vector3 startScale = opening ? Vector3.one * Mathf.Max(0.01f, panelOpenScaleFrom) : Vector3.one;
+        Vector3 endScale = opening ? Vector3.one : Vector3.one * Mathf.Max(0.01f, panelOpenScaleFrom);
+        float dir = panelOpenFromBottom ? -1f : 1f;
+        Vector2 startApos = Vector2.zero, endApos = Vector2.zero;
+        Vector3 startLpos = Vector3.zero, endLpos = Vector3.zero;
+        if (_panelHasRectTransform)
+        {
+            startApos = opening ? _panelInitialAnchoredPos + new Vector2(0f, dir * panelTravelY) : _panelInitialAnchoredPos;
+            endApos = opening ? _panelInitialAnchoredPos : _panelInitialAnchoredPos + new Vector2(0f, dir * panelTravelY);
+            _panelRt.anchoredPosition = startApos;
+        }
+        else
+        {
+            startLpos = opening ? _panelInitialLocalPos + new Vector3(0f, dir * panelTravelY, 0f) : _panelInitialLocalPos;
+            endLpos = opening ? _panelInitialLocalPos : _panelInitialLocalPos + new Vector3(0f, dir * panelTravelY, 0f);
+            panel.transform.localPosition = startLpos;
+        }
+        _panelCg.alpha = startA; panel.transform.localScale = startScale;
+        while (t < d)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / d);
+            float e = panelEase != null ? panelEase.Evaluate(u) : u;
+            _panelCg.alpha = Mathf.Lerp(startA, endA, e);
+            panel.transform.localScale = Vector3.Lerp(startScale, endScale, e);
+            if (_panelHasRectTransform) _panelRt.anchoredPosition = Vector2.Lerp(startApos, endApos, e); else panel.transform.localPosition = Vector3.Lerp(startLpos, endLpos, e);
+            yield return null;
+        }
+        _panelCg.alpha = endA;
+        if (_panelHasRectTransform) _panelRt.anchoredPosition = endApos; else panel.transform.localPosition = endLpos;
+        panel.transform.localScale = endScale;
+        if (!opening)
+        {
+            panel.SetActive(false);
+            isPanelActive = false;
+            ModalPanelManager.Close();
+        }
+        _panelAnimCo = null;
     }
 
     // ----- Storage Logic -----
@@ -490,6 +586,13 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         if (gsm != null)
         {
             gsm.CaptureFlaskState(this);
+        }
+        // Güvenlik: açıkken disable olursa modal bayrağı kapat
+        if (isPanelActive)
+        {
+            isPanelActive = false;
+            if (panel != null) panel.SetActive(false);
+            ModalPanelManager.Close();
         }
     }
 

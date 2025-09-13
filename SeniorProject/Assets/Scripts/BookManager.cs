@@ -187,6 +187,9 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             if (isPanelActive)
             {
                 ClosePanel();
+                // ESC bu frame tüketilsin ki PauseMenu açılmasın
+                MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
+                return;
             }
         }
     }
@@ -221,6 +224,13 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         {
             if (_scaleCo != null) StopCoroutine(_scaleCo);
             transform.localScale = _initialScale;
+            // Güvenlik: açıkken disable olursa modal bayrağı temizle
+            if (isPanelActive)
+            {
+                isPanelActive = false;
+                if (panel != null) panel.SetActive(false);
+                ModalPanelManager.Close();
+            }
         }
     }
 
@@ -234,7 +244,7 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             return;
         }
         // If Market or another modal UI is open, ignore world clicks
-        if (MarketManager.IsAnyOpen)
+        if (MarketManager.IsAnyOpen || ModalPanelManager.IsAnyOpen)
         {
             return;
         }
@@ -267,6 +277,7 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
                 isPanelActive = true;
             }
             isPanelActive = true;
+            ModalPanelManager.Open();
         }
         else
         {
@@ -288,6 +299,7 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             }
             // Animasyon yoksa anında kapa
             DoHidePagesAndDisablePanel();
+            ModalPanelManager.Close();
         }
     }
 
@@ -725,6 +737,7 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
 
         panel.SetActive(false);
         isPanelActive = false;
+        ModalPanelManager.Close();
     }
 
     private IEnumerator FadeImage(UnityEngine.UI.Image img, float from, float to, float duration, float delay = 0f)
