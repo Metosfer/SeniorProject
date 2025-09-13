@@ -59,6 +59,30 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     private readonly Dictionary<string, Sprite> _spriteMap = new Dictionary<string, Sprite>();
     private readonly Dictionary<string, (Sprite left, Sprite right)> _dualSpriteMap = new Dictionary<string, (Sprite left, Sprite right)>();
     
+    [Header("Panel Animations")]
+    [Tooltip("Panel açılırken animasyon oynat")] public bool animatePanelOpen = true;
+    [Tooltip("Panel kapanırken animasyon oynat")] public bool animatePanelClose = true;
+    [Tooltip("Panel açılış süresi (sn)")] public float panelOpenDuration = 0.2f;
+    [Tooltip("Panel kapanış süresi (sn)")] public float panelCloseDuration = 0.15f;
+    [Tooltip("Açılırken panel ölçeğinin başlangıç çarpanı (1=orijinal)")] public float panelOpenScaleFrom = 0.9f;
+    [Tooltip("Panel animasyonu easing eğrisi")] public AnimationCurve panelEase = AnimationCurve.EaseInOut(0, 0, 1, 1);
+    [Tooltip("Panelin Y ekseninde hareket mesafesi (px)")] public float panelTravelY = 80f;
+    [Tooltip("Açılışta panel aşağıdan gelsin")] public bool panelOpenFromBottom = true;
+
+    [Header("Page Animations")]
+    [Tooltip("Sayfa görünürken alpha ile fade-in uygula")] public bool animatePageFade = true;
+    [Tooltip("Sayfa fade-in süresi (sn)")] public float pageFadeInDuration = 0.15f;
+    [Tooltip("Dual sayfalar arasında küçük gecikme (sn)")] public float dualPageStagger = 0.04f;
+
+    private CanvasGroup _panelCg;
+    private Vector3 _panelInitialScale = Vector3.one;
+    private Coroutine _panelAnimCo;
+    private Coroutine _fadeSingleImageCo, _fadeLeftImageCo, _fadeRightImageCo, _fadeSpriteRendererCo;
+    private RectTransform _panelRt;
+    private Vector2 _panelInitialAnchoredPos;
+    private Vector3 _panelInitialLocalPos;
+    private bool _panelHasRectTransform;
+
     
     [Header("Hover Feedback")]
     [Tooltip("Mouse ile kitap üzerindeyken uygulanacak opaklık (0-1 arası)")]
@@ -99,6 +123,23 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     _mpb = new MaterialPropertyBlock();
     CacheOriginalAlphas();
         _initialScale = transform.localScale;
+
+        // Panel başlangıç scale'ını hatırla
+        if (panel != null)
+        {
+            _panelInitialScale = panel.transform.localScale;
+            _panelCg = panel.GetComponent<CanvasGroup>();
+            _panelRt = panel.transform as RectTransform;
+            _panelHasRectTransform = _panelRt != null;
+            if (_panelHasRectTransform)
+            {
+                _panelInitialAnchoredPos = _panelRt.anchoredPosition;
+            }
+            else
+            {
+                _panelInitialLocalPos = panel.transform.localPosition;
+            }
+        }
 
         InitBookmarkMaps();
         if (!useImageSwap && !useSpriteRendererSwap)
@@ -210,7 +251,21 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     {
         if (panel != null)
         {
-            panel.SetActive(true);
+            // Eğer animasyon açıksa, görünür yapıp animasyonu başlat
+            if (animatePanelOpen)
+            {
+                if (_panelAnimCo != null) StopCoroutine(_panelAnimCo);
+                panel.SetActive(true);
+                EnsureCanvasGroup();
+                if (_panelCg != null) _panelCg.alpha = 0f;
+                panel.transform.localScale = _panelInitialScale * Mathf.Max(0.01f, panelOpenScaleFrom);
+                _panelAnimCo = StartCoroutine(AnimatePanel(true, panelOpenDuration));
+            }
+            else
+            {
+                panel.SetActive(true);
+                isPanelActive = true;
+            }
             isPanelActive = true;
         }
         else
@@ -224,26 +279,15 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     {
         if (panel != null)
         {
-            panel.SetActive(false);
-            isPanelActive = false;
-            // Panel kapanınca sayfaları gizle/görseli kapat
-            if (!useImageSwap && !useSpriteRendererSwap)
+            if (animatePanelClose)
             {
-                HideAllPages();
+                if (_panelAnimCo != null) StopCoroutine(_panelAnimCo);
+                EnsureCanvasGroup();
+                _panelAnimCo = StartCoroutine(AnimatePanel(false, panelCloseDuration));
+                return;
             }
-            if (useImageSwap && !useDualPage && pageImage != null)
-            {
-                pageImage.enabled = false;
-            }
-            if (useImageSwap && useDualPage)
-            {
-                if (leftPageImage != null) leftPageImage.enabled = false;
-                if (rightPageImage != null) rightPageImage.enabled = false;
-            }
-            if (useSpriteRendererSwap && pageSpriteRenderer != null)
-            {
-                pageSpriteRenderer.enabled = false;
-            }
+            // Animasyon yoksa anında kapa
+            DoHidePagesAndDisablePanel();
         }
     }
 
@@ -381,9 +425,17 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             }
             if (_spriteMap.TryGetValue(key, out var sprite))
             {
+                if (_fadeSingleImageCo != null) StopCoroutine(_fadeSingleImageCo);
                 pageImage.enabled = true;
                 pageImage.sprite = sprite;
-                var c = pageImage.color; c.a = 1f; pageImage.color = c;
+                if (animatePageFade)
+                {
+                    _fadeSingleImageCo = StartCoroutine(FadeImage(pageImage, 0f, 1f, Mathf.Max(0.01f, pageFadeInDuration)));
+                }
+                else
+                {
+                    var c = pageImage.color; c.a = 1f; pageImage.color = c;
+                }
             }
             else
             {
@@ -399,17 +451,31 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             }
             if (_dualSpriteMap.TryGetValue(key, out var pair))
             {
+                // Sol
                 leftPageImage.enabled = pair.left != null;
-                rightPageImage.enabled = pair.right != null;
                 if (pair.left != null)
                 {
+                    if (_fadeLeftImageCo != null) StopCoroutine(_fadeLeftImageCo);
                     leftPageImage.sprite = pair.left;
-                    var cl = leftPageImage.color; cl.a = 1f; leftPageImage.color = cl;
+                    if (animatePageFade)
+                        _fadeLeftImageCo = StartCoroutine(FadeImage(leftPageImage, 0f, 1f, Mathf.Max(0.01f, pageFadeInDuration)));
+                    else
+                    {
+                        var cl = leftPageImage.color; cl.a = 1f; leftPageImage.color = cl;
+                    }
                 }
+                // Sağ (küçük gecikme ile)
+                rightPageImage.enabled = pair.right != null;
                 if (pair.right != null)
                 {
+                    if (_fadeRightImageCo != null) StopCoroutine(_fadeRightImageCo);
                     rightPageImage.sprite = pair.right;
-                    var cr = rightPageImage.color; cr.a = 1f; rightPageImage.color = cr;
+                    if (animatePageFade)
+                        _fadeRightImageCo = StartCoroutine(FadeImage(rightPageImage, 0f, 1f, Mathf.Max(0.01f, pageFadeInDuration), dualPageStagger));
+                    else
+                    {
+                        var cr = rightPageImage.color; cr.a = 1f; rightPageImage.color = cr;
+                    }
                 }
             }
             else
@@ -426,9 +492,17 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
             }
             if (_spriteMap.TryGetValue(key, out var sprite))
             {
-                pageSpriteRenderer.sprite = sprite;
-                var c = pageSpriteRenderer.color; c.a = 1f; pageSpriteRenderer.color = c;
+                if (_fadeSpriteRendererCo != null) StopCoroutine(_fadeSpriteRendererCo);
                 pageSpriteRenderer.enabled = true;
+                pageSpriteRenderer.sprite = sprite;
+                if (animatePageFade)
+                {
+                    _fadeSpriteRendererCo = StartCoroutine(FadeSprite(pageSpriteRenderer, 0f, 1f, Mathf.Max(0.01f, pageFadeInDuration)));
+                }
+                else
+                {
+                    var c = pageSpriteRenderer.color; c.a = 1f; pageSpriteRenderer.color = c;
+                }
             }
             else
             {
@@ -545,6 +619,150 @@ public class BookManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         {
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         }
+    }
+
+    // ========== Animations ==========
+    private void EnsureCanvasGroup()
+    {
+        if (panel == null) return;
+        if (_panelCg == null)
+        {
+            _panelCg = panel.GetComponent<CanvasGroup>();
+            if (_panelCg == null)
+            {
+                _panelCg = panel.AddComponent<CanvasGroup>();
+            }
+        }
+    }
+
+    private IEnumerator AnimatePanel(bool opening, float duration)
+    {
+        if (panel == null)
+        {
+            yield break;
+        }
+        EnsureCanvasGroup();
+        float d = Mathf.Max(0.01f, duration);
+        float t = 0f;
+        float fromA = opening ? 0f : (_panelCg != null ? _panelCg.alpha : 1f);
+        float toA = opening ? 1f : 0f;
+        Vector3 fromS = opening ? _panelInitialScale * Mathf.Max(0.01f, panelOpenScaleFrom) : panel.transform.localScale;
+        Vector3 toS = opening ? _panelInitialScale : _panelInitialScale * Mathf.Max(0.01f, panelOpenScaleFrom);
+        // Position (Y) motion
+        float travel = Mathf.Abs(panelTravelY);
+        float dir = panelOpenFromBottom ? -1f : 1f; // opening from below means start lower (negative y)
+        Vector2 fromAP = _panelHasRectTransform
+            ? (opening ? _panelInitialAnchoredPos + new Vector2(0f, dir * travel) : _panelRt.anchoredPosition)
+            : Vector2.zero;
+        Vector2 toAP = _panelHasRectTransform
+            ? (opening ? _panelInitialAnchoredPos : _panelInitialAnchoredPos + new Vector2(0f, dir * travel))
+            : Vector2.zero;
+        Vector3 fromLP = !_panelHasRectTransform
+            ? (opening ? _panelInitialLocalPos + new Vector3(0f, dir * travel, 0f) : panel.transform.localPosition)
+            : Vector3.zero;
+        Vector3 toLP = !_panelHasRectTransform
+            ? (opening ? _panelInitialLocalPos : _panelInitialLocalPos + new Vector3(0f, dir * travel, 0f))
+            : Vector3.zero;
+        // Set initial position at start
+        if (opening)
+        {
+            if (_panelHasRectTransform) _panelRt.anchoredPosition = fromAP;
+            else panel.transform.localPosition = fromLP;
+        }
+        while (t < d)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / d);
+            float e = panelEase != null ? panelEase.Evaluate(u) : u;
+            if (_panelCg != null) _panelCg.alpha = Mathf.Lerp(fromA, toA, e);
+            panel.transform.localScale = Vector3.Lerp(fromS, toS, e);
+            if (_panelHasRectTransform)
+            {
+                _panelRt.anchoredPosition = Vector2.Lerp(fromAP, toAP, e);
+            }
+            else
+            {
+                panel.transform.localPosition = Vector3.Lerp(fromLP, toLP, e);
+            }
+            yield return null;
+        }
+        if (_panelCg != null) _panelCg.alpha = toA;
+        panel.transform.localScale = toS;
+        if (_panelHasRectTransform) _panelRt.anchoredPosition = toAP;
+        else panel.transform.localPosition = toLP;
+        if (!opening)
+        {
+            DoHidePagesAndDisablePanel();
+        }
+        _panelAnimCo = null;
+    }
+
+    private void DoHidePagesAndDisablePanel()
+    {
+        // Panel kapanınca sayfaları gizle/görseli kapat
+        if (!useImageSwap && !useSpriteRendererSwap)
+        {
+            HideAllPages();
+        }
+        if (useImageSwap && !useDualPage && pageImage != null)
+        {
+            pageImage.enabled = false;
+        }
+        if (useImageSwap && useDualPage)
+        {
+            if (leftPageImage != null) leftPageImage.enabled = false;
+            if (rightPageImage != null) rightPageImage.enabled = false;
+        }
+        if (useSpriteRendererSwap && pageSpriteRenderer != null)
+        {
+            pageSpriteRenderer.enabled = false;
+        }
+
+        // Reset transform for next open
+        if (_panelHasRectTransform) _panelRt.anchoredPosition = _panelInitialAnchoredPos;
+        else panel.transform.localPosition = _panelInitialLocalPos;
+        panel.transform.localScale = _panelInitialScale;
+
+        panel.SetActive(false);
+        isPanelActive = false;
+    }
+
+    private IEnumerator FadeImage(UnityEngine.UI.Image img, float from, float to, float duration, float delay = 0f)
+    {
+        if (img == null) yield break;
+        if (delay > 0f)
+        {
+            float dt = 0f; while (dt < delay) { dt += Time.unscaledDeltaTime; yield return null; }
+        }
+        float d = Mathf.Max(0.01f, duration);
+        Color c = img.color; c.a = from; img.color = c;
+        float t = 0f;
+        while (t < d)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / d);
+            c.a = Mathf.Lerp(from, to, u);
+            img.color = c;
+            yield return null;
+        }
+        c.a = to; img.color = c;
+    }
+
+    private IEnumerator FadeSprite(SpriteRenderer sr, float from, float to, float duration)
+    {
+        if (sr == null) yield break;
+        float d = Mathf.Max(0.01f, duration);
+        Color c = sr.color; c.a = from; sr.color = c;
+        float t = 0f;
+        while (t < d)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / d);
+            c.a = Mathf.Lerp(from, to, u);
+            sr.color = c;
+            yield return null;
+        }
+        c.a = to; sr.color = c;
     }
 
     private Texture2D ScaleCursor(Texture2D originalCursor, int newWidth, int newHeight)
