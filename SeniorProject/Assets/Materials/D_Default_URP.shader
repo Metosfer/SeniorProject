@@ -1,6 +1,6 @@
 //RealToon V5.0.9 (URP)
 //MJQStudioWorks
-//©2024
+//ï¿½2024
 
 Shader "Universal Render Pipeline/RealToon/Version 5/Default/Default"
 {
@@ -1745,7 +1745,6 @@ DOTS_LiBleSki(input.indices, input.weights, input.positionOS.xyz, input.normal.x
 
 				MetaInput metaInput;
 				metaInput.Albedo = RTD_TEX_COL.rgb;
-				metaInput.SpecularColor = float3(0.0, 0.0, 0.0);
 				metaInput.Emission = RTD_SL;
 
 				return MetaFragment(metaInput);
