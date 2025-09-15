@@ -31,6 +31,12 @@ public class FishingManager : MonoBehaviour
     
     [Header("Fishing Settings")]
     [Tooltip("Balığın dikey hareket hızı (1-5 arası önerilir)")]
+    
+        // Cached base transforms to avoid cumulative scaling/rotation across sessions
+        private Vector3 fishImageBaseScale = Vector3.one;
+        private Quaternion fishImageBaseRotation = Quaternion.identity;
+        private Vector3 panelBaseScale = Vector3.one;
+        private Quaternion panelBaseRotation = Quaternion.identity;
     public float fishSpeed = 2f;
     [Tooltip("Balığın oltadan kaçma kuvveti (Seçilen balığın zorluğuna göre otomatik ayarlanır)")]
     public float fishEscapeForce = 1f; // Balığın bobber'dan kaçma kuvveti (düşük tutuldu)
@@ -157,6 +163,19 @@ public class FishingManager : MonoBehaviour
         
         // Available fish listesinden fishItems ve probabilities dizilerini oluştur
         InitializeFishArraysFromList();
+
+        // Cache default transforms (scale/rotation) for UI elements to prevent drift
+        if (fishImage != null)
+        {
+            var rt = fishImage.rectTransform;
+            fishImageBaseScale = rt.localScale;
+            fishImageBaseRotation = rt.localRotation;
+        }
+        if (fishingPanel != null)
+        {
+            panelBaseScale = fishingPanel.transform.localScale;
+            panelBaseRotation = fishingPanel.transform.localRotation;
+        }
     }
 
     void Update()
@@ -269,6 +288,9 @@ public class FishingManager : MonoBehaviour
         if (fishingPanel != null)
             fishingPanel.SetActive(true);
             
+        // Reset UI transforms to their cached defaults when opening panel
+        ResetFishingUITransform();
+
         if (waitingText != null)
             waitingText.text = "Waiting to catch fish..";
 
@@ -409,6 +431,12 @@ public class FishingManager : MonoBehaviour
             StopCoroutine(waitingSpinCoroutine);
             waitingSpinCoroutine = null;
         }
+        // Restore base rotation/scale in case coroutine was interrupted mid-pulse
+        if (fishImage != null)
+        {
+            fishImage.rectTransform.localRotation = fishImageBaseRotation;
+            fishImage.rectTransform.localScale = fishImageBaseScale;
+        }
         if (settleOnFinal)
         {
             // Set final sprite to currentTargetFish
@@ -430,8 +458,9 @@ public class FishingManager : MonoBehaviour
         float duration = currentWaitTime > 0 ? currentWaitTime : 2f;
         float t = 0f;
         int idx = 0;
-        float baseScale = fishImage.rectTransform.localScale.x;
-        Quaternion baseRot = fishImage.rectTransform.localRotation;
+        // Use cached base transform to avoid drift across sessions
+        float baseScale = fishImageBaseScale.x;
+        Quaternion baseRot = fishImageBaseRotation;
 
         while (t < duration && isWaitingForFish)
         {
@@ -613,6 +642,9 @@ public class FishingManager : MonoBehaviour
             StopWaitingVisualSpin(true);
         }
 
+        // Ensure UI transforms are restored to defaults on close
+        ResetFishingUITransform();
+
         // Waiting text'i temizle
         if (waitingText != null)
             waitingText.text = "";
@@ -659,6 +691,23 @@ public class FishingManager : MonoBehaviour
         
         if (playerInRange)
             ShowPrompt();
+    }
+
+    // Reset UI transforms (scale/rotation) for panel and fish image to cached defaults
+    private void ResetFishingUITransform()
+    {
+        if (fishingPanel != null)
+        {
+            var tr = fishingPanel.transform;
+            tr.localScale = panelBaseScale;
+            tr.localRotation = panelBaseRotation;
+        }
+        if (fishImage != null)
+        {
+            var rt = fishImage.rectTransform;
+            rt.localScale = fishImageBaseScale;
+            rt.localRotation = fishImageBaseRotation;
+        }
     }
     
     void InitializeFishArraysFromList()
@@ -707,7 +756,8 @@ public class FishingManager : MonoBehaviour
                     fishProbabilities[i] = 0.02f;
                     break;
                 default:
-                    fishProbabilities[i] = 0.5f; // Varsayılan
+                    // Start from cached base scale to ensure consistent settle behavior
+                    Vector3 start = fishImageBaseScale;
                     break;
             }
         }
