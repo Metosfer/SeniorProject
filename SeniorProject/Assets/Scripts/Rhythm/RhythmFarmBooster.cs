@@ -22,6 +22,7 @@ public class RhythmFarmBooster : MonoBehaviour
     public GameObject interactPromptUI; // e.g., "Press E to play"
     [Tooltip("Text component used inside the interact prompt UI to show messages")] public TMP_Text interactPromptText;
     [Tooltip("Optional text to show errors/info like 'No seeds planted'.")] public TMP_Text infoText;
+    [Tooltip("Error message text to show when no seeds are planted (assign TextMeshPro)")] public TMP_Text errorText;
 
     [Header("Boost Mapping")] 
     [Tooltip("Seconds added per 1000 score")] public float secondsPerThousandScore = 2.0f;
@@ -43,6 +44,14 @@ public class RhythmFarmBooster : MonoBehaviour
         {
             _playerAnim = player.GetComponent<PlayerAnimationController>();
         }
+        
+        // Error text'i ve boost result text'i başlangıçta gizle
+        if (errorText != null)
+            errorText.gameObject.SetActive(false);
+            
+        if (boostResultText != null)
+            boostResultText.gameObject.SetActive(false);
+            
         // Bind to nearest area once if not assigned
         if (farmingArea == null && bindNearestOnAwake)
         {
@@ -116,6 +125,9 @@ public class RhythmFarmBooster : MonoBehaviour
             bool canOpen = targetArea != null && targetArea.HasAnyGrowingSeed();
             if (!canOpen)
             {
+                // Show error message for no seeds planted
+                ShowNoSeedsError();
+                
                 // Ensure prompt shows the correct warning
                 if (interactPromptText != null) interactPromptText.text = "Add water first";
                 if (infoText != null) { infoText.text = ""; }
@@ -123,8 +135,12 @@ public class RhythmFarmBooster : MonoBehaviour
             }
             // Begin mini-game
             _playing = true;
+            
+            // Error mesajını ve boost result'ını gizle (eğer görünüyorsa)
+            HideErrorMessage();
+            HideBoostResult();
+            
             if (rhythm.rootUI != null) rhythm.rootUI.SetActive(true);
-            if (boostResultText != null) boostResultText.text = string.Empty;
             rhythm.StartGame();
             if (_playerAnim != null) _playerAnim.SetDancing(true);
         }
@@ -139,24 +155,40 @@ public class RhythmFarmBooster : MonoBehaviour
     private void OnRhythmFinished(int score, int maxCombo)
     {
         _playing = false;
-    if (_playerAnim != null) _playerAnim.SetDancing(false);
+        if (_playerAnim != null) _playerAnim.SetDancing(false);
         if (interactPromptUI != null && _inRange) interactPromptUI.SetActive(true);
 
         // Map score/combo to seconds
-    float secFromScore = Mathf.Max(0f, score) * (secondsPerThousandScore / 1000f);
-    float secFromCombo = includeComboBonus ? (Mathf.Max(0, maxCombo) * (secondsPerTenCombo / 10f)) : 0f;
+        float secFromScore = Mathf.Max(0f, score) * (secondsPerThousandScore / 1000f);
+        float secFromCombo = includeComboBonus ? (Mathf.Max(0, maxCombo) * (secondsPerTenCombo / 10f)) : 0f;
         float total = Mathf.Min(maxTotalSeconds, secFromScore + secFromCombo);
-        if (total <= 0.01f) return;
+        
+        if (total <= 0.01f) 
+        {
+            // Çok düşük skor - boost uygulanmadı mesajı göster
+            ShowBoostResult("No boost applied - Score too low!", Color.yellow);
+            return;
+        }
 
         // Find target farming area if missing
-    var target = farmingArea;
-    if (target == null) return;
+        var target = farmingArea;
+        if (target == null) 
+        {
+            ShowBoostResult("No farming area found!", Color.red);
+            return;
+        }
 
         float applied = target.ApplyGrowthBoost(total);
         Debug.Log($"RhythmFarmBooster applied {applied:F1}s growth boost (requested {total:F1}s) to {target.name}");
-        if (boostResultText != null && applied > 0f)
+        
+        // Boost sonucunu her zaman göster
+        if (applied > 0f)
         {
-            boostResultText.text = $"Boost applied: {applied:F1}s";
+            ShowBoostResult($"🌱 Boost applied: {applied:F1}s! 🌱", Color.green);
+        }
+        else
+        {
+            ShowBoostResult("Boost could not be applied!", new Color(1f, 0.5f, 0f)); // Orange color
         }
     }
 
@@ -172,5 +204,145 @@ public class RhythmFarmBooster : MonoBehaviour
             if (sqr < best) { best = sqr; bestFA = fa; }
         }
         return bestFA;
+    }
+
+    // -------- Boost Result Display System --------
+    
+    /// <summary>
+    /// Show boost result message with specified text and color
+    /// </summary>
+    private void ShowBoostResult(string message, Color textColor)
+    {
+        if (boostResultText != null)
+        {
+            boostResultText.gameObject.SetActive(true);
+            boostResultText.text = message;
+            boostResultText.color = textColor;
+            
+            // 4 saniye sonra boost mesajını gizle
+            StartCoroutine(HideBoostResultAfterDelay(4f));
+            
+            Debug.Log($"Boost result shown: {message}");
+        }
+        else
+        {
+            Debug.LogWarning("BoostResultText not assigned!");
+        }
+    }
+    
+    /// <summary>
+    /// Hide boost result message after specified delay
+    /// </summary>
+    private System.Collections.IEnumerator HideBoostResultAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        if (boostResultText != null)
+        {
+            boostResultText.gameObject.SetActive(false);
+            Debug.Log("Boost result message hidden.");
+        }
+    }
+    
+    /// <summary>
+    /// Manually hide boost result message
+    /// </summary>
+    private void HideBoostResult()
+    {
+        if (boostResultText != null)
+        {
+            boostResultText.gameObject.SetActive(false);
+        }
+    }
+
+    // -------- Error Message System --------
+    
+    /// <summary>
+    /// Show error message when no seeds are planted
+    /// </summary>
+    private void ShowNoSeedsError()
+    {
+        // FishingManager çakışmasını önlemek için kontrol
+        // Eğer text component'i başka bir script tarafından kullanılıyorsa güvenli hata göster
+        if (errorText != null)
+        {
+            // Text'in parent GameObject'inin adını kontrol et - FishingManager ile çakışma kontrolü
+            bool isSafeToUse = true;
+            if (errorText.transform.parent != null)
+            {
+                string parentName = errorText.transform.parent.name.ToLower();
+                // FishingManager tarafından kullanılan UI elementlerini kontrol et
+                if (parentName.Contains("fishing") || parentName.Contains("fish"))
+                {
+                    isSafeToUse = false;
+                    Debug.LogWarning("ErrorText appears to be used by FishingManager. Using fallback.");
+                }
+            }
+            
+            if (isSafeToUse)
+            {
+                errorText.gameObject.SetActive(true);
+                errorText.text = "⚠️ No seeds planted! Plant and water seeds first. ⚠️";
+                errorText.color = Color.red;
+                
+                // 3 saniye sonra error mesajını gizle
+                StartCoroutine(HideErrorAfterDelay(3f));
+                
+                Debug.Log("No seeds error message shown!");
+            }
+            else
+            {
+                // Güvenli değilse fallback kullan
+                UseFallbackErrorDisplay();
+            }
+        }
+        else
+        {
+            // ErrorText yoksa fallback kullan
+            UseFallbackErrorDisplay();
+        }
+    }
+    
+    /// <summary>
+    /// Fallback error display when main errorText is not available or unsafe to use
+    /// </summary>
+    private void UseFallbackErrorDisplay()
+    {
+        if (infoText != null)
+        {
+            infoText.text = "⚠️ No seeds planted!";
+            infoText.color = Color.red;
+            StartCoroutine(ClearInfoAfter(3f));
+            Debug.LogWarning("ErrorText not available, using InfoText as fallback.");
+        }
+        else
+        {
+            Debug.LogWarning("No ErrorText or InfoText assigned for error messages!");
+        }
+    }
+    
+    /// <summary>
+    /// Hide error message after specified delay
+    /// </summary>
+    private System.Collections.IEnumerator HideErrorAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        if (errorText != null)
+        {
+            errorText.gameObject.SetActive(false);
+            Debug.Log("Error message hidden.");
+        }
+    }
+    
+    /// <summary>
+    /// Manually hide error message (e.g., when player plants seeds)
+    /// </summary>
+    private void HideErrorMessage()
+    {
+        if (errorText != null)
+        {
+            errorText.gameObject.SetActive(false);
+        }
     }
 }

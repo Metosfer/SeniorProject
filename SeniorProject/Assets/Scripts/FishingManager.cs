@@ -16,6 +16,8 @@ public class FishingManager : MonoBehaviour
     public Text promptTextComponent; // UI Text için
     [Tooltip("3D dünyada gösterilecek TextMeshPro component referansı")]
     public TMPro.TextMeshPro promptTextMeshPro; // 3D TextMeshPro için
+    [Tooltip("Fish Feed yoksa gösterilecek uyarı text'i")]
+    public TMPro.TextMeshProUGUI noFeedWarningText; // Fish Feed uyarı mesajı için
     [Tooltip("Balık bekleme mesajı için TextMeshPro component'i (Waiting to catch fish..)")]
     public TMPro.TextMeshProUGUI waitingText; // Balık bekleme mesajı için
     [Tooltip("Panel içindeki balığın Transform component'i (hareket için)")]
@@ -167,6 +169,10 @@ public class FishingManager : MonoBehaviour
         if (fishingPanel != null)
             fishingPanel.SetActive(false);
             
+        // Fish Feed uyarı text'ini gizle
+        if (noFeedWarningText != null)
+            noFeedWarningText.gameObject.SetActive(false);
+            
         // Auto-find player transform if not assigned
         if (playerTransform == null)
         {
@@ -290,8 +296,8 @@ public class FishingManager : MonoBehaviour
             }
             else
             {
-                // Show message that Fish Feed is required
-                UpdateStatusText("Need Fish Feed to fish!", Color.red);
+                // Fish Feed uyarısını göster
+                ShowNoFeedWarning();
                 Debug.Log("Fish Feed required to start fishing!");
             }
         }
@@ -1266,6 +1272,10 @@ public class FishingManager : MonoBehaviour
         {
             currentFeedUsed = feedItem; // Kullanılan yemin referansını kaydet
             inv.RemoveItem(feedItem, 1);
+            
+            // Fish Feed uyarısını gizle (eğer görünüyorsa)
+            HideNoFeedWarning();
+            
             Debug.Log($"Fish Feed consumed for fishing! Feed Value: {feedItem.feedValue}");
         }
         else
@@ -1595,5 +1605,50 @@ public class FishingManager : MonoBehaviour
         }
         
         panelImage.color = originalColor;
+    }
+
+    // -------- Fish Feed Warning System --------
+    
+    // Fish Feed yokken uyarı mesajını göster
+    private void ShowNoFeedWarning()
+    {
+        if (noFeedWarningText != null)
+        {
+            noFeedWarningText.gameObject.SetActive(true);
+            noFeedWarningText.text = "⚠️ You need Fish Feed to start fishing! ⚠️";
+            noFeedWarningText.color = Color.red;
+            
+            // 3 saniye sonra uyarıyı gizle
+            StartCoroutine(HideNoFeedWarningAfterDelay(3f));
+            
+            Debug.Log("Fish Feed uyarısı gösterildi!");
+        }
+        else
+        {
+            // Fallback: StatusText kullan
+            UpdateStatusText("Need Fish Feed to fish!", Color.red);
+            Debug.LogWarning("NoFeedWarningText atanmamış, StatusText kullanılıyor.");
+        }
+    }
+    
+    // Belirtilen süre sonra uyarı mesajını gizle
+    private System.Collections.IEnumerator HideNoFeedWarningAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        if (noFeedWarningText != null)
+        {
+            noFeedWarningText.gameObject.SetActive(false);
+            Debug.Log("Fish Feed uyarısı gizlendi.");
+        }
+    }
+    
+    // Manuel olarak uyarıyı gizle (örn: oyuncu feed bulduğunda)
+    private void HideNoFeedWarning()
+    {
+        if (noFeedWarningText != null)
+        {
+            noFeedWarningText.gameObject.SetActive(false);
+        }
     }
 }
