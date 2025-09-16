@@ -1621,27 +1621,27 @@ PrefabInstance:
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -19.82
+      value: 4.44
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 6.9449997
+      value: 2.577
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 17.625801
+      value: -8.304197
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.9659259
+      value: 0.9659258
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.258819
+      value: 0.25881907
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
@@ -33419,7 +33419,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: deddasdasdas
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 4e6c3ed5ec304cd40b2fe3233de476c3, type: 2}
   m_sharedMaterial: {fileID: -650660883887620501, guid: 4e6c3ed5ec304cd40b2fe3233de476c3,
@@ -33447,7 +33447,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 54.95
+  m_fontSize: 36
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -50139,6 +50139,20 @@ MonoBehaviour:
   showDetailedStatus: 1
   countdownTextPrefab: {fileID: 1776769857}
   countdownOffset: {x: 0, y: 0.25, z: 0}
+  statusIconPrefab: {fileID: 2876334312284078876, guid: 43d042856b99b4c7f8b9b61b362062b4,
+    type: 3}
+  iconOffset: {x: 0, y: 0.41, z: 0}
+  iconScale: 0.1
+  iconImageSize: {x: 8, y: 8}
+  iconSortingOrder: 10
+  iconUseWorldSize: 1
+  iconWorldSize: {x: 0.5, y: 0.5}
+  showIconGizmos: 1
+  iconGrowingTime: {fileID: 21300000, guid: 237f39bd6835e4c6b94d931e7ca419e7, type: 3}
+  iconWaitingWater: {fileID: 21300000, guid: 375fc87c630044a6294d0a8fe8e17f63, type: 3}
+  iconReady: {fileID: 21300000, guid: 5bbd866769c48469481f9695160f94b1, type: 3}
+  iconEmpty: {fileID: 21300000, guid: 66f538f3098a746ff817aa50d6114c93, type: 3}
+  iconUnprepared: {fileID: 21300000, guid: a70dab48f3fcb4f608b1f6b66dff40fa, type: 3}
   defaultGrowthTime: 50
   useItemGrowthTimeIfAvailable: 1
   maxBoostPerRun: 30
@@ -50151,8 +50165,22 @@ MonoBehaviour:
   prepareKey: 101
   prepareRange: 2.5
   preparePromptUI: {fileID: 0}
-  useWateringAwareStatus: 1
+  useWateringAwareStatus: 0
   statusFormatWatering: 'Ready: {0} | Growing: {1} | Waiting: {2} | Empty: {3}'
+  showStatusTexts: 0
+  showCountdownTexts: 1
+  countdownAboveIcon: 1
+  countdownIconMargin: 0.05
+  countdownExtraOffset: {x: 0, y: 0.2, z: 0}
+  timeIconHideThreshold: 1
+  enableIconAnimations: 0
+  hoverGlowMultiplier: 1.2
+  tiltSpeed: 0.621
+  tiltAngle: 1
+  fadeAnimationDuration: 0.5
+  bobHeight: 0.001
+  bobSpeed: 1.5
+  pulseGlowIntensity: 0.3
   saveId: 10
 --- !u!1 &4638125016776532474
 GameObject:
@@ -50807,17 +50835,17 @@ PrefabInstance:
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -19.82
-      objectReference: {fileID: 0}
-    - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
-        type: 3}
-      propertyPath: m_LocalPosition.y
       value: 4.44
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.072
+      objectReference: {fileID: 0}
+    - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
       propertyPath: m_LocalPosition.z
-      value: 20.96
+      value: -4.97
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
@@ -51432,6 +51460,31 @@ PrefabInstance:
       propertyPath: fillPromptUI
       value: 
       objectReference: {fileID: 894328407}
+    - target: {fileID: 790396494216003971, guid: 3327948242bb49748b21c08851939346,
+        type: 3}
+      propertyPath: contextMenuWidth
+      value: 350
+      objectReference: {fileID: 0}
+    - target: {fileID: 790396494216003971, guid: 3327948242bb49748b21c08851939346,
+        type: 3}
+      propertyPath: contextMenuHeight
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 790396494216003971, guid: 3327948242bb49748b21c08851939346,
+        type: 3}
+      propertyPath: contextMenuPadding
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 790396494216003971, guid: 3327948242bb49748b21c08851939346,
+        type: 3}
+      propertyPath: contextMenuFontSize
+      value: 26
+      objectReference: {fileID: 0}
+    - target: {fileID: 790396494216003971, guid: 3327948242bb49748b21c08851939346,
+        type: 3}
+      propertyPath: contextMenuButtonHeight
+      value: 52
+      objectReference: {fileID: 0}
     - target: {fileID: 1359247429246078569, guid: 3327948242bb49748b21c08851939346,
         type: 3}
       propertyPath: m_Name

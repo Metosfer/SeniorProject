@@ -55,6 +55,33 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Tooltip("Offset from the plot center for the countdown text.")]
     public Vector3 countdownOffset = new Vector3(0f, 0.25f, 0f);
 
+    [Header("Status Icons (Optional)")]
+    [Tooltip("World-space icon prefab. Should contain a SpriteRenderer or a Canvas->Image.")]
+    public GameObject statusIconPrefab;
+    [Tooltip("Icon offset from plot center (world-space).")]
+    public Vector3 iconOffset = new Vector3(0f, 0.45f, 0f);
+    [Tooltip("Icon local scale.")]
+    public float iconScale = 0.6f;
+    [Tooltip("Optional reference Image size (width,height) for UI-based icon prefab")] public Vector2 iconImageSize = new Vector2(64, 64);
+    [Tooltip("Optional sorting order for SpriteRenderer-based icon")] public int iconSortingOrder = 10;
+    [Tooltip("If true, SpriteRenderer icons will be scaled to this world size (meters)")]
+    public bool iconUseWorldSize = true;
+    [Tooltip("Target world size (width,height in meters) for SpriteRenderer icons when iconUseWorldSize is true")] 
+    public Vector2 iconWorldSize = new Vector2(0.3f, 0.3f);
+    [Tooltip("Draw gizmos for icon target area at each plot (editor only)")] 
+    public bool showIconGizmos = true;
+    [Space(4)]
+    [Tooltip("Sprite for time icon (shown while growing, countdown running)")]
+    public Sprite iconGrowingTime;
+    [Tooltip("Sprite for water/drip icon (shown while waiting for watering)")]
+    public Sprite iconWaitingWater;
+    [Tooltip("Sprite for ready/harvestable (optional)")]
+    public Sprite iconReady;
+    [Tooltip("Sprite for empty prepared plot (optional)")]
+    public Sprite iconEmpty;
+    [Tooltip("Sprite for unprepared plot (optional)")]
+    public Sprite iconUnprepared;
+
     [Header("Growth Settings")]
     [Tooltip("Default growth time (s) if SCItem has no growthTime.")]
     public float defaultGrowthTime = 10f;
@@ -90,6 +117,47 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Tooltip("Detailed status format when watering is used: {0}=ready, {1}=growing, {2}=waiting, {3}=empty")]
     public string statusFormatWatering = "Ready: {0} | Growing: {1} | Waiting: {2} | Empty: {3}";
 
+    [Header("Visibility Options")]
+    [Tooltip("Show top-level status texts (TMP/UI). When off, statusTMP/statusTextUI will be cleared and not updated.")]
+    public bool showStatusTexts = true;
+    [Tooltip("Show per-plot countdown/waiting texts. When off, countdown instances won't be created or updated.")]
+    public bool showCountdownTexts = true;
+
+    [Header("Countdown Settings")]
+    [Tooltip("Place countdown text above the icon (true) or below (false)")]
+    public bool countdownAboveIcon = true;
+    [Tooltip("Extra margin from icon top/bottom in meters to avoid overlap")]
+    public float countdownIconMargin = 0.05f;
+    [Tooltip("Additional world offset to fine tune countdown position (applied after icon offset and margin)")]
+    public Vector3 countdownExtraOffset = Vector3.zero;
+    [Tooltip("When remaining time goes below this (seconds), hide the TIME (growing) icon to indicate imminent finish")]
+    public float timeIconHideThreshold = 1.0f;
+
+    [Header("Icon Animation Settings")]
+    [Tooltip("Enable icon animations (hover, tilt, fade effects)")]
+    public bool enableIconAnimations = true;
+    [Tooltip("Icon hover glow intensity - renk parlaklığı")]
+    [Range(1.0f, 2.0f)]
+    public float hoverGlowMultiplier = 1.2f;
+    [Tooltip("Icon tilt animation speed")]
+    [Range(0.5f, 3.0f)]
+    public float tiltSpeed = 1.5f;
+    [Tooltip("Icon tilt angle range in degrees - küçük açı")]
+    [Range(1.0f, 8.0f)]
+    public float tiltAngle = 3.0f;
+    [Tooltip("Icon fade animation duration")]
+    [Range(0.5f, 2.0f)]
+    public float fadeAnimationDuration = 1.0f;
+    [Tooltip("Icon bob animation height - çok küçük hareket")]
+    [Range(0.001f, 0.01f)]
+    public float bobHeight = 0.003f;
+    [Tooltip("Icon bob animation speed")]
+    [Range(1.0f, 4.0f)]
+    public float bobSpeed = 2.0f;
+    [Tooltip("Pulse glow intensity for growing icons - renk nabzı")]
+    [Range(0.1f, 0.5f)]
+    public float pulseGlowIntensity = 0.3f;
+
     [Header("Save")]
     [Tooltip("Persistent ID for save/load. Set a unique value if you have multiple farming areas.")]
     public string saveId;
@@ -121,7 +189,17 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     {
     SyncPlotStatesWithPoints();
     TryAutoAssignSoilPlaceRoots();
+        // At startup, instantiate a StatusIcon at each plot so prefab's default (e.g., Unprepared) sprite is visible immediately
+        for (int i = 0; i < _plots.Count; i++) EnsureIconInstanceAt(i);
         UpdateStatusText();
+        // If countdown texts are disabled, ensure no lingering instances
+        if (!showCountdownTexts)
+        {
+            for (int i = 0; i < _plots.Count; i++)
+            {
+                DestroyCountdown(i);
+            }
+        }
         // Ensure prompts/VFX start disabled to avoid lingering after load
         if (wateringPromptUI != null && wateringPromptUI.activeSelf)
             wateringPromptUI.SetActive(false);
@@ -134,6 +212,17 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     {
     SyncPlotStatesWithPoints();
     TryAutoAssignSoilPlaceRoots();
+        // Keep view consistent in editor when toggling visibility
+        if (!Application.isPlaying)
+        {
+            if (!showCountdownTexts)
+            {
+                for (int i = 0; i < _plots.Count; i++) DestroyCountdown(i);
+            }
+            UpdateStatusText();
+            // Do NOT instantiate icons in edit mode to avoid persisting StatusIcon objects
+            // Icons will be created at runtime in Awake/when state changes
+        }
     }
 
     private void Update()
@@ -150,6 +239,24 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     UpdateWateringPromptAndHandleInput();
     // Preparation prompt + input handling (integrates with HarrowManager)
     UpdatePreparePromptAndHandleInput();
+
+        // If countdowns are disabled at runtime, proactively clear any existing instances
+        if (!showCountdownTexts)
+        {
+            for (int i = 0; i < _plots.Count; i++)
+            {
+                if (_plots[i] != null && _plots[i].countdownInstance != null)
+                {
+                    DestroyCountdown(i);
+                }
+            }
+        }
+
+        // Handle icon hover effects
+        if (enableIconAnimations)
+        {
+            HandleIconHoverEffects();
+        }
     }
 
     // Rhythm Game integration: apply a time reduction boost to seeds
@@ -399,6 +506,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
     // Show per-plot "Waiting" text; do not start countdown until watered
     CreateOrUpdateCountdown(plotIndex, startTimer: false, customText: "Waiting");
+    // Update icon to Waiting (water)
+    CreateOrUpdateIcon(plotIndex);
         UpdateStatusText();
         return true;
     }
@@ -412,6 +521,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
     // Clear countdown (will be destroyed just before spawning to avoid residuals)
     DestroyCountdown(plotIndex);
+    // Update icon to Ready
+    CreateOrUpdateIcon(plotIndex);
 
         // Remove marker (growth completed)
         if (state.seedMarkerInstance != null)
@@ -506,6 +617,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     // After harvesting, require re-preparation
     state.isPrepared = false;
         UpdateSoilPlaceVisual(plotIndex);
+    // Update icon to Unprepared
+    CreateOrUpdateIcon(plotIndex);
     UpdateStatusText();
     }
 
@@ -606,6 +719,10 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         public GameObject countdownInstance;
         public TMP_Text countdownTMP;
         public Text countdownText;
+    public GameObject iconInstance;
+    public SpriteRenderer iconRenderer; // if prefab has SpriteRenderer
+    public Image iconImage; // if prefab has UI Image
+    public Coroutine animationCoroutine; // for running icon animations
 
         public void Reset()
         {
@@ -633,6 +750,54 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             }
             countdownTMP = null;
             countdownText = null;
+            if (iconInstance != null)
+            {
+                Destroy(iconInstance);
+                iconInstance = null;
+            }
+            iconRenderer = null;
+            iconImage = null;
+            if (animationCoroutine != null)
+            {
+                // Note: StopCoroutine needs the MonoBehaviour reference, handled in manager
+                animationCoroutine = null;
+            }
+            growthRoutine = null;
+            growthEndTime = 0f;
+        }
+
+        public void ResetWithoutDestroyingIcon()
+        {
+            // Reset state but preserve iconInstance to avoid destroying freshly spawned icons
+            isOccupied = false;
+            requiresWater = false;
+            isGrowing = false;
+            isReady = false;
+            plannedGrowthTime = 0f;
+            currentSeed = null;
+            if (seedMarkerInstance != null)
+            {
+                Destroy(seedMarkerInstance);
+                seedMarkerInstance = null;
+            }
+            if (grownInstance != null)
+            {
+                Destroy(grownInstance);
+                grownInstance = null;
+            }
+            if (countdownInstance != null)
+            {
+                Destroy(countdownInstance);
+                countdownInstance = null;
+            }
+            countdownTMP = null;
+            countdownText = null;
+            // Keep iconInstance, iconRenderer, iconImage intact
+            if (animationCoroutine != null)
+            {
+                // Note: StopCoroutine needs the MonoBehaviour reference, handled in manager
+                animationCoroutine = null;
+            }
             growthRoutine = null;
             growthEndTime = 0f;
         }
@@ -684,6 +849,12 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
     private void UpdateStatusText()
     {
+        if (!showStatusTexts)
+        {
+            if (statusTMP != null) statusTMP.text = string.Empty;
+            if (statusTextUI != null) statusTextUI.text = string.Empty;
+            return;
+        }
         int total = plotPoints != null ? plotPoints.Count : 0;
         int ready = CountReady();
         if (useWateringAwareStatus && showDetailedStatus)
@@ -771,33 +942,59 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 #endif
             Gizmos.color = new Color(c.r, c.g, c.b, 0.5f);
             Gizmos.DrawLine(transform.position, p.position);
+
+            // Draw icon gizmo rectangle to preview icon target world size/offset
+            if (showIconGizmos)
+            {
+                Vector3 center = p.position + spawnOffset + iconOffset;
+                Vector3 right = Vector3.right * (iconWorldSize.x * 0.5f);
+                Vector3 up = Vector3.up * (iconWorldSize.y * 0.5f);
+                Vector3 a = center - right - up;
+                Vector3 b = center + right - up;
+                Vector3 d = center - right + up;
+                Vector3 e = center + right + up;
+                Color rc = new Color(0.2f, 0.6f, 1f, 0.7f);
+                Gizmos.color = rc;
+                Gizmos.DrawLine(a, b);
+                Gizmos.DrawLine(b, e);
+                Gizmos.DrawLine(e, d);
+                Gizmos.DrawLine(d, a);
+                // cross
+                Gizmos.DrawLine(a, e);
+                Gizmos.DrawLine(b, d);
+            }
         }
     }
 
     // ------- Countdown helpers -------
     private void CreateOrUpdateCountdown(int plotIndex, bool startTimer = true, string customText = null)
     {
+        if (!showCountdownTexts) return;
         if (countdownTextPrefab == null || plotIndex < 0 || plotIndex >= plotPoints.Count) return;
         var state = _plots[plotIndex];
         var point = plotPoints[plotIndex];
         if (state == null || point == null) return;
 
-        if (state.countdownInstance == null)
+        // Only show countdown while actually growing; ignore 'Waiting' text requests
+        bool shouldShow = state.isGrowing && !state.isReady && state.isOccupied;
+        if (!shouldShow)
         {
-            state.countdownInstance = Instantiate(countdownTextPrefab, point.position + spawnOffset + countdownOffset, countdownTextPrefab.transform.rotation);
-            state.countdownTMP = state.countdownInstance.GetComponentInChildren<TMP_Text>();
-            state.countdownText = state.countdownInstance.GetComponentInChildren<Text>();
+            DestroyCountdown(plotIndex);
+            return;
         }
 
-        if (!string.IsNullOrEmpty(customText))
+        if (state.countdownInstance == null)
         {
-            if (state.countdownTMP != null) state.countdownTMP.text = customText;
-            if (state.countdownText != null) state.countdownText.text = customText;
+            Vector3 pos = ComputeCountdownWorldPosition(point);
+            state.countdownInstance = Instantiate(countdownTextPrefab, pos, countdownTextPrefab.transform.rotation);
+            state.countdownTMP = state.countdownInstance.GetComponentInChildren<TMP_Text>();
+            state.countdownText = state.countdownInstance.GetComponentInChildren<Text>();
+            // Parent to plot so it follows
+            state.countdownInstance.transform.SetParent(point, worldPositionStays: true);
         }
-        else
-        {
-            UpdateCountdownText(plotIndex);
-        }
+
+        // Always update remaining time text when visible
+        UpdateCountdownText(plotIndex);
 
         if (startTimer)
         {
@@ -805,36 +1002,522 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
     }
 
-    private IEnumerator CountdownRoutine(int plotIndex)
+    // ------- Icon helpers -------
+    private void CreateOrUpdateIcon(int plotIndex)
     {
-        while (plotIndex >= 0 && plotIndex < _plots.Count)
+        if (plotIndex < 0 || plotIndex >= plotPoints.Count) return;
+        var state = _plots[plotIndex];
+        var point = plotPoints[plotIndex];
+        if (state == null || point == null) return;
+
+        // Decide which sprite to show (explicit state mapping)
+        Sprite desiredSprite = null;
+        bool hideForTimeThreshold = false; // when true, renderer is disabled but instance is kept
+        if (!state.isOccupied)
         {
-            var s = _plots[plotIndex];
-            if (s == null || s.isReady || !s.isOccupied || !s.isGrowing) break;
-            UpdateCountdownText(plotIndex);
-            if (Time.time >= s.growthEndTime) break;
-            yield return new WaitForSeconds(0.25f);
+            desiredSprite = state.isPrepared ? iconEmpty : iconUnprepared;
         }
-        UpdateCountdownText(plotIndex);
+        else if (state.isReady)
+        {
+            desiredSprite = iconReady;
+        }
+        else if (state.isGrowing)
+        {
+            float remaining = Mathf.Max(0f, state.growthEndTime - Time.time);
+            if (remaining < timeIconHideThreshold)
+                hideForTimeThreshold = true;
+            else
+                desiredSprite = iconGrowingTime;
+        }
+        else if (state.requiresWater)
+        {
+            desiredSprite = iconWaitingWater;
+        }
+
+        // Ensure instance exists (reuse existing child, else prefab, else simple holder)
+        if (state.iconInstance == null)
+        {
+            var existing = FindExistingIconUnder(point);
+            if (existing != null)
+            {
+                state.iconInstance = existing.gameObject;
+                state.iconRenderer = state.iconInstance.GetComponentInChildren<SpriteRenderer>();
+                state.iconImage = state.iconInstance.GetComponentInChildren<Image>();
+            }
+            if (state.iconInstance == null)
+            {
+                if (statusIconPrefab != null)
+                {
+                    state.iconInstance = Instantiate(statusIconPrefab, point.position + spawnOffset + iconOffset, statusIconPrefab.transform.rotation);
+                }
+                else
+                {
+                    state.iconInstance = new GameObject("StatusIcon");
+                    state.iconInstance.transform.position = point.position + spawnOffset + iconOffset;
+                    state.iconRenderer = state.iconInstance.AddComponent<SpriteRenderer>();
+                }
+                state.iconInstance.transform.SetParent(point, worldPositionStays: true);
+                state.iconInstance.transform.localRotation = Quaternion.identity;
+                state.iconInstance.transform.localScale = new Vector3(0.02269967f, 1.861643f, 0.03621873f);
+                if (state.iconRenderer == null)
+                {
+                    state.iconRenderer = state.iconInstance.GetComponentInChildren<SpriteRenderer>();
+                    if (state.iconRenderer != null) state.iconRenderer.sortingOrder = iconSortingOrder;
+                }
+                if (state.iconImage == null)
+                {
+                    state.iconImage = state.iconInstance.GetComponentInChildren<Image>();
+                    if (state.iconImage != null)
+                    {
+                        var rt = state.iconImage.rectTransform;
+                        rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, iconImageSize.x);
+                        rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, iconImageSize.y);
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Update transform to follow plot
+            state.iconInstance.transform.position = point.position + spawnOffset + iconOffset;
+            state.iconInstance.transform.localRotation = Quaternion.identity;
+        }
+
+        // Apply sprite and visibility without destroying the instance
+        if (state.iconRenderer != null)
+        {
+            state.iconRenderer.sortingOrder = iconSortingOrder;
+            state.iconRenderer.enabled = !hideForTimeThreshold;
+            if (desiredSprite != null)
+            {
+                state.iconRenderer.sprite = desiredSprite;
+            }
+            // Maintain fixed scale
+            state.iconInstance.transform.localScale = new Vector3(0.02269967f, 1.861643f, 0.03621873f);
+        }
+        if (state.iconImage != null)
+        {
+            state.iconImage.enabled = !hideForTimeThreshold;
+            if (desiredSprite != null)
+            {
+                state.iconImage.sprite = desiredSprite;
+            }
+            var rt = state.iconImage.rectTransform;
+            rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, iconImageSize.x);
+            rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, iconImageSize.y);
+            state.iconInstance.transform.localRotation = Quaternion.identity;
+            state.iconInstance.transform.localScale = new Vector3(0.02269967f, 1.861643f, 0.03621873f);
+        }
+
+        // Start appropriate animation based on state
+        if (enableIconAnimations)
+        {
+            StartIconAnimation(plotIndex, state, desiredSprite, hideForTimeThreshold);
+        }
     }
 
-    private void UpdateCountdownText(int plotIndex)
+    // Finds an existing icon object under the plot point to avoid duplicate instantiation.
+    // Looks for a child named "StatusIcon" or an immediate child containing a SpriteRenderer/Image likely representing the icon.
+    private Transform FindExistingIconUnder(Transform plotPoint)
+    {
+        if (plotPoint == null) return null;
+        // Prefer a direct child named StatusIcon
+        for (int i = 0; i < plotPoint.childCount; i++)
+        {
+            var ch = plotPoint.GetChild(i);
+            if (ch == null) continue;
+            if (string.Equals(ch.name, "StatusIcon", StringComparison.OrdinalIgnoreCase)) return ch;
+        }
+        // Fallback: any child with SpriteRenderer or Image and name hint
+        for (int i = 0; i < plotPoint.childCount; i++)
+        {
+            var ch = plotPoint.GetChild(i);
+            if (ch == null) continue;
+            bool hasVisual = ch.GetComponentInChildren<SpriteRenderer>() != null || ch.GetComponentInChildren<Image>() != null;
+            if (!hasVisual) continue;
+            if (ch.name.IndexOf("icon", StringComparison.OrdinalIgnoreCase) >= 0 || ch.name.IndexOf("status", StringComparison.OrdinalIgnoreCase) >= 0)
+                return ch;
+        }
+        return null;
+    }
+
+    // ------- Icon Animation System -------
+    private void StartIconAnimation(int plotIndex, PlotState state, Sprite currentSprite, bool isHidden)
+    {
+        if (!enableIconAnimations || state.iconInstance == null) return;
+        
+        // Stop any existing animation
+        StopIconAnimation(plotIndex);
+        
+        // Determine animation type based on state
+        IconAnimationType animType = GetAnimationTypeForState(state, currentSprite, isHidden);
+        
+        // Start appropriate animation coroutine
+        state.animationCoroutine = StartCoroutine(IconAnimationCoroutine(plotIndex, animType));
+    }
+
+    private void StopIconAnimation(int plotIndex)
+    {
+        if (plotIndex < 0 || plotIndex >= _plots.Count) return;
+        var state = _plots[plotIndex];
+        if (state?.animationCoroutine != null)
+        {
+            StopCoroutine(state.animationCoroutine);
+            state.animationCoroutine = null;
+        }
+    }
+
+    private IconAnimationType GetAnimationTypeForState(PlotState state, Sprite currentSprite, bool isHidden)
+    {
+        if (isHidden) return IconAnimationType.FadeOut;
+        
+        if (!state.isOccupied)
+        {
+            return state.isPrepared ? IconAnimationType.Idle : IconAnimationType.TiltSlow;
+        }
+        else if (state.isReady)
+        {
+            return IconAnimationType.Pulse;
+        }
+        else if (state.isGrowing)
+        {
+            return IconAnimationType.Bob;
+        }
+        else if (state.requiresWater)
+        {
+            return IconAnimationType.TiltFast;
+        }
+        
+        return IconAnimationType.Idle;
+    }
+
+    private Vector3 GetIconBaseScale()
+    {
+        // İkonların hassas scale değerleri - bu değerler kritik!
+        return new Vector3(0.02269967f, 1.861643f, 0.03621873f);
+    }
+
+    private enum IconAnimationType
+    {
+        Idle,
+        TiltSlow,
+        TiltFast,
+        Bob,
+        Pulse,
+        FadeOut,
+        FadeIn
+    }
+
+    private IEnumerator IconAnimationCoroutine(int plotIndex, IconAnimationType animType)
+    {
+        if (plotIndex < 0 || plotIndex >= _plots.Count) yield break;
+        var state = _plots[plotIndex];
+        if (state?.iconInstance == null) yield break;
+
+        Transform iconTransform = state.iconInstance.transform;
+        Vector3 basePosition = iconTransform.position;
+        Vector3 baseScale = GetIconBaseScale();
+        Color baseColor = Color.white;
+        
+        // Get initial renderer color
+        if (state.iconRenderer != null) baseColor = state.iconRenderer.color;
+        else if (state.iconImage != null) baseColor = state.iconImage.color;
+
+        float timer = 0f;
+        bool isRunning = true;
+
+        while (isRunning && state.iconInstance != null)
+        {
+            timer += Time.deltaTime;
+
+            switch (animType)
+            {
+                case IconAnimationType.TiltSlow:
+                    {
+                        float angle = Mathf.Sin(timer * tiltSpeed * 0.5f) * tiltAngle * 0.5f;
+                        iconTransform.localRotation = Quaternion.Euler(0, 0, angle);
+                    }
+                    break;
+
+                case IconAnimationType.TiltFast:
+                    {
+                        float angle = Mathf.Sin(timer * tiltSpeed * 2f) * tiltAngle;
+                        iconTransform.localRotation = Quaternion.Euler(0, 0, angle);
+                    }
+                    break;
+
+                case IconAnimationType.Bob:
+                    {
+                        float yOffset = Mathf.Sin(timer * bobSpeed) * bobHeight;
+                        iconTransform.position = basePosition + Vector3.up * yOffset;
+                        
+                        // Renk ile nabız efekti - scale değil
+                        float colorPulse = 1f + Mathf.Sin(timer * bobSpeed * 0.7f) * pulseGlowIntensity * 0.3f;
+                        Color pulseColor = baseColor * colorPulse;
+                        pulseColor.a = baseColor.a;
+                        
+                        if (state.iconRenderer != null) state.iconRenderer.color = pulseColor;
+                        if (state.iconImage != null) state.iconImage.color = pulseColor;
+                    }
+                    break;
+
+                case IconAnimationType.Pulse:
+                    {
+                        // Sadece renk nabzı - scale yok
+                        float colorPulse = 1f + Mathf.Sin(timer * bobSpeed * 1.5f) * pulseGlowIntensity;
+                        Color pulseColor = baseColor * colorPulse;
+                        pulseColor.a = baseColor.a;
+                        
+                        if (state.iconRenderer != null) state.iconRenderer.color = pulseColor;
+                        if (state.iconImage != null) state.iconImage.color = pulseColor;
+                    }
+                    break;
+
+                case IconAnimationType.FadeOut:
+                    {
+                        float fadeProgress = Mathf.Min(1f, timer / fadeAnimationDuration);
+                        float alpha = Mathf.Lerp(1f, 0f, fadeProgress);
+                        
+                        Color fadeColor = baseColor;
+                        fadeColor.a = alpha;
+                        
+                        if (state.iconRenderer != null) state.iconRenderer.color = fadeColor;
+                        if (state.iconImage != null) state.iconImage.color = fadeColor;
+                        
+                        if (fadeProgress >= 1f) isRunning = false;
+                    }
+                    break;
+
+                case IconAnimationType.FadeIn:
+                    {
+                        float fadeProgress = Mathf.Min(1f, timer / fadeAnimationDuration);
+                        float alpha = Mathf.Lerp(0f, 1f, fadeProgress);
+                        
+                        Color fadeColor = baseColor;
+                        fadeColor.a = alpha;
+                        
+                        if (state.iconRenderer != null) state.iconRenderer.color = fadeColor;
+                        if (state.iconImage != null) state.iconImage.color = fadeColor;
+                        
+                        if (fadeProgress >= 1f)
+                        {
+                            // Switch to appropriate idle animation
+                            var newAnimType = GetAnimationTypeForState(state, null, false);
+                            if (newAnimType != IconAnimationType.FadeIn)
+                            {
+                                state.animationCoroutine = StartCoroutine(IconAnimationCoroutine(plotIndex, newAnimType));
+                                yield break;
+                            }
+                        }
+                    }
+                    break;
+
+                case IconAnimationType.Idle:
+                default:
+                    {
+                        // Çok ince pozisyon titreşimi - scale değil
+                        float breatheX = Mathf.Sin(timer * 0.8f) * 0.0001f; // Çok küçük x hareketi
+                        float breatheY = Mathf.Sin(timer * 1.1f) * 0.0001f; // Çok küçük y hareketi
+                        iconTransform.position = basePosition + new Vector3(breatheX, breatheY, 0);
+                    }
+                    break;
+            }
+
+            yield return null;
+        }
+
+        // Reset to default state when animation ends - scale değiştirilmez
+        if (state.iconInstance != null)
+        {
+            iconTransform.localRotation = Quaternion.identity;
+            iconTransform.position = basePosition; // Sadece pozisyon reset
+            
+            if (state.iconRenderer != null) state.iconRenderer.color = baseColor;
+            if (state.iconImage != null) state.iconImage.color = baseColor;
+        }
+    }
+
+    private void HandleIconHoverEffects()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        // Check mouse hover over icons
+        Vector3 mousePos = Input.mousePosition;
+        Ray ray = cam.ScreenPointToRay(mousePos);
+        
+        for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
+        {
+            var state = _plots[i];
+            var point = plotPoints[i];
+            if (state?.iconInstance == null || point == null) continue;
+
+            // Simple distance-based hover detection
+            Vector3 iconScreenPos = cam.WorldToScreenPoint(state.iconInstance.transform.position);
+            float distance = Vector2.Distance(new Vector2(mousePos.x, mousePos.y), new Vector2(iconScreenPos.x, iconScreenPos.y));
+            
+            bool isHovering = distance < 50f; // 50 pixel radius
+            
+            // Apply hover glow effect - scale değil
+            if (isHovering)
+            {
+                // Renk parlaklığı arttır
+                Color targetColor = Color.white * hoverGlowMultiplier;
+                targetColor.a = 1f;
+                
+                Color currentColor = Color.white;
+                if (state.iconRenderer != null) currentColor = state.iconRenderer.color;
+                else if (state.iconImage != null) currentColor = state.iconImage.color;
+                
+                Color newColor = Color.Lerp(currentColor, targetColor, Time.deltaTime * 5f);
+                
+                if (state.iconRenderer != null) state.iconRenderer.color = newColor;
+                if (state.iconImage != null) state.iconImage.color = newColor;
+            }
+            else
+            {
+                // Normal renge dön
+                Color currentColor = Color.white;
+                if (state.iconRenderer != null) currentColor = state.iconRenderer.color;
+                else if (state.iconImage != null) currentColor = state.iconImage.color;
+                
+                Color newColor = Color.Lerp(currentColor, Color.white, Time.deltaTime * 5f);
+                
+                if (state.iconRenderer != null) state.iconRenderer.color = newColor;
+                if (state.iconImage != null) state.iconImage.color = newColor;
+            }
+        }
+    }
+
+    // Compute countdown position so it doesn't overlap with the icon.
+    // Uses iconWorldSize height if world-size is used; otherwise estimate from iconScale.
+    private Vector3 ComputeCountdownWorldPosition(Transform plotPoint)
+    {
+        Vector3 basePos = plotPoint.position + spawnOffset + iconOffset;
+        float halfHeight;
+        if (iconUseWorldSize)
+        {
+            halfHeight = Mathf.Max(0.0f, iconWorldSize.y) * 0.5f;
+        }
+        else
+        {
+            // Rough fallback: map iconScale to world height guess
+            halfHeight = Mathf.Max(0.0f, iconScale) * 0.5f;
+        }
+        float dir = countdownAboveIcon ? 1f : -1f;
+        Vector3 offset = Vector3.up * (dir * (halfHeight + Mathf.Max(0f, countdownIconMargin)));
+        return basePos + offset + countdownExtraOffset;
+    }
+
+    private void DestroyIcon(int plotIndex)
     {
         if (plotIndex < 0 || plotIndex >= _plots.Count) return;
         var s = _plots[plotIndex];
         if (s == null) return;
-        string msg;
-        if (!s.isGrowing && s.isOccupied && !s.isReady)
+        if (s.iconInstance != null)
         {
-            msg = "Waiting";
+            Destroy(s.iconInstance);
+            s.iconInstance = null;
+        }
+        s.iconRenderer = null;
+        s.iconImage = null;
+    }
+
+    // Ensure an icon instance exists at the given plot, instantiating the prefab if needed.
+    // This is primarily used at startup to show the prefab's default sprite (e.g., Unprepared).
+    private void EnsureIconInstanceAt(int plotIndex)
+    {
+        if (plotIndex < 0 || plotIndex >= plotPoints.Count) return;
+        var state = _plots[plotIndex];
+        var point = plotPoints[plotIndex];
+        if (state == null || point == null) return;
+        if (state.iconInstance != null) return;
+        // Prefer existing child under plot
+        var existing = FindExistingIconUnder(point);
+        if (existing != null)
+        {
+            state.iconInstance = existing.gameObject;
+            state.iconRenderer = state.iconInstance.GetComponentInChildren<SpriteRenderer>();
+            state.iconImage = state.iconInstance.GetComponentInChildren<Image>();
+        }
+        else if (statusIconPrefab != null)
+        {
+            state.iconInstance = Instantiate(statusIconPrefab, point.position + spawnOffset + iconOffset, statusIconPrefab.transform.rotation);
+            state.iconInstance.transform.SetParent(point, worldPositionStays: true);
+            state.iconInstance.transform.localRotation = Quaternion.identity;
+            state.iconInstance.transform.localScale = new Vector3(0.02269967f, 1.861643f, 0.03621873f);
+            state.iconRenderer = state.iconInstance.GetComponentInChildren<SpriteRenderer>();
+            state.iconImage = state.iconInstance.GetComponentInChildren<Image>();
+            if (state.iconRenderer != null) state.iconRenderer.sortingOrder = iconSortingOrder;
+            if (state.iconImage != null)
+            {
+                var rt = state.iconImage.rectTransform;
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, iconImageSize.x);
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, iconImageSize.y);
+            }
         }
         else
         {
-            float remaining = Mathf.Max(0f, s.growthEndTime - Time.time);
-            msg = FormatTime(remaining);
+            // As a last resort, create a simple holder with SpriteRenderer (no sprite assigned yet)
+            state.iconInstance = new GameObject("StatusIcon");
+            state.iconInstance.transform.position = point.position + spawnOffset + iconOffset;
+            state.iconInstance.transform.SetParent(point, worldPositionStays: true);
+            state.iconInstance.transform.localRotation = Quaternion.identity;
+            state.iconInstance.transform.localScale = new Vector3(0.02269967f, 1.861643f, 0.03621873f);
+            state.iconRenderer = state.iconInstance.AddComponent<SpriteRenderer>();
+            state.iconRenderer.sortingOrder = iconSortingOrder;
         }
+    }
+
+    private IEnumerator CountdownRoutine(int plotIndex)
+    {
+        while (plotIndex >= 0 && plotIndex < _plots.Count)
+        {
+            if (!showCountdownTexts)
+            {
+                DestroyCountdown(plotIndex);
+                yield break;
+            }
+            var s = _plots[plotIndex];
+            if (s == null || s.isReady || !s.isOccupied || !s.isGrowing) break;
+            UpdateCountdownText(plotIndex);
+            // keep countdown anchored relative to icon
+            var point = plotPoints[plotIndex];
+            if (s.countdownInstance != null && point != null)
+            {
+                s.countdownInstance.transform.position = ComputeCountdownWorldPosition(point);
+            }
+            if (Time.time >= s.growthEndTime) break;
+            yield return new WaitForSeconds(0.25f);
+        }
+        if (showCountdownTexts)
+        {
+            // Final update clears or shows 0s; but immediately destroy since growth ended
+            DestroyCountdown(plotIndex);
+        }
+    }
+
+    private void UpdateCountdownText(int plotIndex)
+    {
+        if (!showCountdownTexts) return;
+        if (plotIndex < 0 || plotIndex >= _plots.Count) return;
+        var s = _plots[plotIndex];
+        if (s == null) return;
+        // Only show when growing; otherwise it should be hidden and destroyed
+        if (!(s.isGrowing && s.isOccupied && !s.isReady))
+        {
+            DestroyCountdown(plotIndex);
+            return;
+        }
+        float remaining = Mathf.Max(0f, s.growthEndTime - Time.time);
+        string msg = FormatTime(remaining);
         if (s.countdownTMP != null) s.countdownTMP.text = msg;
         if (s.countdownText != null) s.countdownText.text = msg;
+        // If we are near finish, refresh icon to hide time icon according to threshold
+        if (remaining < timeIconHideThreshold)
+        {
+            CreateOrUpdateIcon(plotIndex);
+        }
     }
 
     private void DestroyCountdown(int plotIndex)
@@ -899,7 +1582,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             var s = _plots[i];
             if (s == null) continue;
             if (s.growthRoutine != null) StopCoroutine(s.growthRoutine);
-            s.Reset();
+            // Reset but preserve iconInstance to avoid destroying freshly spawned icons
+            s.ResetWithoutDestroyingIcon();
         }
 
         for (int i = 0; i < count && i < _plots.Count; i++)
@@ -975,6 +1659,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                     Debug.LogWarning($"Ready plot {i} couldn't resolve grown prefab for seed '{seedName}'. Plot may appear empty.");
                 }
                 DestroyCountdown(i);
+                CreateOrUpdateIcon(i); // ready icon
                 // Ensure harvest monitoring for loaded ready plants
                 StartCoroutine(WatchForHarvest(i));
             }
@@ -984,6 +1669,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                 s.requiresWater = false;
                 s.growthEndTime = Time.time + Mathf.Max(0.01f, remaining);
                 CreateOrUpdateCountdown(i, startTimer: true);
+                CreateOrUpdateIcon(i); // growing icon
                 s.growthRoutine = StartCoroutine(GrowAndSpawn(i, remaining > 0f ? remaining : s.plannedGrowthTime));
                 // Show marker while growing
                 if (seedMarkerPrefab != null)
@@ -995,6 +1681,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                 s.requiresWater = true;
                 s.growthEndTime = 0f;
                 CreateOrUpdateCountdown(i, startTimer: false, customText: "Waiting");
+                CreateOrUpdateIcon(i); // waiting icon
                 // Show marker while waiting for water
                 if (seedMarkerPrefab != null)
                     s.seedMarkerInstance = Instantiate(seedMarkerPrefab, point.position + spawnOffset, seedMarkerPrefab.transform.rotation);
@@ -1468,6 +2155,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         // Optional small feedback: reuse marker if desired; keeping it simple for now
     UpdateSoilPlaceVisual(plotIndex);
     UpdateStatusText();
+        CreateOrUpdateIcon(plotIndex); // prepared/empty icon
         return true;
     }
 
@@ -1509,6 +2197,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             s.growthEndTime = Time.time + Mathf.Max(0.01f, s.plannedGrowthTime);
             // Update countdown UI and timer
             CreateOrUpdateCountdown(i, startTimer: true);
+            // Update icon to Growing
+            CreateOrUpdateIcon(i);
             s.growthRoutine = StartCoroutine(GrowAndSpawn(i, s.plannedGrowthTime));
             count++;
             startedThisPass++;
@@ -1527,6 +2217,8 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
                 ConsumeBucketWater(bucket);
             }
             UpdateStatusText();
+            // Refresh icons for all plots to reflect new states
+            for (int i = 0; i < _plots.Count; i++) CreateOrUpdateIcon(i);
         }
         return count;
     }
