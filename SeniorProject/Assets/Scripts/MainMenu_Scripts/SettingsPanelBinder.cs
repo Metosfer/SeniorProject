@@ -7,6 +7,8 @@ public class SettingsPanelBinder : MonoBehaviour
 {
     [Header("Audio")]
     public Slider volumeSlider;
+    public Slider musicVolumeSlider; // Müzik ses kontrolü için yeni slider
+    public Slider soundEffectsVolumeSlider; // Sound effects ses kontrolü için yeni slider
 
     [Header("Graphics")]
     public TMP_Dropdown graphicsDropdown;
@@ -56,6 +58,16 @@ public class SettingsPanelBinder : MonoBehaviour
         // Hook listeners
         if (volumeSlider != null)
             volumeSlider.onValueChanged.AddListener(v => sm.SetMasterVolume(v));
+        if (musicVolumeSlider != null)
+            musicVolumeSlider.onValueChanged.AddListener(v => {
+                sm.SetMusicVolume(v);
+                Debug.Log($"Music volume changed to: {v:F2}");
+            });
+        if (soundEffectsVolumeSlider != null)
+            soundEffectsVolumeSlider.onValueChanged.AddListener(v => {
+                sm.SetSoundEffectsVolume(v);
+                Debug.Log($"Sound effects volume changed to: {v:F2}");
+            });
         if (graphicsDropdown != null)
             graphicsDropdown.onValueChanged.AddListener(i => sm.SetGraphicsQuality(i));
         if (resolutionDropdown != null)
@@ -96,6 +108,10 @@ public class SettingsPanelBinder : MonoBehaviour
 
         if (volumeSlider != null && volumeSlider.value != s.masterVolume)
             volumeSlider.value = s.masterVolume;
+        if (musicVolumeSlider != null && Mathf.Abs(musicVolumeSlider.value - s.musicVolume) > 0.0001f)
+            musicVolumeSlider.value = s.musicVolume;
+        if (soundEffectsVolumeSlider != null && Mathf.Abs(soundEffectsVolumeSlider.value - s.soundEffectsVolume) > 0.0001f)
+            soundEffectsVolumeSlider.value = s.soundEffectsVolume;
         if (graphicsDropdown != null && graphicsDropdown.value != s.graphicsQuality)
             graphicsDropdown.value = s.graphicsQuality;
         if (resolutionDropdown != null && s.resolutionIndex >= 0 && resolutionDropdown.value != s.resolutionIndex)

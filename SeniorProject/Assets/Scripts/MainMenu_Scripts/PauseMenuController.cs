@@ -20,8 +20,11 @@ public partial class PauseMenuController : MonoBehaviour
     public Button quitButton;                   // "Quit" düğmesi
     public TextMeshProUGUI saveNotificationText;// Save bildirimi metni
     public GameObject settingsPanel;            // Settings paneli
-    public Slider volumeSlider;                 // Ses ayarı slider'ı
+    public Slider volumeSlider;                 // Master ses ayarı slider'ı
+    public Slider musicVolumeSlider;            // Müzik ses ayarı slider'ı
+    public Slider soundEffectsVolumeSlider;     // Sound effects ses ayarı slider'ı (footstep vs.)
     public Dropdown graphicsDropdown;           // Grafik ayarı dropdown'ı
+    public Button settingsBackButton;           // Settings panel geri butonu
     public Transform playerTransform;           // Oyuncu pozisyonu için referans
 
     private bool isPaused = false;              // Oyun duraklatıldı mı?
@@ -53,14 +56,22 @@ public partial class PauseMenuController : MonoBehaviour
         if (saveAndProceedButton != null) saveAndProceedButton.onClick.AddListener(OnSaveAndProceed);
         if (proceedWithoutSavingButton != null) proceedWithoutSavingButton.onClick.AddListener(OnProceedWithoutSaving);
         if (cancelButton != null) cancelButton.onClick.AddListener(OnCancel);
+        if (settingsBackButton != null) settingsBackButton.onClick.AddListener(CloseSettings);
 
         // Ayarları yükle
-        if (volumeSlider != null) volumeSlider.value = PlayerPrefs.GetFloat("Volume", 1f);
-        if (graphicsDropdown != null) graphicsDropdown.value = PlayerPrefs.GetInt("GraphicsQuality", 0);
+        LoadAudioSettings();
 
         // Ayar değişikliklerini dinle
-        if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(SetVolume);
+        if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(SetMasterVolume);
+        if (musicVolumeSlider != null) musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
+        if (soundEffectsVolumeSlider != null) soundEffectsVolumeSlider.onValueChanged.AddListener(SetSoundEffectsVolume);
         if (graphicsDropdown != null) graphicsDropdown.onValueChanged.AddListener(SetGraphicsQuality);
+        
+        // SettingsManager'dan ayar değişikliklerini dinle (real-time sync için)
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.OnSettingsChanged += OnSettingsChanged;
+        }
 
         // Sahne yüklendiğinde oyuncunun pozisyonunu yükle
         LoadPlayerPosition();
@@ -248,8 +259,14 @@ public partial class PauseMenuController : MonoBehaviour
         {
             if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
             if (confirmationDialogPanel != null) confirmationDialogPanel.SetActive(false);
+            
+            // Settings panel açıldığında güncel ayarları yükle
+            LoadAudioSettings();
+            
             settingsPanel.SetActive(true);
             wasPauseMenuOpen = isPaused;
+            
+            Debug.Log("🎵 Settings panel opened, audio settings refreshed");
         }
         else
         {
@@ -260,22 +277,199 @@ public partial class PauseMenuController : MonoBehaviour
     void CloseSettings()
     {
         if (settingsPanel != null) settingsPanel.SetActive(false);
+        
+        // Settings kapatılırken ayarları kaydet
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SaveSettings();
+            Debug.Log("🎵 Settings saved when closing settings panel");
+        }
+        
         if (wasPauseMenuOpen && pauseMenuPanel != null)
         {
             pauseMenuPanel.SetActive(true);
         }
     }
+    
+    /// <summary>
+    /// Audio ayarlarını yükle (SettingsManager veya PlayerPrefs'ten)
+    /// </summary>
+    void LoadAudioSettings()
+    {
+        // SettingsManager'dan ayarları yükle
+        if (SettingsManager.Instance != null)
+        {
+            var settings = SettingsManager.Instance.Current;
+            
+            if (volumeSlider != null)
+            {
+                volumeSlider.value = settings.masterVolume;
+            }
+            
+            if (musicVolumeSlider != null)
+            {
+                musicVolumeSlider.value = settings.musicVolume;
+            }
+            
+            if (soundEffectsVolumeSlider != null)
+            {
+                soundEffectsVolumeSlider.value = settings.soundEffectsVolume;
+            }
+            
+            Debug.Log($"🎵 Audio settings loaded from SettingsManager: Master={settings.masterVolume:F2}, Music={settings.musicVolume:F2}, SFX={settings.soundEffectsVolume:F2}");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs'ten yükle
+            if (volumeSlider != null) volumeSlider.value = PlayerPrefs.GetFloat("Volume", 1f);
+            if (musicVolumeSlider != null) musicVolumeSlider.value = PlayerPrefs.GetFloat("MusicVolume", 0.2f);
+            if (soundEffectsVolumeSlider != null) soundEffectsVolumeSlider.value = PlayerPrefs.GetFloat("SoundEffectsVolume", 0.7f);
+            
+            Debug.LogWarning("SettingsManager not available, using PlayerPrefs fallback");
+        }
+        
+        // Graphics ayarını yükle
+        if (graphicsDropdown != null) 
+        {
+            if (SettingsManager.Instance != null)
+            {
+                graphicsDropdown.value = SettingsManager.Instance.Current.graphicsQuality;
+            }
+            else
+            {
+                graphicsDropdown.value = PlayerPrefs.GetInt("GraphicsQuality", 0);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Master volume ayarını değiştir
+    /// </summary>
+    void SetMasterVolume(float volume)
+    {
+        // SettingsManager kullan (eğer varsa)
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SetMasterVolume(volume);
+            Debug.Log($"🎵 Master volume set via SettingsManager: {volume:F2}");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs ve AudioListener
+            PlayerPrefs.SetFloat("Volume", volume);
+            PlayerPrefs.Save();
+            AudioListener.volume = volume;
+            Debug.Log($"🎵 Master volume set via fallback: {volume:F2}");
+        }
+    }
+    
+    /// <summary>
+    /// Music volume ayarını değiştir
+    /// </summary>
+    void SetMusicVolume(float volume)
+    {
+        // SettingsManager kullan (eğer varsa)
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SetMusicVolume(volume);
+            Debug.Log($"🎵 Music volume set via SettingsManager: {volume:F2}");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs ve SoundManager
+            PlayerPrefs.SetFloat("MusicVolume", volume);
+            PlayerPrefs.Save();
+            
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.SetMusicVolume(volume);
+            }
+            
+            Debug.Log($"🎵 Music volume set via fallback: {volume:F2}");
+        }
+    }
+    
+    /// <summary>
+    /// Sound effects volume ayarını değiştir (footstep, player sounds vs.)
+    /// </summary>
+    void SetSoundEffectsVolume(float volume)
+    {
+        // SettingsManager kullan (eğer varsa)
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SetSoundEffectsVolume(volume);
+            Debug.Log($"🔊 Sound effects volume set via SettingsManager: {volume:F2}");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs
+            PlayerPrefs.SetFloat("SoundEffectsVolume", volume);
+            PlayerPrefs.Save();
+            
+            Debug.Log($"🔊 Sound effects volume set via fallback: {volume:F2}");
+        }
+    }
 
     void SetVolume(float volume)
     {
-        PlayerPrefs.SetFloat("Volume", volume);
-        PlayerPrefs.Save();
+        // Deprecated - SetMasterVolume kullanılmalı
+        SetMasterVolume(volume);
     }
 
     void SetGraphicsQuality(int qualityIndex)
     {
-        PlayerPrefs.SetInt("GraphicsQuality", qualityIndex);
-        PlayerPrefs.Save();
+        // SettingsManager kullan (eğer varsa)
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SetGraphicsQuality(qualityIndex);
+            Debug.Log($"🎮 Graphics quality set via SettingsManager: {qualityIndex}");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs ve QualitySettings
+            PlayerPrefs.SetInt("GraphicsQuality", qualityIndex);
+            PlayerPrefs.Save();
+            QualitySettings.SetQualityLevel(qualityIndex);
+            Debug.Log($"� Graphics quality set via fallback: {qualityIndex}");
+        }
+    }
+    
+    /// <summary>
+    /// SettingsManager'da ayarlar değiştiğinde çağrılır (real-time sync)
+    /// </summary>
+    void OnSettingsChanged(SettingsManager.GameSettings settings)
+    {
+        // UI'daki slider'ları güncelle (değer değişmiş olabilir)
+        if (volumeSlider != null && Mathf.Abs(volumeSlider.value - settings.masterVolume) > 0.01f)
+        {
+            volumeSlider.value = settings.masterVolume;
+        }
+        
+        if (musicVolumeSlider != null && Mathf.Abs(musicVolumeSlider.value - settings.musicVolume) > 0.01f)
+        {
+            musicVolumeSlider.value = settings.musicVolume;
+        }
+        
+        if (soundEffectsVolumeSlider != null && Mathf.Abs(soundEffectsVolumeSlider.value - settings.soundEffectsVolume) > 0.01f)
+        {
+            soundEffectsVolumeSlider.value = settings.soundEffectsVolume;
+        }
+        
+        if (graphicsDropdown != null && graphicsDropdown.value != settings.graphicsQuality)
+        {
+            graphicsDropdown.value = settings.graphicsQuality;
+        }
+        
+        Debug.Log($"🎵 PauseMenu settings synced: Master={settings.masterVolume:F2}, Music={settings.musicVolume:F2}, SFX={settings.soundEffectsVolume:F2}");
+    }
+    
+    void OnDestroy()
+    {
+        // SettingsManager event listener'ını temizle
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.OnSettingsChanged -= OnSettingsChanged;
+        }
     }
 
     void ShowSaveConfirmation(string action)

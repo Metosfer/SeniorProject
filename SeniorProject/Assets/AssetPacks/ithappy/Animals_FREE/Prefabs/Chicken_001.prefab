@@ -856,7 +856,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f6730b960ba6c914e9141395fc93249f, type: 2}
+  - {fileID: 2100000, guid: 56bf17adfe1be4873b24200cc1aa11df, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1155,6 +1155,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8881504610387854135}
   - component: {fileID: 8881504610387854120}
+  - component: {fileID: 7775582656031122026}
+  - component: {fileID: 7392376088815990775}
   m_Layer: 0
   m_Name: Chicken_001
   m_TagString: Untagged
@@ -1172,7 +1174,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.96464, y: 0.96464, z: 0.96464}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2382459246418940066}
@@ -1200,6 +1202,71 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &7775582656031122026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8073443194988779917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb58c53c4a252416eb37ae64e9127836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  areaCenter: {fileID: 0}
+  roamRadius: 15.79
+  useNavMesh: 1
+  moveSpeed: 0.5
+  turnSpeed: 4
+  arrivalThreshold: 1
+  waitTimeRange: {x: 0, y: 1}
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 128
+  groundRayHeight: 25
+  groundRayLength: 60
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 7489
+  obstacleRayDistance: 1
+  obstacleRayHeight: 0.53
+  obstacleRayWidth: 0.59
+  alternativeRouteAngle: 360
+  alternativeRouteAttempts: 10
+  animator: {fileID: 0}
+  speedParam: Speed
+  debugDraw: 1
+--- !u!114 &7392376088815990775
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8073443194988779917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d63968b5d3bad457b8696be76bdcc5e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animalSounds:
+  - {fileID: 8300000, guid: db501ffc863e24435a6e803a5fe19e71, type: 3}
+  animalType: Chicken
+  maxVolume: 0.2
+  minVolume: 0.1
+  hearingDistance: 6
+  maxVolumeDistance: 3
+  minSoundInterval: 5
+  maxSoundInterval: 15
+  playWithoutPlayer: 0
+  pitchVariation: 0.2
+  playTestSound: 0
+  showDebugGizmos: 1
+  debugDistanceInfo: 0
+  currentPlayerDistance: 0
+  currentVolume: 0
+  isPlayerInRange: 0
+  nextSoundTime: 0
 --- !u!1 &8122850409471221505
 GameObject:
   m_ObjectHideFlags: 0

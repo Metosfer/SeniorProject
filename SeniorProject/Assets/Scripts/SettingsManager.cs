@@ -9,6 +9,8 @@ public class SettingsManager : MonoBehaviour
     public class GameSettings
     {
         public float masterVolume = 1f;
+        public float musicVolume = 0.2f; // Müzik ses seviyesi (0-1 arası) - default düşük
+        public float soundEffectsVolume = 0.7f; // Player ses efektleri (footstep vs.) - default orta seviye
         public int graphicsQuality = 0; // QualitySettings index
 
         // Camera/Input
@@ -40,6 +42,15 @@ public class SettingsManager : MonoBehaviour
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        
+        // Eski high MusicVolume değerini düzelt (tek seferlik)
+        if (PlayerPrefs.HasKey("MusicVolume") && PlayerPrefs.GetFloat("MusicVolume") > 0.5f)
+        {
+            Debug.Log($"🔄 Resetting old MusicVolume {PlayerPrefs.GetFloat("MusicVolume"):F2} to default 0.2");
+            PlayerPrefs.SetFloat("MusicVolume", 0.2f);
+            PlayerPrefs.Save();
+        }
+        
         LoadSettings();
         ApplyAll();
     }
@@ -108,6 +119,22 @@ public class SettingsManager : MonoBehaviour
         SaveSettings();
         RaiseChanged();
     }
+    
+    public void SetMusicVolume(float v)
+    {
+        Current.musicVolume = Mathf.Clamp01(v);
+        ApplyAudio();
+        SaveSettings();
+        RaiseChanged();
+    }
+    
+    public void SetSoundEffectsVolume(float v)
+    {
+        Current.soundEffectsVolume = Mathf.Clamp01(v);
+        ApplyAudio();
+        SaveSettings();
+        RaiseChanged();
+    }
 
     public void ApplyAll()
     {
@@ -119,6 +146,22 @@ public class SettingsManager : MonoBehaviour
     private void ApplyAudio()
     {
         AudioListener.volume = Mathf.Clamp01(Current.masterVolume);
+        
+        // SoundManager'a müzik ses seviyesini uygula
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.SetMusicVolume(Current.musicVolume);
+        }
+        else
+        {
+            // SoundManager henüz yüklenmemişse sahne de arayalım
+            var soundManager = FindObjectOfType<SoundManager>();
+            if (soundManager != null)
+            {
+                soundManager.SetMusicVolume(Current.musicVolume);
+                Debug.Log("🎵 Found SoundManager in scene and applied music volume");
+            }
+        }
     }
 
     private void ApplyGraphics()
@@ -280,6 +323,7 @@ public class SettingsManager : MonoBehaviour
             {
                 // Back-compat from existing prefs if present
                 if (PlayerPrefs.HasKey("Volume")) Current.masterVolume = PlayerPrefs.GetFloat("Volume", 1f);
+                if (PlayerPrefs.HasKey("MusicVolume")) Current.musicVolume = PlayerPrefs.GetFloat("MusicVolume", 0.2f);
                 if (PlayerPrefs.HasKey("GraphicsQuality")) Current.graphicsQuality = PlayerPrefs.GetInt("GraphicsQuality", 0);
             }
         }
@@ -293,5 +337,25 @@ public class SettingsManager : MonoBehaviour
     private void RaiseChanged()
     {
         try { OnSettingsChanged?.Invoke(Current); } catch { }
+    }
+    
+    /// <summary>
+    /// Debug: Tüm ayarları sıfırla ve default değerlere döndür
+    /// </summary>
+    [System.Diagnostics.Conditional("UNITY_EDITOR")]
+    public void ResetAllSettings()
+    {
+        // Eski PlayerPrefs'leri temizle
+        if (PlayerPrefs.HasKey("Volume")) PlayerPrefs.DeleteKey("Volume");
+        if (PlayerPrefs.HasKey("MusicVolume")) PlayerPrefs.DeleteKey("MusicVolume");
+        if (PlayerPrefs.HasKey("GraphicsQuality")) PlayerPrefs.DeleteKey("GraphicsQuality");
+        PlayerPrefs.DeleteKey(KEY);
+        
+        // Default ayarlara döndür
+        Current = new GameSettings();
+        SaveSettings();
+        ApplyAll();
+        
+        Debug.Log("🔄 All settings reset to default values (Music Volume: 0.2)");
     }
 }

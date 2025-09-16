@@ -291,7 +291,9 @@ MonoBehaviour:
   saveNotificationText: {fileID: 2135803182}
   settingsPanel: {fileID: 2079634006}
   volumeSlider: {fileID: 662485759}
+  musicVolumeSlider: {fileID: 0}
   graphicsDropdown: {fileID: 1339386403}
+  settingsBackButton: {fileID: 0}
   playerTransform: {fileID: 0}
   autoBlockInteractions: 1
   additionalBehavioursToBlock: []
@@ -10204,6 +10206,82 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1474524433}
   m_CullTransparentMesh: 1
+--- !u!1 &1489292078
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1489292080}
+  - component: {fileID: 1489292079}
+  m_Layer: 0
+  m_Name: SoundManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1489292079
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1489292078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ab6044ed9e4f44b28ae8be66c9fd3c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mainTheme: {fileID: 8300000, guid: ab58b76042396410fa06f4767cf0a605, type: 3}
+  secondaryTheme: {fileID: 8300000, guid: 1c90940a9928942afb35006bd325be6e, type: 3}
+  additionalThemes: []
+  musicVolume: 0.2
+  fadeTransitionTime: 2
+  autoPlayMainThemeOnStart: 1
+  loopMusic: 1
+  persistAcrossScenes: 1
+  enableSceneTransitionFade: 1
+  sceneExitFadeDuration: 1.5
+  sceneEnterFadeDuration: 1
+  stopMusicDuringTransition: 0
+  useCrossFadeForDifferentTracks: 1
+  maintainMusicOnSceneChange: 1
+  autoStartMusicOnSceneLoad: 1
+  mainMenuSceneName: MainMenu
+  gameSceneName: GameScene
+  currentPlayingTrack: None
+  isPlaying: 0
+  debugControls:
+    playMainTheme: 0
+    playSecondaryTheme: 0
+    nextTheme: 0
+    previousTheme: 0
+    stopMusic: 0
+    testSceneTransition: 0
+    testPreviousScene: MainMenu
+    testNewScene: GameScene
+    testVolume: 0.7
+    updateTransitionSettings: 0
+    testExitDuration: 1.5
+    testEnterDuration: 1
+--- !u!4 &1489292080
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1489292078}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 6.1166306, y: 2.5256944, z: -6.415917}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1490216457
 GameObject:
   m_ObjectHideFlags: 0
@@ -17123,3 +17201,4 @@ SceneRoots:
   - {fileID: 2047665217}
   - {fileID: 2135587027}
   - {fileID: 765968728}
+  - {fileID: 1489292080}

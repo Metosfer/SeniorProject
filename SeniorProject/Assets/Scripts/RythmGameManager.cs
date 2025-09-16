@@ -202,9 +202,17 @@ public class RythmGameManager : MonoBehaviour
         if (judgmentText != null) judgmentText.text = string.Empty;
         ClearAllNotes();
         _finishedInvoked = false;
-    // Hide external UI first (respect previous active states), then show rhythm UI
-    HideExternalUI(true);
-    if (rootUI != null) rootUI.SetActive(true);
+        
+        // Hide external UI first (respect previous active states), then show rhythm UI
+        HideExternalUI(true);
+        if (rootUI != null) 
+        {
+            rootUI.SetActive(true);
+            
+            // Panel'i en öne çıkar - UI hierarchy'de en üstte olması için
+            BringRhythmPanelToFront();
+        }
+        
         // Start audio
         if (musicSource != null)
         {
@@ -770,6 +778,37 @@ public class RythmGameManager : MonoBehaviour
             case 3: return rightColor;
         }
         return Color.white;
+    }
+    
+    /// <summary>
+    /// RhythmGamePanel'i UI hierarchy'de en öne çıkarır
+    /// Diğer UI elementlerinin üstünde görünmesi için
+    /// </summary>
+    private void BringRhythmPanelToFront()
+    {
+        if (rootUI == null) return;
+        
+        // SetAsLastSibling ile UI hierarchy'de en sona (en üste) taşı
+        rootUI.transform.SetAsLastSibling();
+        
+        // Eğer Canvas component'i varsa sort order'ı yükselt
+        Canvas rhythmCanvas = rootUI.GetComponent<Canvas>();
+        if (rhythmCanvas != null)
+        {
+            // Mevcut sort order'ı al ve yükselt
+            rhythmCanvas.sortingOrder = 100; // Yüksek değer = en önde
+            rhythmCanvas.overrideSorting = true;
+            Debug.Log($"RhythmGamePanel Canvas sort order set to: {rhythmCanvas.sortingOrder}");
+        }
+        
+        // Alternatif: Parent Canvas'ı kontrol et
+        Canvas parentCanvas = rootUI.GetComponentInParent<Canvas>();
+        if (parentCanvas != null && rhythmCanvas == null)
+        {
+            Debug.Log($"RhythmGamePanel is under parent Canvas: {parentCanvas.name} (Sort Order: {parentCanvas.sortingOrder})");
+        }
+        
+        Debug.Log("RhythmGamePanel brought to front!");
     }
 
     private struct RhythmNote
