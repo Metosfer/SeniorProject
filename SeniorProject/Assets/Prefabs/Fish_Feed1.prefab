@@ -253,7 +253,7 @@ GameObject:
   - component: {fileID: 7397027023805234382}
   - component: {fileID: 5483532223687462749}
   m_Layer: 0
-  m_Name: Plant_Fish Feed1
+  m_Name: Plant_Basic Fish Feed
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -407,7 +407,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   range: 2
   playerPos: {fileID: 0}
-  plantName: Basic Fish Feed
+  plantName: Regular Fish Feed
   groundCheck: {fileID: 3896982312148629261}
   text: {fileID: 7020485216542571743}
 --- !u!114 &5483532223687462749

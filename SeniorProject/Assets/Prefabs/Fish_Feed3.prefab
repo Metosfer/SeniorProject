@@ -253,7 +253,7 @@ GameObject:
   - component: {fileID: 7397027023805234382}
   - component: {fileID: 5483532223687462749}
   m_Layer: 0
-  m_Name: Plant_Fish Feed3
+  m_Name: Plant_Fish Feed Premium
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -140,6 +140,21 @@ public class FishingManager : MonoBehaviour
         if (fishingPanel != null)
             fishingPanel.SetActive(false);
             
+        // Auto-find player transform if not assigned
+        if (playerTransform == null)
+        {
+            var playerGO = GameObject.FindGameObjectWithTag("Player");
+            if (playerGO != null)
+            {
+                playerTransform = playerGO.transform;
+                Debug.Log("FishingManager: Auto-assigned playerTransform via tag 'Player'.");
+            }
+            else
+            {
+                Debug.LogWarning("FishingManager: playerTransform is not set and no GameObject with tag 'Player' was found. Proximity detection will be disabled.");
+            }
+        }
+
         if (fishTransform != null)
             fishRect = fishTransform.GetComponent<RectTransform>();
             
@@ -223,7 +238,9 @@ public class FishingManager : MonoBehaviour
         if (playerInRange && Input.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
         {
             // Check if player has Fish Feed before allowing fishing
-            if (HasFishFeed())
+            bool hasFeed = HasFishFeed();
+            Debug.Log($"FishingManager: E pressed. inRange={playerInRange}, hasFeed={hasFeed}, isActive={isFishingActive}, isWaiting={isWaitingForFish}");
+            if (hasFeed)
             {
                 ConsumeFishFeed();
                 StartWaitingForFish();
@@ -260,11 +277,11 @@ public class FishingManager : MonoBehaviour
             
             // UI Text için
             if (promptTextComponent != null)
-                promptTextComponent.text = "Press E to Open Fishing";
+                promptTextComponent.text = HasFishFeed() ? "Press E to Fish" : "Need Fish Feed";
                 
             // 3D TextMeshPro için
             if (promptTextMeshPro != null)
-                promptTextMeshPro.text = "Press E to Open Fishing";
+                promptTextMeshPro.text = HasFishFeed() ? "Press E to Fish" : "Need Fish Feed";
         }
     }
     
@@ -767,8 +784,8 @@ public class FishingManager : MonoBehaviour
                     fishProbabilities[i] = 0.02f;
                     break;
                 default:
-                    // Start from cached base scale to ensure consistent settle behavior
-                    Vector3 start = fishImageBaseScale;
+                    // Bilinmeyen türler için küçük bir varsayılan olasılık ver
+                    fishProbabilities[i] = 0.1f;
                     break;
             }
         }
@@ -1153,73 +1170,78 @@ public class FishingManager : MonoBehaviour
         Debug.Log("ESC tuşu input'u tamamen tüketildi.");
     }
 
-    // Check if player has Fish Feed in inventory
+    // Check if player has any Fish Feed in inventory (by scanning inventory slots)
     private bool HasFishFeed()
     {
-        if (inventoryManager == null) return false;
-        
-        // Get the player's inventory
-        var getInventoryMethod = inventoryManager.GetType().GetMethod("GetPlayerInventory");
-        if (getInventoryMethod != null)
-        {
-            SCInventory inventory = (SCInventory)getInventoryMethod.Invoke(inventoryManager, null);
-            if (inventory != null)
-            {
-                // Find Fish Feed item and check if player has at least 1
-                return inventory.HasItem(FindFishFeedItem());
-            }
-        }
-        return false;
+        if (!TryGetPlayerInventory(out var inv)) return false;
+        return FindFishFeedInInventory(inv) != null;
     }
 
-    // Consume one Fish Feed from inventory
+    // Consume one Fish Feed from the player's inventory
     private void ConsumeFishFeed()
     {
-        if (inventoryManager == null) return;
-        
-        // Get the player's inventory
-        var getInventoryMethod = inventoryManager.GetType().GetMethod("GetPlayerInventory");
-        if (getInventoryMethod != null)
+        if (!TryGetPlayerInventory(out var inv)) return;
+        var feedItem = FindFishFeedInInventory(inv);
+        if (feedItem != null)
         {
-            SCInventory inventory = (SCInventory)getInventoryMethod.Invoke(inventoryManager, null);
-            if (inventory != null)
-            {
-                SCItem fishFeed = FindFishFeedItem();
-                if (fishFeed != null)
-                {
-                    inventory.RemoveItem(fishFeed, 1);
-                    Debug.Log("Fish Feed consumed for fishing!");
-                }
-            }
+            inv.RemoveItem(feedItem, 1);
+            Debug.Log("Fish Feed consumed for fishing!");
+        }
+        else
+        {
+            Debug.LogWarning("Tried to consume Fish Feed but none found in inventory.");
         }
     }
 
-    // Find Fish Feed item from available fish list or resources
-    private SCItem FindFishFeedItem()
+    // Helper: get player's inventory via InventoryManager
+    private bool TryGetPlayerInventory(out SCInventory inventory)
     {
-        // First check availableFishList for Fish Feed
-        if (availableFishList != null)
+        inventory = null;
+        // Primary: use assigned InventoryManager reference via reflection
+        if (inventoryManager != null)
         {
-            foreach (SCItem item in availableFishList)
+            var getInventoryMethod = inventoryManager.GetType().GetMethod("GetPlayerInventory");
+            if (getInventoryMethod != null)
             {
-                if (item != null && item.isFishFeed)
-                {
-                    return item;
-                }
+                inventory = (SCInventory)getInventoryMethod.Invoke(inventoryManager, null);
+                if (inventory != null) return true;
             }
         }
-        
-        // Fallback: search all SCItem assets
-        SCItem[] allItems = Resources.LoadAll<SCItem>("");
-        foreach (SCItem item in allItems)
+
+        // Fallback 1: Try InventoryManager.Instance
+        var invManagerType = typeof(InventoryManager);
+        var instanceProp = invManagerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+        var instance = instanceProp != null ? instanceProp.GetValue(null) as InventoryManager : null;
+        if (instance != null)
         {
-            if (item != null && item.isFishFeed)
+            inventory = instance.GetPlayerInventory();
+            if (inventory != null) return true;
+        }
+
+        // Fallback 2: FindObjectOfType in scene
+        var found = GameObject.FindObjectOfType<InventoryManager>();
+        if (found != null)
+        {
+            inventory = found.GetPlayerInventory();
+            if (inventory != null) return true;
+        }
+
+        // Fallback 3: Persistent inventory direct access
+        inventory = SCInventory.GetPersistentInventory();
+        return inventory != null;
+    }
+
+    // Find the concrete Fish Feed item reference that exists in inventory
+    private SCItem FindFishFeedInInventory(SCInventory inv)
+    {
+        if (inv == null || inv.slots == null) return null;
+        foreach (var slot in inv.slots)
+        {
+            if (slot != null && slot.item != null && slot.item.isFishFeed && slot.itemCount > 0)
             {
-                return item;
+                return slot.item; // Use the exact asset reference present in inventory
             }
         }
-        
-        Debug.LogWarning("Fish Feed item not found!");
         return null;
     }
 }
