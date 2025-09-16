@@ -1621,17 +1621,17 @@ PrefabInstance:
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -19.94
+      value: -19.82
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 5.865
+      value: 6.9449997
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 14.115803
+      value: 17.625801
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
@@ -1641,7 +1641,7 @@ PrefabInstance:
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.25881904
+      value: 0.258819
       objectReference: {fileID: 0}
     - target: {fileID: 4061309984124418449, guid: e562a044313886c43a9e34edf7f8b259,
         type: 3}
@@ -19650,7 +19650,7 @@ MonoBehaviour:
   interactionRange: 2
   exitRange: 3
   playerTransform: {fileID: 7949885079087181006}
-  promptText: {fileID: 1157022141}
+  promptText: {fileID: 0}
   promptTextComponent: {fileID: 0}
   promptTextMeshPro: {fileID: 1157022143}
 --- !u!1001 &893426117
@@ -25813,7 +25813,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1157022141}
   m_LocalRotation: {x: -0, y: -0.33346885, z: -0, w: 0.9427612}
-  m_LocalPosition: {x: 0, y: 0, z: 5.38}
+  m_LocalPosition: {x: 0, y: 0, z: 5.303}
   m_LocalScale: {x: 0.052988462, y: 0.052988462, z: 0.052988462}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -25821,7 +25821,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: -38.959, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -1.49, y: -4.5549994}
+  m_AnchoredPosition: {x: -1.544, y: -4.5549994}
   m_SizeDelta: {x: 20, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1157022143
@@ -25844,7 +25844,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sample text
+  m_text: Press E to Open Market
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 288c04fcafc12674eb16202f9f0de2ce, type: 2}
   m_sharedMaterial: {fileID: 430657281933834750, guid: 288c04fcafc12674eb16202f9f0de2ce,
@@ -25854,8 +25854,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4278190080
+  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -25879,8 +25879,8 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
@@ -37036,7 +37036,7 @@ PrefabInstance:
     - target: {fileID: 7059299179678742967, guid: 3a85deccb43f40d45982b18097227d2b,
         type: 3}
       propertyPath: exitRange
-      value: 3
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7059299179678742967, guid: 3a85deccb43f40d45982b18097227d2b,
         type: 3}
@@ -37081,7 +37081,7 @@ PrefabInstance:
     - target: {fileID: 7059299179678742967, guid: 3a85deccb43f40d45982b18097227d2b,
         type: 3}
       propertyPath: interactionRange
-      value: 2
+      value: 2.3
       objectReference: {fileID: 0}
     - target: {fileID: 7059299179678742967, guid: 3a85deccb43f40d45982b18097227d2b,
         type: 3}
@@ -50807,17 +50807,17 @@ PrefabInstance:
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -19.94
+      value: -19.82
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 3.36
+      value: 4.44
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 17.45
+      value: 20.96
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}

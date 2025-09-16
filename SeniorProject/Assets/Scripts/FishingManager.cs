@@ -114,6 +114,14 @@ public class FishingManager : MonoBehaviour
     [Tooltip("Final vurgu süresi (saniye)")]
     public float settleDuration = 0.25f;
 
+    [Header("Interaction Tuning")]
+    [Tooltip("Oyuncu mesafesi kontrol sıklığı (saniye)")]
+    public float distanceCheckInterval = 0.1f;
+    [Tooltip("Menzilden çıkınca etkileşim için ek tolerans süresi (saniye)")]
+    public float interactLinger = 0.3f;
+    [Tooltip("HasFishFeed sonucu cache süresi (saniye)")]
+    public float hasFeedCacheDuration = 0.1f;
+
     private bool playerInRange = false;
     private bool isFishingActive = false;
     private bool isWaitingForFish = false; // Balık bekleme durumu
@@ -131,6 +139,10 @@ public class FishingManager : MonoBehaviour
     private string lastStatusMessage = ""; // Son durum mesajı (tekrar göstermemek için)
     private Coroutine waitingSpinCoroutine; // Waiting ikon döndürme coroutine'i
     private List<SCItem> waitingSpinCandidates = new List<SCItem>();
+    private float lastDistanceCheckTime = -999f;
+    private float lastTimeInRange = -999f;
+    private bool cachedHasFeed = false;
+    private float lastHasFeedCheckTime = -999f;
     
     void Start()
     {
@@ -217,13 +229,17 @@ public class FishingManager : MonoBehaviour
     void CheckPlayerDistance()
     {
         if (playerTransform == null) return;
-        
+        if (Time.time - lastDistanceCheckTime < distanceCheckInterval) return;
+        lastDistanceCheckTime = Time.time;
+
         float distance = Vector3.Distance(transform.position, playerTransform.position);
-        
+
+        bool wasInRange = playerInRange;
         // Hysteresis sistemi: Giriş ve çıkış için farklı mesafeler
         if (!playerInRange && distance <= interactionRange)
         {
             playerInRange = true;
+            lastTimeInRange = Time.time;
             ShowPrompt();
         }
         else if (playerInRange && distance > exitRange)
@@ -231,15 +247,21 @@ public class FishingManager : MonoBehaviour
             playerInRange = false;
             HidePrompt();
         }
+        else if (playerInRange)
+        {
+            // Menzil içindeyken zaman damgasını güncelle (linger penceresini taze tutar)
+            lastTimeInRange = Time.time;
+        }
     }
     
     void HandleInput()
     {
-        if (playerInRange && Input.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
+        bool canInteract = playerInRange || (Time.time - lastTimeInRange <= interactLinger);
+        if (canInteract && Input.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
         {
             // Check if player has Fish Feed before allowing fishing
-            bool hasFeed = HasFishFeed();
-            Debug.Log($"FishingManager: E pressed. inRange={playerInRange}, hasFeed={hasFeed}, isActive={isFishingActive}, isWaiting={isWaitingForFish}");
+            bool hasFeed = GetHasFishFeedCached();
+            Debug.Log($"FishingManager: E pressed. canInteract={canInteract}, inRange={playerInRange}, hasFeed={hasFeed}, isActive={isFishingActive}, isWaiting={isWaitingForFish}");
             if (hasFeed)
             {
                 ConsumeFishFeed();
@@ -276,12 +298,13 @@ public class FishingManager : MonoBehaviour
             promptText.SetActive(true);
             
             // UI Text için
+            bool hasFeed = GetHasFishFeedCached();
             if (promptTextComponent != null)
-                promptTextComponent.text = HasFishFeed() ? "Press E to Fish" : "Need Fish Feed";
+                promptTextComponent.text = hasFeed ? "Press E to Fish" : "Need Fish Feed";
                 
             // 3D TextMeshPro için
             if (promptTextMeshPro != null)
-                promptTextMeshPro.text = HasFishFeed() ? "Press E to Fish" : "Need Fish Feed";
+                promptTextMeshPro.text = hasFeed ? "Press E to Fish" : "Need Fish Feed";
         }
     }
     
@@ -1175,6 +1198,17 @@ public class FishingManager : MonoBehaviour
     {
         if (!TryGetPlayerInventory(out var inv)) return false;
         return FindFishFeedInInventory(inv) != null;
+    }
+
+    // Cached check to reduce per-frame cost and flicker
+    private bool GetHasFishFeedCached()
+    {
+        if (Time.time - lastHasFeedCheckTime > hasFeedCacheDuration)
+        {
+            cachedHasFeed = HasFishFeed();
+            lastHasFeedCheckTime = Time.time;
+        }
+        return cachedHasFeed;
     }
 
     // Consume one Fish Feed from the player's inventory
