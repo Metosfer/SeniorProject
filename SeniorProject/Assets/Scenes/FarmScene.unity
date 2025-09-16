@@ -44926,9 +44926,10 @@ MonoBehaviour:
   beatSensitivity: 1.15
   beatCooldown: 0.12
   musicClips:
-  - {fileID: 8300000, guid: be10541da7d8a4ebdb6272b84c270704, type: 3}
-  - {fileID: 8300000, guid: 94529312a40bd427584d3e560ab60904, type: 3}
-  - {fileID: 8300000, guid: 05e1c598e017f4bb29094b3ff033b709, type: 3}
+  - {fileID: 8300000, guid: fabfa98df24cc4802921f53d45bae81c, type: 3}
+  - {fileID: 8300000, guid: 95c7c0d2a84474dfabbe11ed722b9e90, type: 3}
+  - {fileID: 8300000, guid: 6d8d983b29ed04b2283f5df3e93a72d3, type: 3}
+  - {fileID: 8300000, guid: 17d351f4803d04826955e6c1c9590e5e, type: 3}
   pickRandomTrackEachStart: 1
   avoidImmediateRepeat: 1
   autoTuneToTrack: 1
