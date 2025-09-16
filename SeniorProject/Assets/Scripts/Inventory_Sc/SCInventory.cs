@@ -96,6 +96,69 @@ public class SCInventory : ScriptableObject
             }
         }
         return true;
+    }
+
+    // Item'ı envanterden çıkar
+    public bool RemoveItem(SCItem item, int quantity = 1)
+    {
+        int remainingToRemove = quantity;
+        
+        // Önce stack'lenmiş item'ları çıkar
+        foreach (Slot slot in inventorySlots)
+        {
+            if (slot.item == item && slot.itemCount > 0)
+            {
+                int canRemove = Mathf.Min(remainingToRemove, slot.itemCount);
+                slot.itemCount -= canRemove;
+                remainingToRemove -= canRemove;
+                
+                if (slot.itemCount == 0)
+                {
+                    slot.item = null;
+                    slot.isFull = false;
+                }
+                else if (slot.item.canStackable && slot.itemCount < stackLimit)
+                {
+                    slot.isFull = false;
+                }
+                
+                if (remainingToRemove <= 0)
+                {
+                    OnInventoryChanged?.Invoke();
+                    return true;
+                }
+            }
+        }
+        
+        // Yeterli item bulunamadıysa
+        if (remainingToRemove > 0)
+        {
+            Debug.LogWarning($"Could not remove all items. Removed {quantity - remainingToRemove} out of {quantity} {item.itemName}");
+            return quantity != remainingToRemove; // En az bir item çıkarıldıysa true
+        }
+        
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    // Belirli bir item'ın toplam miktarını döndür
+    public int GetItemCount(SCItem item)
+    {
+        int totalCount = 0;
+        foreach (Slot slot in inventorySlots)
+        {
+            if (slot.item == item)
+            {
+                totalCount += slot.itemCount;
+            }
+        }
+        return totalCount;
+    }
+
+    // Belirli bir item'ın envanterde olup olmadığını kontrol et
+    public bool HasItem(SCItem item, int minQuantity = 1)
+    {
+        return GetItemCount(item) >= minQuantity;
     }public void ResetInventory()
     {
         if (inventorySlots == null)

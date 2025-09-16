@@ -222,7 +222,18 @@ public class FishingManager : MonoBehaviour
     {
         if (playerInRange && Input.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
         {
-            StartWaitingForFish();
+            // Check if player has Fish Feed before allowing fishing
+            if (HasFishFeed())
+            {
+                ConsumeFishFeed();
+                StartWaitingForFish();
+            }
+            else
+            {
+                // Show message that Fish Feed is required
+                UpdateStatusText("Need Fish Feed to fish!", Color.red);
+                Debug.Log("Fish Feed required to start fishing!");
+            }
         }
         
         if (isFishingActive && Input.GetKey(KeyCode.Space))
@@ -1140,5 +1151,75 @@ public class FishingManager : MonoBehaviour
         yield return null;
         
         Debug.Log("ESC tuşu input'u tamamen tüketildi.");
+    }
+
+    // Check if player has Fish Feed in inventory
+    private bool HasFishFeed()
+    {
+        if (inventoryManager == null) return false;
+        
+        // Get the player's inventory
+        var getInventoryMethod = inventoryManager.GetType().GetMethod("GetPlayerInventory");
+        if (getInventoryMethod != null)
+        {
+            SCInventory inventory = (SCInventory)getInventoryMethod.Invoke(inventoryManager, null);
+            if (inventory != null)
+            {
+                // Find Fish Feed item and check if player has at least 1
+                return inventory.HasItem(FindFishFeedItem());
+            }
+        }
+        return false;
+    }
+
+    // Consume one Fish Feed from inventory
+    private void ConsumeFishFeed()
+    {
+        if (inventoryManager == null) return;
+        
+        // Get the player's inventory
+        var getInventoryMethod = inventoryManager.GetType().GetMethod("GetPlayerInventory");
+        if (getInventoryMethod != null)
+        {
+            SCInventory inventory = (SCInventory)getInventoryMethod.Invoke(inventoryManager, null);
+            if (inventory != null)
+            {
+                SCItem fishFeed = FindFishFeedItem();
+                if (fishFeed != null)
+                {
+                    inventory.RemoveItem(fishFeed, 1);
+                    Debug.Log("Fish Feed consumed for fishing!");
+                }
+            }
+        }
+    }
+
+    // Find Fish Feed item from available fish list or resources
+    private SCItem FindFishFeedItem()
+    {
+        // First check availableFishList for Fish Feed
+        if (availableFishList != null)
+        {
+            foreach (SCItem item in availableFishList)
+            {
+                if (item != null && item.isFishFeed)
+                {
+                    return item;
+                }
+            }
+        }
+        
+        // Fallback: search all SCItem assets
+        SCItem[] allItems = Resources.LoadAll<SCItem>("");
+        foreach (SCItem item in allItems)
+        {
+            if (item != null && item.isFishFeed)
+            {
+                return item;
+            }
+        }
+        
+        Debug.LogWarning("Fish Feed item not found!");
+        return null;
     }
 }

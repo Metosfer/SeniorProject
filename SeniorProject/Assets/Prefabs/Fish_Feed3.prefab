@@ -253,7 +253,7 @@ GameObject:
   - component: {fileID: 7397027023805234382}
   - component: {fileID: 5483532223687462749}
   m_Layer: 0
-  m_Name: Plant_PlantagoSeed
+  m_Name: Plant_Fish Feed3
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -388,7 +388,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e0c878ec6f05464da4ece1a79bb615a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  item: {fileID: 11400000, guid: b275345653a844fbca29b623029c59ae, type: 2}
+  item: {fileID: 11400000, guid: dadf2eab970bf48df9136c18dc9fc371, type: 2}
   pickupRange: 2
   pickupKey: 101
   pickupUI: {fileID: 7712826718688293784, guid: 81ae8e7534ae91a4bb91a7c4966599bc,
