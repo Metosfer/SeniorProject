@@ -1688,7 +1688,53 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             }
         }
 
+        // Save sonrası tüm ikonları doğru durumlarına güncelle
+        RefreshAllIconsAfterLoad();
+        
         UpdateStatusText();
+    }
+
+    /// <summary>
+    /// Save/Load sonrasında tüm ikonları mevcut plot durumlarına göre günceller
+    /// </summary>
+    private void RefreshAllIconsAfterLoad()
+    {
+        Debug.Log($"[FarmingAreaManager] RefreshAllIconsAfterLoad başlatılıyor. {_plots.Count} plot kontrol edilecek.");
+        
+        for (int i = 0; i < _plots.Count && i < plotPoints.Count; i++)
+        {
+            var state = _plots[i];
+            if (state == null) continue;
+
+            // Debug: Mevcut plot durumunu logla
+            string plotState = "unknown";
+            if (!state.isOccupied && !state.isPrepared) plotState = "unprepared";
+            else if (!state.isOccupied && state.isPrepared) plotState = "empty";
+            else if (state.isOccupied && state.requiresWater) plotState = "waiting";
+            else if (state.isOccupied && state.isGrowing) plotState = "growing";
+            else if (state.isOccupied && state.isReady) plotState = "ready";
+            
+            Debug.Log($"[FarmingAreaManager] Plot {i}: {plotState} - İkon güncelleniyor");
+
+            // İkonu mevcut plot durumuna göre güncelle
+            CreateOrUpdateIcon(i);
+            
+            // Countdown da varsa güncelle
+            if (state.isGrowing)
+            {
+                float remaining = Mathf.Max(0f, state.growthEndTime - Time.time);
+                if (remaining > 0f)
+                {
+                    CreateOrUpdateCountdown(i, startTimer: true, customText: "");
+                }
+            }
+            else if (state.isOccupied && state.requiresWater)
+            {
+                CreateOrUpdateCountdown(i, startTimer: false, customText: "Waiting");
+            }
+        }
+        
+        Debug.Log($"[FarmingAreaManager] RefreshAllIconsAfterLoad tamamlandı.");
     }
 
     private static bool GetBool(Dictionary<string, object> data, string key)
