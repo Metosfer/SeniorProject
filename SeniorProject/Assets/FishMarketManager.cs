@@ -36,7 +36,7 @@ public class FishMarketManager : MonoBehaviour
     public float exitRange = 4f; // Range'den çıkış mesafesi (flickering önlemek için)
     [Tooltip("Oyuncu karakterinin Transform component'i")]
     public Transform playerTransform;
-
+    
     [Header("UI Elements")]
     [Tooltip("Etkileşim metni gösterecek GameObject (Press E to Open Fish Market)")]
     public GameObject promptText;
@@ -44,14 +44,14 @@ public class FishMarketManager : MonoBehaviour
     public Text promptTextComponent; // UI Text için
     [Tooltip("3D dünyada gösterilecek TextMeshPro component referansı")]
     public TMPro.TextMeshPro promptTextMeshPro; // 3D TextMeshPro için
-
+    
     private int _lastMoneyShown = int.MinValue;
     // Track canvas groups we disable to block outside clicks while market open
     private struct CanvasGroupState { public CanvasGroup cg; public bool interactable; public bool blocksRaycasts; }
     private readonly List<CanvasGroupState> _disabledCanvasGroups = new List<CanvasGroupState>();
 
     [Header("Economy")]
-    public int playerMoney = 1000; // fallback when MoneyManager is not available
+    // Removed playerMoney - now uses MoneyManager.Instance.Balance exclusively
     // Global flag so world interactables can respect market-open state
     private static bool s_isAnyOpen = false;
     public static bool IsAnyOpen => s_isAnyOpen;
@@ -80,30 +80,32 @@ public class FishMarketManager : MonoBehaviour
     private bool _offersRestoredFromSave = false;
     private static readonly Color OverlayTransparent = new Color(0f, 0f, 0f, 0f);
     private bool playerInRange = false;
+    private float lastDistanceCheckTime = 0f; // To reduce flicker, check distance less frequently
+    private const float DISTANCE_CHECK_INTERVAL = 0.1f; // Check every 0.1 seconds
 
     // ESC consumption flag for this frame to prevent PauseMenu from reacting
     public static int s_lastEscapeConsumedFrame = -1;
-    public static bool DidConsumeEscapeThisFrame() => s_lastEscapeConsumedFrame == Time.frameCount;
-
-    private void Start()
+    public static bool DidConsumeEscapeThisFrame() => s_lastEscapeConsumedFrame == Time.frameCount;    private void Start()
     {
         _inventory = FindObjectOfType<Inventory>();
         if (marketPanel != null) marketPanel.SetActive(false);
         if (promptText != null)
             promptText.SetActive(false);
-        // Sync local fallback money with MoneyManager if present
-        if (MoneyManager.Instance != null)
-        {
-            playerMoney = MoneyManager.Instance.Balance;
-        }
+        // Money is now handled exclusively by MoneyManager.Instance.Balance
         RefreshMoneyText();
     }
 
     private void Update()
     {
-        CheckPlayerDistance();
+        // Check distance less frequently to prevent flicker
+        if (Time.time - lastDistanceCheckTime >= DISTANCE_CHECK_INTERVAL)
+        {
+            lastDistanceCheckTime = Time.time;
+            CheckPlayerDistance();
+        }
+        
         HandleInput();
-
+        
         // Esc: sadece marketi kapat, PauseMenu bu durumda açılmamalı
         if (marketPanel != null && marketPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
         {
@@ -115,9 +117,7 @@ public class FishMarketManager : MonoBehaviour
         {
             RefreshMoneyText();
         }
-    }
-
-    void CheckPlayerDistance()
+    }    void CheckPlayerDistance()
     {
         if (playerTransform == null) return;
 
@@ -356,13 +356,13 @@ public class FishMarketManager : MonoBehaviour
     private int GetCurrentMoney()
     {
         if (MoneyManager.Instance != null) return MoneyManager.Instance.Balance;
-        return playerMoney;
+        return 0; // No fallback money
     }
 
     private bool CanAfford(int price)
     {
         if (MoneyManager.Instance != null) return MoneyManager.Instance.CanAfford(price);
-        return playerMoney >= price;
+        return false; // Cannot afford if no MoneyManager
     }
 
     private void Spend(int price)
@@ -371,10 +371,7 @@ public class FishMarketManager : MonoBehaviour
         {
             MoneyManager.Instance.TrySpend(price);
         }
-        else
-        {
-            playerMoney = Mathf.Max(0, playerMoney - price);
-        }
+        // No fallback spending
     }
 
     private void EnsureInputBlocker()

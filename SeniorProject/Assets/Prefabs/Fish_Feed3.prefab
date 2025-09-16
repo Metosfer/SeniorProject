@@ -407,7 +407,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   range: 2
   playerPos: {fileID: 0}
-  plantName: Plantago Seed
+  plantName: Premium Fish Feed
   groundCheck: {fileID: 3896982312148629261}
   text: {fileID: 7020485216542571743}
 --- !u!114 &5483532223687462749
@@ -448,7 +448,7 @@ Transform:
   m_GameObject: {fileID: 5276072574070784729}
   serializedVersion: 2
   m_LocalRotation: {x: 0.012019156, y: -0, z: -0, w: 0.99992776}
-  m_LocalPosition: {x: 0, y: 0.01, z: -0.07}
+  m_LocalPosition: {x: 0, y: 0.01, z: 0.25}
   m_LocalScale: {x: 0.84728223, y: 0.8472822, z: 3.770993}
   m_ConstrainProportionsScale: 0
   m_Children: []

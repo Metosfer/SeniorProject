@@ -47,6 +47,7 @@ public class PlayerSaveData
     public Vector3 position;
     public Vector3 rotation;
     public string currentScene;
+    public int money; // Player's current money balance
 }
 
 [System.Serializable]
@@ -323,6 +324,11 @@ public class GameSaveManager : MonoBehaviour
             currentSaveData.playerData.position = player.transform.position;
             currentSaveData.playerData.rotation = player.transform.eulerAngles;
             currentSaveData.playerData.currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            // Save player's money
+            if (MoneyManager.Instance != null)
+            {
+                currentSaveData.playerData.money = MoneyManager.Instance.Balance;
+            }
         }
     }
     
@@ -757,6 +763,11 @@ public class GameSaveManager : MonoBehaviour
                     player.transform.position = currentSaveData.playerData.position;
                     player.transform.eulerAngles = currentSaveData.playerData.rotation;
                 }
+            }
+            // Restore player's money
+            if (MoneyManager.Instance != null)
+            {
+                MoneyManager.Instance.SetBalance(currentSaveData.playerData.money);
             }
         }
     }
