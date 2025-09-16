@@ -11,10 +11,10 @@ public class MarketSlotUI : MonoBehaviour
     public Button buyButton;
     public TextMeshProUGUI stockText;
 
-    private MarketManager _market;
+    private object _market;
     private int _index;
 
-    public void Bind(MarketManager market, int index, string displayName, int price, Sprite icon, int stock)
+    public void Bind(object market, int index, string displayName, int price, Sprite icon, int stock)
     {
         _market = market;
         _index = index;
@@ -33,7 +33,19 @@ public class MarketSlotUI : MonoBehaviour
         if (buyButton != null)
         {
             buyButton.onClick.RemoveAllListeners();
-            buyButton.onClick.AddListener(() => _market.AttemptPurchase(_index));
+            buyButton.onClick.AddListener(() => AttemptPurchase());
+        }
+    }
+
+    private void AttemptPurchase()
+    {
+        if (_market is MarketManager mm)
+        {
+            mm.AttemptPurchase(_index);
+        }
+        else if (_market is FishMarketManager fm)
+        {
+            fm.AttemptPurchase(_index);
         }
     }
 

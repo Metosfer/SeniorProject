@@ -54,9 +54,15 @@ public class SCItem : ScriptableObject
     public float fishWeight = 1f; // Balığın ağırlığı
     [Tooltip("Balık türü: Common, Rare, Epic, Legendary")]
     public string fishType = "Common"; // Balık türü (Common, Rare, Epic vs.)
-    [Tooltip("Balık tutulduğunda oyuncuya verilecek XP")]
+    [Tooltip("Balık yakalandığında oyuncuya verilecek XP")]
     public int fishingXP = 10;
     [Tooltip("Balık yakalanma zorluğu (1=Çok Kolay, 2=Kolay, 3=Orta, 4=Zor, 5=Çok Zor)")]
     [Range(1, 5)]
     public int fishDifficulty = 3; // Balık yakalanma zorluğu
+    
+    [Header("Fish Feed Settings")]
+    [Tooltip("Bu item balık yemi mi? (FishMarketManager için)")]
+    public bool isFishFeed = false; // Bu item balık yemi mi?
+    [Tooltip("Yem miktarı (kaç adet yem içeriyor)")]
+    public int feedAmount = 1; // Yem miktarı
 }
