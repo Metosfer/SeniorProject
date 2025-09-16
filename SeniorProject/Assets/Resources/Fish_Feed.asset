@@ -38,3 +38,4 @@ MonoBehaviour:
   fishDifficulty: 3
   isFishFeed: 1
   feedAmount: 1
+  feedValue: 2

@@ -59,10 +59,15 @@ public class SCItem : ScriptableObject
     [Tooltip("Balık yakalanma zorluğu (1=Çok Kolay, 2=Kolay, 3=Orta, 4=Zor, 5=Çok Zor)")]
     [Range(1, 5)]
     public int fishDifficulty = 3; // Balık yakalanma zorluğu
+    [Tooltip("Bu balık efsanevi/özel bir balık mı? (Özel animasyonlar ve efektler için)")]
+    public bool isLegendaryFish = false; // Efsanevi balık mı?
     
     [Header("Fish Feed Settings")]
     [Tooltip("Bu item balık yemi mi? (FishMarketManager için)")]
     public bool isFishFeed = false; // Bu item balık yemi mi?
     [Tooltip("Yem miktarı (kaç adet yem içeriyor)")]
     public int feedAmount = 1; // Yem miktarı
+    [Tooltip("Yem kalitesi - iyi yem iyi balık yakalama şansını arttırır (1=Düşük, 2=Normal, 3=İyi, 4=Yüksek, 5=Premium)")]
+    [Range(1, 5)]
+    public int feedValue = 1; // Yem kalitesi (1-5 arası)
 }

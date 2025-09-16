@@ -79,6 +79,19 @@ public class FishingManager : MonoBehaviour
     [Tooltip("Bu listeye tüm balık ScriptableObject'lerini ekleyin (isFish=true olanlar)")]
     public List<SCItem> availableFishList = new List<SCItem>(); // Inspector'dan assign edilecek balık listesi
     
+    [Header("Legendary Fish Settings")]
+    [Tooltip("Efsanevi balık - özel animasyonlar ve efektler ile")]
+    public SCItem legendaryFish; // Inspector'dan assign edilecek özel balık
+    [Tooltip("Efsanevi balığın yakalanma şansı (0.001 = %0.1 şans)")]
+    [Range(0.0001f, 0.01f)]
+    public float legendaryFishChance = 0.002f; // %0.2 şans
+    [Tooltip("TEST MODU: Aktifse her balık efsanevi balık olarak gelir (sadece test için!)")]
+    public bool testLegendaryMode = false; // Test için her balık efsanevi olsun
+    [Tooltip("Efsanevi balık için özel renk efektleri")]
+    public Color legendaryColor = new Color(0.8f, 0.2f, 1f, 1f); // Mor renk
+    [Tooltip("Efsanevi balık animasyon süresinin çarpanı")]
+    public float legendaryAnimationMultiplier = 2f;
+    
     // Inventory System Reference (bu referansı inspector'dan atayacaksınız)
     [Header("Inventory System")]
     [Tooltip("Oyuncunun envanter yönetici script'i (AddItem metodu olan MonoBehaviour)")]
@@ -143,6 +156,8 @@ public class FishingManager : MonoBehaviour
     private float lastTimeInRange = -999f;
     private bool cachedHasFeed = false;
     private float lastHasFeedCheckTime = -999f;
+    private SCItem currentFeedUsed; // Kullanılan yemin referansı
+    private int currentFeedValue = 1; // Mevcut yem değeri (1-5 arası)
     
     void Start()
     {
@@ -183,6 +198,12 @@ public class FishingManager : MonoBehaviour
         if (statusText != null)
         {
             statusText.text = "";
+        }
+        
+        // Test modu uyarısı
+        if (testLegendaryMode)
+        {
+            Debug.LogWarning("🧪 LEGENDARY FISH TEST MODU AKTİF! Her balık efsanevi balık olarak gelecek. Prodüksiyonda kapatmayı unutma!");
         }
         
         // Balık olasılıklarını kontrol et
@@ -319,8 +340,11 @@ public class FishingManager : MonoBehaviour
         isWaitingForFish = true;
         HidePrompt();
         
-        // Rastgele bir balık seç (bekleme süresi hesaplamak için)
-        currentTargetFish = GetRandomFishFromList();
+        // Kullanılan yemin değerini al
+        GetCurrentFeedValue();
+        
+        // Feed value'ya göre rastgele bir balık seç
+        currentTargetFish = GetRandomFishBasedOnFeedValue();
         
         // Balığın zorluğuna göre bekleme süresi belirle (difficulty 1-5 arası)
         // Difficulty 1: 2 saniye, Difficulty 5: 6 saniye
@@ -352,7 +376,13 @@ public class FishingManager : MonoBehaviour
             StartWaitingVisualSpin();
         }
         
-        Debug.Log($"Balık bekleniyor... Süre: {currentWaitTime} saniye (Balık: {currentTargetFish?.itemName}, Zorluk: {currentTargetFish?.fishDifficulty})");
+        // Efsanevi balık için özel efektler
+        if (currentTargetFish != null && currentTargetFish.isLegendaryFish)
+        {
+            StartLegendaryFishEffects();
+        }
+        
+        Debug.Log($"Balık bekleniyor... Süre: {currentWaitTime} saniye (Balık: {currentTargetFish?.itemName}, Zorluk: {currentTargetFish?.fishDifficulty}, Feed Value: {currentFeedValue}) {(testLegendaryMode ? "🧪 TEST MODU AKTİF" : "")}");
     }
     
     void UpdateWaitingForFish()
@@ -708,11 +738,17 @@ public class FishingManager : MonoBehaviour
             // Yakalanan balık zaten currentTargetFish olarak belirlenmişti
             if (currentTargetFish != null)
             {
-                // Balık yakalama animasyonu trigger'ını tetikle
-                TriggerFishCaughtAnimation();
-                
-                // Başarı mesajı göster
-                UpdateStatusText("Fish Caught!", Color.green);
+                // Efsanevi balık mı kontrol et
+                if (currentTargetFish.isLegendaryFish)
+                {
+                    TriggerLegendaryFishCaught();
+                }
+                else
+                {
+                    // Normal balık yakalama animasyonu
+                    TriggerFishCaughtAnimation();
+                    UpdateStatusText("Fish Caught!", Color.green);
+                }
                 
                 // Balığı dünyaya spawn et
                 if (spawnFishOnCatch)
@@ -872,7 +908,17 @@ public class FishingManager : MonoBehaviour
             return;
         }
         
-        // Balığın zorluğuna göre Fish Escape Force'u ayarla
+        // Efsanevi balık için özel zorluk ayarları
+        if (currentTargetFish.isLegendaryFish)
+        {
+            fishEscapeForce = 3.0f; // Çok yüksek zorluk
+            catchTimeRequired *= legendaryAnimationMultiplier; // Yakalama süresi uzar
+            fishSpeed *= 1.5f; // Daha hızlı hareket
+            Debug.Log($"🌟 {currentTargetFish.itemName} - EFSANEVİ BALIK! (Escape Force: {fishEscapeForce}, Catch Time: {catchTimeRequired}, Speed: {fishSpeed})");
+            return;
+        }
+        
+        // Normal balıkların zorluğuna göre Fish Escape Force'u ayarla
         switch (currentTargetFish.fishDifficulty)
         {
             case 1: // Çok Kolay
@@ -1218,11 +1264,13 @@ public class FishingManager : MonoBehaviour
         var feedItem = FindFishFeedInInventory(inv);
         if (feedItem != null)
         {
+            currentFeedUsed = feedItem; // Kullanılan yemin referansını kaydet
             inv.RemoveItem(feedItem, 1);
-            Debug.Log("Fish Feed consumed for fishing!");
+            Debug.Log($"Fish Feed consumed for fishing! Feed Value: {feedItem.feedValue}");
         }
         else
         {
+            currentFeedUsed = null; // Yem bulunamadı
             Debug.LogWarning("Tried to consume Fish Feed but none found in inventory.");
         }
     }
@@ -1277,5 +1325,275 @@ public class FishingManager : MonoBehaviour
             }
         }
         return null;
+    }
+
+    // Mevcut yemin feed value'sunu al
+    private void GetCurrentFeedValue()
+    {
+        if (currentFeedUsed != null && currentFeedUsed.isFishFeed)
+        {
+            currentFeedValue = currentFeedUsed.feedValue;
+            Debug.Log($"Feed Value: {currentFeedValue} kullanılıyor.");
+        }
+        else
+        {
+            currentFeedValue = 1; // Varsayılan değer
+            Debug.Log("Yem bulunamadı, varsayılan feed value (1) kullanılıyor.");
+        }
+    }
+
+    // Feed value'ya göre ağırlıklı balık seçimi
+    private SCItem GetRandomFishBasedOnFeedValue()
+    {
+        // TEST MODU: Her balık efsanevi balık olsun
+        if (testLegendaryMode && legendaryFish != null && legendaryFish.isFish)
+        {
+            Debug.Log("🧪 TEST MODU: Efsanevi balık zorla seçildi!");
+            return legendaryFish;
+        }
+
+        // Önce efsanevi balık şansını kontrol et
+        if (legendaryFish != null && legendaryFish.isFish && Random.Range(0f, 1f) <= legendaryFishChance)
+        {
+            Debug.Log($"🌟 EFSANEVİ BALIK YAKALANDI! {legendaryFish.itemName} - Şans: {legendaryFishChance * 100:F3}%");
+            return legendaryFish;
+        }
+
+        if (availableFishList == null || availableFishList.Count == 0)
+        {
+            Debug.LogWarning("No fish available in the list!");
+            return null;
+        }
+
+        List<SCItem> validFish = new List<SCItem>();
+        List<float> fishWeights = new List<float>();
+
+        foreach (var fish in availableFishList)
+        {
+            if (fish != null && fish.isFish && fish.itemIcon != null && !fish.isLegendaryFish)
+            {
+                validFish.Add(fish);
+                
+                // Feed value'ya göre balık yakalama ağırlığını hesapla
+                float weight = CalculateFishWeight(fish.fishValue, currentFeedValue);
+                fishWeights.Add(weight);
+            }
+        }
+
+        if (validFish.Count == 0)
+        {
+            Debug.LogWarning("No valid fish found!");
+            return null;
+        }
+
+        // Ağırlıklı rastgele seçim
+        float totalWeight = 0f;
+        foreach (float weight in fishWeights)
+        {
+            totalWeight += weight;
+        }
+
+        float randomValue = Random.Range(0f, totalWeight);
+        float currentWeight = 0f;
+
+        for (int i = 0; i < validFish.Count; i++)
+        {
+            currentWeight += fishWeights[i];
+            if (randomValue <= currentWeight)
+            {
+                Debug.Log($"Seçilen balık: {validFish[i].itemName} (Değer: {validFish[i].fishValue}, Ağırlık: {fishWeights[i]:F2})");
+                return validFish[i];
+            }
+        }
+
+        // Fallback: ilk balığı döndür
+        Debug.Log($"Fallback: {validFish[0].itemName} seçildi.");
+        return validFish[0];
+    }
+
+    // Balığın yakalama ağırlığını hesapla (feed value'ya göre)
+    private float CalculateFishWeight(int fishValue, int feedValue)
+    {
+        // Temel ağırlık: düşük değerli balıklar daha yüksek şans
+        float baseWeight = 6f - fishValue; // fishValue 1-5 ise weight 5-1 olur
+        
+        // Feed value'ya göre bonus çarpanı
+        float feedMultiplier = 1f;
+        
+        if (fishValue <= 2) // Düşük değerli balıklar (1-2)
+        {
+            // Düşük yem = daha yüksek şans, yüksek yem = daha düşük şans
+            feedMultiplier = 2.0f - (feedValue - 1) * 0.25f; // feedValue 1->2.0x, 5->1.0x
+        }
+        else if (fishValue >= 4) // Yüksek değerli balıklar (4-5)
+        {
+            // Yüksek yem = daha yüksek şans, düşük yem = daha düşük şans
+            feedMultiplier = 0.5f + (feedValue - 1) * 0.4f; // feedValue 1->0.5x, 5->2.1x
+        }
+        else // Orta değerli balıklar (3)
+        {
+            // Orta seviye bonus
+            feedMultiplier = 0.8f + (feedValue - 1) * 0.15f; // feedValue 1->0.8x, 5->1.4x
+        }
+        
+        float finalWeight = baseWeight * feedMultiplier;
+        
+        // Minimum ağırlık 0.1 olsun
+        return Mathf.Max(0.1f, finalWeight);
+    }
+
+    // -------- Legendary Fish Effects --------
+    
+    // Efsanevi balık için özel efektleri başlat
+    private void StartLegendaryFishEffects()
+    {
+        Debug.Log("🌟 Efsanevi balık efektleri başlatılıyor!");
+        
+        // Panel rengini değiştir
+        if (fishingPanel != null)
+        {
+            StartCoroutine(LegendaryPanelGlow());
+        }
+        
+        // Waiting text'i özel hale getir
+        if (waitingText != null)
+        {
+            waitingText.text = "✨ Legendary fish approaching... ✨";
+            waitingText.color = legendaryColor;
+        }
+        
+        // Efsanevi balık için özel spin efekti
+        if (enableWaitingSpin && fishImage != null)
+        {
+            StartCoroutine(LegendaryFishImageEffects());
+        }
+    }
+    
+    // Efsanevi balık panel parıltısı
+    private System.Collections.IEnumerator LegendaryPanelGlow()
+    {
+        Image panelImage = fishingPanel.GetComponent<Image>();
+        if (panelImage == null) yield break;
+        
+        Color originalColor = panelImage.color;
+        float duration = 3f;
+        float elapsed = 0f;
+        
+        while (elapsed < duration && isWaitingForFish)
+        {
+            elapsed += Time.deltaTime;
+            float intensity = Mathf.Sin(elapsed * 4f) * 0.5f + 0.5f; // 0-1 arası sinüs
+            
+            Color glowColor = Color.Lerp(originalColor, legendaryColor, intensity * 0.3f);
+            panelImage.color = glowColor;
+            
+            yield return null;
+        }
+        
+        // Orijinal renge dön
+        if (panelImage != null)
+        {
+            panelImage.color = originalColor;
+        }
+    }
+    
+    // Efsanevi balık ikon efektleri
+    private System.Collections.IEnumerator LegendaryFishImageEffects()
+    {
+        if (fishImage == null) yield break;
+        
+        Vector3 originalScale = fishImageBaseScale;
+        Color originalColor = Color.white;
+        
+        float duration = 2f;
+        float elapsed = 0f;
+        
+        while (elapsed < duration && isWaitingForFish)
+        {
+            elapsed += Time.deltaTime;
+            
+            // Nabız efekti - daha büyük amplitüd
+            float pulse = 1f + Mathf.Sin(elapsed * 6f) * 0.15f;
+            fishImage.rectTransform.localScale = originalScale * pulse;
+            
+            // Renk değişimi efekti
+            float colorPulse = Mathf.Sin(elapsed * 4f) * 0.5f + 0.5f;
+            Color glowColor = Color.Lerp(originalColor, legendaryColor, colorPulse * 0.8f);
+            fishImage.color = glowColor;
+            
+            // Hafif rotasyon efekti
+            float rotation = Mathf.Sin(elapsed * 3f) * 5f;
+            fishImage.rectTransform.localRotation = Quaternion.Euler(0, 0, rotation);
+            
+            yield return null;
+        }
+        
+        // Reset to original state
+        if (fishImage != null)
+        {
+            fishImage.rectTransform.localScale = originalScale;
+            fishImage.color = originalColor;
+            fishImage.rectTransform.localRotation = fishImageBaseRotation;
+        }
+    }
+    
+    // Efsanevi balık yakalandığında özel kutlama
+    private void TriggerLegendaryFishCaught()
+    {
+        Debug.Log("🎉 EFSANEVİ BALIK YAKALANDI! 🎉");
+        
+        // Özel status mesajı
+        UpdateStatusText("🌟 LEGENDARY FISH CAUGHT! 🌟", legendaryColor);
+        
+        // Panel çevresinde özel efekt
+        if (fishingPanel != null)
+        {
+            StartCoroutine(LegendaryCaughtCelebration());
+        }
+        
+        // Efsanevi balık için farklı animasyon trigger'ı
+        if (fishingAnimator != null)
+        {
+            // Varsayılan olarak normal caught trigger kullan
+            // Eğer özel LegendaryCaught trigger'ı varsa onu kullanabilir
+            // Şimdilik sadece normal trigger kullanıyoruz
+            fishingAnimator.SetTrigger("FishCaught");
+            Debug.Log("Efsanevi balık yakalandı - animasyon tetiklendi!");
+        }
+    }
+    
+    // Efsanevi balık yakalandığında kutlama efekti
+    private System.Collections.IEnumerator LegendaryCaughtCelebration()
+    {
+        Image panelImage = fishingPanel.GetComponent<Image>();
+        if (panelImage == null) yield break;
+        
+        Color originalColor = panelImage.color;
+        
+        // Hızlı parlama efekti
+        for (int i = 0; i < 5; i++)
+        {
+            panelImage.color = legendaryColor;
+            yield return new WaitForSeconds(0.1f);
+            panelImage.color = originalColor;
+            yield return new WaitForSeconds(0.1f);
+        }
+        
+        // Son parıltı
+        float duration = 1f;
+        float elapsed = 0f;
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float intensity = 1f - (elapsed / duration); // 1'den 0'a
+            
+            Color glowColor = Color.Lerp(originalColor, legendaryColor, intensity * 0.5f);
+            panelImage.color = glowColor;
+            
+            yield return null;
+        }
+        
+        panelImage.color = originalColor;
     }
 }

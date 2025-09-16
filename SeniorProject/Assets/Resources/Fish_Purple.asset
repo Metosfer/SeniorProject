@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: feccdefb0fdb13e4fa7fb8a5e07e3a98, type: 3}
-  m_Name: Fish_Yellow
+  m_Name: Fish_Purple
   m_EditorClassIdentifier: 
-  itemName: Fish Yellow
+  itemName: Fish Purple
   itemDescription: 
   canStackable: 1
-  itemIcon: {fileID: 21300000, guid: 8fb9ab5b05ff7425f9f6ee3ddcee4725, type: 3}
-  itemPrefab: {fileID: 7240493839032158186, guid: 8bc4f1b7d9f274c0d85708fbb910c766,
+  itemIcon: {fileID: 21300000, guid: 565e2e62f2a6f4717aec8ec4c77e26e0, type: 3}
+  itemPrefab: {fileID: 7240493839032158186, guid: a5a7eb79f02ff488e955653691514506,
     type: 3}
-  dropPrefab: {fileID: 7240493839032158186, guid: 8bc4f1b7d9f274c0d85708fbb910c766,
+  dropPrefab: {fileID: 7240493839032158186, guid: a5a7eb79f02ff488e955653691514506,
     type: 3}
   dryPrefab: {fileID: 0}
   isSeed: 0
@@ -31,11 +31,11 @@ MonoBehaviour:
   isExpirable: 0
   expirationTime: 0
   isFish: 1
-  fishValue: 3
+  fishValue: 5
   fishWeight: 1
-  fishType: Hard
+  fishType: Extreme Hard
   fishingXP: 0
-  fishDifficulty: 3
+  fishDifficulty: 5
   isFishFeed: 0
   feedAmount: 1
   feedValue: 1

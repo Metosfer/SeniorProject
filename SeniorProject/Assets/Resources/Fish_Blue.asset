@@ -31,8 +31,11 @@ MonoBehaviour:
   isExpirable: 0
   expirationTime: 0
   isFish: 1
-  fishValue: 1
+  fishValue: 2
   fishWeight: 1
   fishType: Rare
   fishingXP: 0
   fishDifficulty: 2
+  isFishFeed: 0
+  feedAmount: 1
+  feedValue: 1
