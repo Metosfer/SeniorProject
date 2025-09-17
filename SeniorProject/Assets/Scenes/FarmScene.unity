@@ -4396,7 +4396,7 @@ GameObject:
   - component: {fileID: 192306708}
   - component: {fileID: 192306707}
   m_Layer: 0
-  m_Name: InventoryManager
+  m_Name: InventoryHolderManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -42335,6 +42335,8 @@ MonoBehaviour:
   inventory: {fileID: 11400000, guid: 54c9b72cc0309254d8d3164d828e1423, type: 2}
   inventoryPanel: {fileID: 1308785789}
   isInventoryVisible: 0
+  autoOpenOnItemAdded: 1
+  autoOpenDelay: 0.1
 --- !u!1001 &1804152110
 PrefabInstance:
   m_ObjectHideFlags: 0

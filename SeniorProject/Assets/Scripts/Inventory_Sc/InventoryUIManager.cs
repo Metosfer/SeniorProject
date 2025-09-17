@@ -7,6 +7,16 @@ public class InventoryUIManager : MonoBehaviour
     public GameObject inventoryPanel; // Inventory paneline referans
     private List<InventorySlotUI> slotUIs;
     public bool isInventoryVisible = false;
+    
+    [Header("Auto-Open Settings")]
+    [Tooltip("Item alındığında paneli otomatik aç")]
+    public bool autoOpenOnItemAdded = true;
+    [Tooltip("Otomatik açma için minimum delay (saniye)")]
+    public float autoOpenDelay = 0.1f;
+    
+    // Private variables for auto-open functionality
+    private int previousItemCount = 0;
+    private bool hasInitialized = false;
 
     private void Awake()
     {
@@ -118,7 +128,11 @@ public class InventoryUIManager : MonoBehaviour
         // Event'i bağla
         if (inventory != null)
         {
-            inventory.OnInventoryChanged += UpdateUI;
+            inventory.OnInventoryChanged += OnInventoryChanged;
+            
+            // İlk item count'ı kaydet
+            previousItemCount = GetCurrentItemCount();
+            hasInitialized = true;
         }
         
         // UI'ı ilk kez güncelle
@@ -184,7 +198,7 @@ public class InventoryUIManager : MonoBehaviour
         // Inventory değiştiğinde UI'ı güncelle
         if (inventory != null)
         {
-            inventory.OnInventoryChanged += UpdateUI;
+            inventory.OnInventoryChanged += OnInventoryChanged;
             Debug.Log("InventoryUIManager: Event connected on OnEnable");
         }
         else
@@ -198,7 +212,7 @@ public class InventoryUIManager : MonoBehaviour
         // Event'i disconnect et
         if (inventory != null)
         {
-            inventory.OnInventoryChanged -= UpdateUI;
+            inventory.OnInventoryChanged -= OnInventoryChanged;
             Debug.Log("InventoryUIManager: Event disconnected on OnDisable");
         }
     }    private void UpdateUI()
@@ -290,6 +304,100 @@ public class InventoryUIManager : MonoBehaviour
                 }
             }
         }
+    }
+    
+    /// <summary>
+    /// Inventory değiştiğinde çağrılan event handler
+    /// </summary>
+    private void OnInventoryChanged()
+    {
+        // Önce UI'ı güncelle
+        UpdateUI();
+        
+        // Auto-open kontrolü yap
+        if (autoOpenOnItemAdded && hasInitialized)
+        {
+            CheckForAutoOpen();
+        }
+    }
+    
+    /// <summary>
+    /// Item eklendiğinde otomatik panel açma kontrolü
+    /// </summary>
+    private void CheckForAutoOpen()
+    {
+        int currentItemCount = GetCurrentItemCount();
+        
+        // Eğer item sayısı artmışsa ve panel kapalıysa
+        if (currentItemCount > previousItemCount && !isInventoryVisible)
+        {
+            // Delay ile paneli aç
+            Invoke(nameof(AutoOpenPanel), autoOpenDelay);
+            Debug.Log($"📦 Item added! Auto-opening inventory panel. Previous: {previousItemCount}, Current: {currentItemCount}");
+        }
+        
+        // Mevcut item count'ı kaydet
+        previousItemCount = currentItemCount;
+    }
+    
+    /// <summary>
+    /// Otomatik panel açma
+    /// </summary>
+    private void AutoOpenPanel()
+    {
+        if (!isInventoryVisible)
+        {
+            // Paneli aç
+            isInventoryVisible = true;
+            
+            if (inventoryPanel != null)
+            {
+                inventoryPanel.SetActive(isInventoryVisible);
+            }
+            
+            // Panel açılınca UI synchronization
+            if (isInventoryVisible)
+            {
+                Debug.Log("Inventory panel auto-opened - forcing UI synchronization");
+                
+                // İlk açılışta event'i yeniden bağla
+                if (inventory != null)
+                {
+                    inventory.OnInventoryChanged += OnInventoryChanged;
+                }
+                
+                // Drag handler referanslarını güncelle
+                UpdateDragHandlerReferences();
+                
+                // Force UI update
+                if (inventory != null && slotUIs.Count > 0)
+                {
+                    UpdateUI();
+                    Debug.Log("Forced UI update on auto panel open");
+                }
+            }
+            
+            Debug.Log("📦 Inventory panel auto-opened due to item addition!");
+        }
+    }
+    
+    /// <summary>
+    /// Mevcut toplam item sayısını hesapla
+    /// </summary>
+    private int GetCurrentItemCount()
+    {
+        if (inventory == null || inventory.inventorySlots == null)
+            return 0;
+            
+        int totalCount = 0;
+        foreach (var slot in inventory.inventorySlots)
+        {
+            if (slot.item != null)
+            {
+                totalCount += slot.itemCount;
+            }
+        }
+        return totalCount;
     }
     
     public void RefreshUI()
