@@ -632,6 +632,24 @@ public class SoundManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Müziği sustur/aç (SettingsManager'dan çağrılır)
+    /// </summary>
+    public void SetMusicMuted(bool muted)
+    {
+        bool previousMute = muteMusicForTesting;
+        muteMusicForTesting = muted;
+        
+        if (musicAudioSource != null)
+        {
+            // Mute durumuna göre ses seviyesini ayarla
+            float actualVolume = muteMusicForTesting ? 0f : musicVolume;
+            musicAudioSource.volume = actualVolume;
+        }
+        
+        Debug.Log($"🔇 Music mute changed: {previousMute} → {muteMusicForTesting} (Volume: {(muteMusicForTesting ? 0f : musicVolume):F2})");
+    }
+    
+    /// <summary>
     /// SettingsManager'dan müzik ayarlarını yükle
     /// </summary>
     private void LoadMusicSettingsFromSettingsManager()

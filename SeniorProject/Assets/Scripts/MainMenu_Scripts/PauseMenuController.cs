@@ -23,6 +23,9 @@ public partial class PauseMenuController : MonoBehaviour
     public Slider volumeSlider;                 // Master ses ayarı slider'ı
     public Slider musicVolumeSlider;            // Müzik ses ayarı slider'ı
     public Slider soundEffectsVolumeSlider;     // Sound effects ses ayarı slider'ı (footstep vs.)
+    public Toggle minimapToggle;                // Minimap açık/kapalı toggle'ı
+    public Toggle musicMuteToggle;              // Müzik susturma toggle'ı
+    public GameObject minimapCanvas;            // Minimap Canvas'ı (direkt assign için)
     public Dropdown graphicsDropdown;           // Grafik ayarı dropdown'ı
     public Button settingsBackButton;           // Settings panel geri butonu
     public Transform playerTransform;           // Oyuncu pozisyonu için referans
@@ -41,7 +44,7 @@ public partial class PauseMenuController : MonoBehaviour
 
     void Start()
     {
-        // Başlangıçta menüleri gizle
+                // Başlangıçta menüleri gizle
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (confirmationDialogPanel != null) confirmationDialogPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
@@ -51,8 +54,8 @@ public partial class PauseMenuController : MonoBehaviour
         if (resumeButton != null) resumeButton.onClick.AddListener(ResumeGame);
         if (saveButton != null) saveButton.onClick.AddListener(SaveGame);
         if (settingsButton != null) settingsButton.onClick.AddListener(OpenSettings);
-        if (mainMenuButton != null) mainMenuButton.onClick.AddListener(() => ShowSaveConfirmation("MainMenu"));
-        if (quitButton != null) quitButton.onClick.AddListener(() => ShowSaveConfirmation("Quit"));
+        if (mainMenuButton != null) mainMenuButton.onClick.AddListener(MainMenuRequest);
+        if (quitButton != null) quitButton.onClick.AddListener(QuitRequest);
         if (saveAndProceedButton != null) saveAndProceedButton.onClick.AddListener(OnSaveAndProceed);
         if (proceedWithoutSavingButton != null) proceedWithoutSavingButton.onClick.AddListener(OnProceedWithoutSaving);
         if (cancelButton != null) cancelButton.onClick.AddListener(OnCancel);
@@ -65,6 +68,8 @@ public partial class PauseMenuController : MonoBehaviour
         if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(SetMasterVolume);
         if (musicVolumeSlider != null) musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
         if (soundEffectsVolumeSlider != null) soundEffectsVolumeSlider.onValueChanged.AddListener(SetSoundEffectsVolume);
+        if (minimapToggle != null) minimapToggle.onValueChanged.AddListener(SetMinimapEnabled);
+        if (musicMuteToggle != null) musicMuteToggle.onValueChanged.AddListener(SetMusicMuted);
         if (graphicsDropdown != null) graphicsDropdown.onValueChanged.AddListener(SetGraphicsQuality);
         
         // SettingsManager'dan ayar değişikliklerini dinle (real-time sync için)
@@ -247,6 +252,16 @@ public partial class PauseMenuController : MonoBehaviour
         StartCoroutine(ShowSaveNotification());
     }
 
+    void MainMenuRequest()
+    {
+        ShowSaveConfirmation("MainMenu");
+    }
+
+    void QuitRequest()
+    {
+        ShowSaveConfirmation("Quit");
+    }
+
     List<string> GetSaveTimes()
     {
         string times = PlayerPrefs.GetString("SaveTimes", "");
@@ -316,7 +331,17 @@ public partial class PauseMenuController : MonoBehaviour
                 soundEffectsVolumeSlider.value = settings.soundEffectsVolume;
             }
             
-            Debug.Log($"🎵 Audio settings loaded from SettingsManager: Master={settings.masterVolume:F2}, Music={settings.musicVolume:F2}, SFX={settings.soundEffectsVolume:F2}");
+            if (minimapToggle != null)
+            {
+                minimapToggle.isOn = settings.minimapEnabled;
+            }
+            
+            if (musicMuteToggle != null)
+            {
+                musicMuteToggle.isOn = settings.musicMuted;
+            }
+            
+            Debug.Log($"🎵 Settings loaded from SettingsManager: Master={settings.masterVolume:F2}, Music={settings.musicVolume:F2}, SFX={settings.soundEffectsVolume:F2}, Minimap={settings.minimapEnabled}, MusicMuted={settings.musicMuted}");
         }
         else
         {
@@ -324,6 +349,8 @@ public partial class PauseMenuController : MonoBehaviour
             if (volumeSlider != null) volumeSlider.value = PlayerPrefs.GetFloat("Volume", 1f);
             if (musicVolumeSlider != null) musicVolumeSlider.value = PlayerPrefs.GetFloat("MusicVolume", 0.2f);
             if (soundEffectsVolumeSlider != null) soundEffectsVolumeSlider.value = PlayerPrefs.GetFloat("SoundEffectsVolume", 0.7f);
+            if (minimapToggle != null) minimapToggle.isOn = PlayerPrefs.GetInt("MinimapEnabled", 1) == 1;
+            if (musicMuteToggle != null) musicMuteToggle.isOn = PlayerPrefs.GetInt("MusicMuted", 1) == 1; // Default muted
             
             Debug.LogWarning("SettingsManager not available, using PlayerPrefs fallback");
         }
@@ -410,6 +437,69 @@ public partial class PauseMenuController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Minimap aktif/pasif durumunu değiştir
+    /// </summary>
+    void SetMinimapEnabled(bool enabled)
+    {
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SetMinimapEnabled(enabled);
+            Debug.Log($"🗺️ Minimap {(enabled ? "enabled" : "disabled")} via SettingsManager");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs
+            PlayerPrefs.SetInt("MinimapEnabled", enabled ? 1 : 0);
+            PlayerPrefs.Save();
+            
+            // Direkt apply - önce assigned canvas'ı kontrol et
+            GameObject targetCanvas = minimapCanvas;
+            if (targetCanvas == null)
+            {
+                // Assign edilmemişse otomatik ara
+                targetCanvas = GameObject.FindGameObjectWithTag("MinimapCanvas");
+                if (targetCanvas == null)
+                {
+                    targetCanvas = GameObject.Find("MinimapCanvas");
+                }
+            }
+            
+            if (targetCanvas != null)
+            {
+                targetCanvas.SetActive(enabled);
+            }
+            
+            Debug.Log($"🗺️ Minimap {(enabled ? "enabled" : "disabled")} via fallback");
+        }
+    }
+
+    /// <summary>
+    /// Müzik mute/unmute durumunu değiştir
+    /// </summary>
+    void SetMusicMuted(bool muted)
+    {
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.SetMusicMuted(muted);
+            Debug.Log($"🔇 Music {(muted ? "muted" : "unmuted")} via SettingsManager");
+        }
+        else
+        {
+            // Fallback: PlayerPrefs
+            PlayerPrefs.SetInt("MusicMuted", muted ? 1 : 0);
+            PlayerPrefs.Save();
+            
+            // Direkt SoundManager'a apply
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.SetMusicMuted(muted);
+            }
+            
+            Debug.Log($"🔇 Music {(muted ? "muted" : "unmuted")} via fallback");
+        }
+    }
+
     void SetVolume(float volume)
     {
         // Deprecated - SetMasterVolume kullanılmalı
@@ -455,12 +545,22 @@ public partial class PauseMenuController : MonoBehaviour
             soundEffectsVolumeSlider.value = settings.soundEffectsVolume;
         }
         
+        if (minimapToggle != null && minimapToggle.isOn != settings.minimapEnabled)
+        {
+            minimapToggle.isOn = settings.minimapEnabled;
+        }
+        
+        if (musicMuteToggle != null && musicMuteToggle.isOn != settings.musicMuted)
+        {
+            musicMuteToggle.isOn = settings.musicMuted;
+        }
+        
         if (graphicsDropdown != null && graphicsDropdown.value != settings.graphicsQuality)
         {
             graphicsDropdown.value = settings.graphicsQuality;
         }
         
-        Debug.Log($"🎵 PauseMenu settings synced: Master={settings.masterVolume:F2}, Music={settings.musicVolume:F2}, SFX={settings.soundEffectsVolume:F2}");
+        Debug.Log($"🎵 PauseMenu settings synced: Master={settings.masterVolume:F2}, Music={settings.musicVolume:F2}, SFX={settings.soundEffectsVolume:F2}, Minimap={settings.minimapEnabled}, MusicMuted={settings.musicMuted}");
     }
     
     void OnDestroy()

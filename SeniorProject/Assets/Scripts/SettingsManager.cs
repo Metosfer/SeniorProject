@@ -11,7 +11,9 @@ public class SettingsManager : MonoBehaviour
         public float masterVolume = 1f;
         public float musicVolume = 0.2f; // Müzik ses seviyesi (0-1 arası) - default düşük
         public float soundEffectsVolume = 0.7f; // Player ses efektleri (footstep vs.) - default orta seviye
+        public bool musicMuted = true; // Müzik tamamen susturulmuş mu? - default muted
         public int graphicsQuality = 0; // QualitySettings index
+        public bool minimapEnabled = true; // Minimap açık/kapalı durumu
 
         // Camera/Input
         public bool cameraRotateOnlyWithRMB = false;
@@ -136,11 +138,28 @@ public class SettingsManager : MonoBehaviour
         RaiseChanged();
     }
 
+    public void SetMinimapEnabled(bool enabled)
+    {
+        Current.minimapEnabled = enabled;
+        ApplyMinimap();
+        SaveSettings();
+        RaiseChanged();
+    }
+
+    public void SetMusicMuted(bool muted)
+    {
+        Current.musicMuted = muted;
+        ApplyAudio();
+        SaveSettings();
+        RaiseChanged();
+    }
+
     public void ApplyAll()
     {
         ApplyAudio();
         ApplyGraphics();
         ApplyCameraToControllers();
+        ApplyMinimap();
     }
 
     private void ApplyAudio()
@@ -151,6 +170,7 @@ public class SettingsManager : MonoBehaviour
         if (SoundManager.Instance != null)
         {
             SoundManager.Instance.SetMusicVolume(Current.musicVolume);
+            SoundManager.Instance.SetMusicMuted(Current.musicMuted);
         }
         else
         {
@@ -159,6 +179,7 @@ public class SettingsManager : MonoBehaviour
             if (soundManager != null)
             {
                 soundManager.SetMusicVolume(Current.musicVolume);
+                soundManager.SetMusicMuted(Current.musicMuted);
                 Debug.Log("🎵 Found SoundManager in scene and applied music volume");
             }
         }
@@ -196,6 +217,38 @@ public class SettingsManager : MonoBehaviour
         {
             // Apply display mode if resolution untouched
             Screen.fullScreenMode = mode;
+        }
+    }
+
+    private void ApplyMinimap()
+    {
+        // Önce PauseMenuController'dan direkt assigned canvas'ı kontrol et
+        var pauseMenuController = FindObjectOfType<PauseMenuController>();
+        GameObject minimapCanvas = null;
+        
+        if (pauseMenuController != null && pauseMenuController.minimapCanvas != null)
+        {
+            minimapCanvas = pauseMenuController.minimapCanvas;
+            Debug.Log("🗺️ Using assigned minimap canvas from PauseMenuController");
+        }
+        else
+        {
+            // Assign edilmemişse otomatik ara
+            minimapCanvas = GameObject.FindGameObjectWithTag("MinimapCanvas");
+            if (minimapCanvas == null)
+            {
+                minimapCanvas = GameObject.Find("MinimapCanvas");
+            }
+        }
+        
+        if (minimapCanvas != null)
+        {
+            minimapCanvas.SetActive(Current.minimapEnabled);
+            Debug.Log($"Minimap {(Current.minimapEnabled ? "enabled" : "disabled")}");
+        }
+        else
+        {
+            Debug.LogWarning("Minimap Canvas bulunamadı! GameObject'e 'MinimapCanvas' tag'i veya ismi ekleyin, ya da PauseMenuController'a direkt assign edin.");
         }
     }
 
