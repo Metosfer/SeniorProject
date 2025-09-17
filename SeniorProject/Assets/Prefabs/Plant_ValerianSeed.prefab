@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 2198217099720841453}
   serializedVersion: 2
   m_LocalRotation: {x: 0.056685083, y: -0, z: -0, w: 0.9983921}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -2.37, z: 0}
   m_LocalScale: {x: 0.9720736, y: 0.97207355, z: 4.326401}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -148,6 +148,7 @@ GameObject:
   - component: {fileID: 7054712023444641236}
   - component: {fileID: 4034940108793598137}
   - component: {fileID: 9046592750796002496}
+  - component: {fileID: 8425473492446556431}
   m_Layer: 0
   m_Name: Plant_Valerian Seed
   m_TagString: Untagged
@@ -163,7 +164,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7240493839032158186}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.73799497, y: -0, z: -0, w: 0.6748063}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.15147, y: 0.15147, z: 0.15147}
   m_ConstrainProportionsScale: 0
@@ -171,7 +172,7 @@ Transform:
   - {fileID: 3670440859327235221}
   - {fileID: 4224503114481937374}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -95.122, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &5694994969897514012
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -319,6 +320,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   itemData: {fileID: 11400000, guid: d8d6c9066be2e47eb89ace4f4f9d3e2a, type: 2}
+--- !u!114 &8425473492446556431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7240493839032158186}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98e69b6528d481a4da18015466a6388d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  groundSnapOffset: 1
+  ghostHoverOffset: 0.8
 --- !u!1 &7947153312501448538
 GameObject:
   m_ObjectHideFlags: 0

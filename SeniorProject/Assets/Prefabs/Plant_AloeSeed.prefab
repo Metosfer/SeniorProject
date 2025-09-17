@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 393750987852514152}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.16, y: -0.01, z: -0.067}
+  m_LocalPosition: {x: -0.95, y: -2.05, z: -0.006}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -148,6 +148,7 @@ GameObject:
   - component: {fileID: 3705405295764809427}
   - component: {fileID: 2739281876947939826}
   - component: {fileID: 5170763875448956464}
+  - component: {fileID: 4016738644545103095}
   m_Layer: 0
   m_Name: Plant_Aloe Seed
   m_TagString: Plant
@@ -163,7 +164,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3196120123495289164}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.6985569, y: -0, z: -0, w: 0.7155546}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.14723982, y: 0.14723982, z: 0.6553202}
   m_ConstrainProportionsScale: 0
@@ -171,7 +172,7 @@ Transform:
   - {fileID: 281413938514665456}
   - {fileID: 3863947869702058374}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -88.623, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &2217082260567898740
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -319,6 +320,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   itemData: {fileID: 11400000, guid: 861a69872a68045c7a93f9e8365dea53, type: 2}
+--- !u!114 &4016738644545103095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3196120123495289164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98e69b6528d481a4da18015466a6388d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  groundSnapOffset: 1
+  ghostHoverOffset: 0.8
 --- !u!1 &3980441559682332143
 GameObject:
   m_ObjectHideFlags: 0

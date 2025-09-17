@@ -252,6 +252,7 @@ GameObject:
   - component: {fileID: 4800851569287445788}
   - component: {fileID: 7397027023805234382}
   - component: {fileID: 5483532223687462749}
+  - component: {fileID: 1578573173645612539}
   m_Layer: 0
   m_Name: Plant_Plantago Seed
   m_TagString: Plant
@@ -267,15 +268,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2637501576349691956}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.5, z: 0}
   m_LocalScale: {x: 0.17377916, y: 0.17377916, z: 0.17377916}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3896982312148629261}
   - {fileID: 3407738380072227835}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &1844101507305982234
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -423,6 +424,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   itemData: {fileID: 11400000, guid: b275345653a844fbca29b623029c59ae, type: 2}
+--- !u!114 &1578573173645612539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2637501576349691956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98e69b6528d481a4da18015466a6388d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  groundSnapOffset: 1
+  ghostHoverOffset: 0.8
 --- !u!1 &5276072574070784729
 GameObject:
   m_ObjectHideFlags: 0
@@ -448,7 +463,7 @@ Transform:
   m_GameObject: {fileID: 5276072574070784729}
   serializedVersion: 2
   m_LocalRotation: {x: 0.012019156, y: -0, z: -0, w: 0.99992776}
-  m_LocalPosition: {x: 0, y: 0.01, z: -0.07}
+  m_LocalPosition: {x: -0.22, y: -2.16, z: -0.02}
   m_LocalScale: {x: 0.84728223, y: 0.8472822, z: 3.770993}
   m_ConstrainProportionsScale: 0
   m_Children: []

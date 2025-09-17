@@ -6,6 +6,11 @@ using UnityEngine.SceneManagement;
 
 public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    // Ground snap offset for preventing items from spawning inside ground
+    [Header("Drop Settings")]
+    [SerializeField] private float groundSnapOffset = 1.0f;
+    [SerializeField] private float ghostHoverOffset = 0.8f;
+    
     // Static tracking for current drag
     public static DragAndDropHandler CurrentDragHandler { get; private set; }
     public static bool IsDragging => CurrentDragHandler != null;
@@ -451,17 +456,20 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 
             if (Physics.Raycast(ray, out hit, Mathf.Infinity))
             {
-                return hit.point + Vector3.up * 0.5f;
+                // Apply ground snap offset to prevent items from spawning inside ground
+                return hit.point + Vector3.up * groundSnapOffset;
             }
             else
             {
+                // No ground hit - place at a reasonable height
                 Vector3 worldPos = ray.GetPoint(10f);
-                worldPos.y = 0.5f;
+                worldPos.y = groundSnapOffset;
                 return worldPos;
             }
         }
 
-        return Vector3.zero + Vector3.up * 0.5f;
+        // Fallback position with offset
+        return Vector3.zero + Vector3.up * groundSnapOffset;
     }
 
     private void RemoveSingleItemFromInventory()
@@ -581,7 +589,8 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         Ray ray = mainCamera.ScreenPointToRay(eventData.position);
         if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
         {
-            dragGhost.transform.position = hit.point + Vector3.up * 0.02f; // slight lift
+            // Use ghostHoverOffset to keep ghost above ground during drag
+            dragGhost.transform.position = hit.point + Vector3.up * ghostHoverOffset;
             // Optional: align with surface normal yaw only
             Vector3 forward = Vector3.ProjectOnPlane(mainCamera.transform.forward, hit.normal).normalized;
             if (forward.sqrMagnitude > 0.01f)
@@ -589,8 +598,9 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
         else
         {
+            // No ground hit - position at reasonable distance with offset
             Vector3 pos = ray.GetPoint(6f);
-            pos.y = 0.02f;
+            pos.y = ghostHoverOffset;
             dragGhost.transform.position = pos;
         }
     }
