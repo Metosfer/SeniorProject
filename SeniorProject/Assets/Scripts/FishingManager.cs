@@ -81,6 +81,19 @@ public class FishingManager : MonoBehaviour
     [Tooltip("Bu listeye tüm balık ScriptableObject'lerini ekleyin (isFish=true olanlar)")]
     public List<SCItem> availableFishList = new List<SCItem>(); // Inspector'dan assign edilecek balık listesi
     
+    [Header("Audio Settings")]
+    [Tooltip("Balık yakalandığında çalacak ses efekti")]
+    public AudioClip fishCaughtSound;
+    [Tooltip("Balık kaçtığında çalacak ses efekti")]
+    public AudioClip fishEscapedSound;
+    [Tooltip("Balık tutma başarısızlığında çalacak ses efekti")]
+    public AudioClip fishingFailedSound;
+    [Tooltip("Ses çalma için AudioSource (yoksa otomatik oluşturulur)")]
+    public AudioSource audioSource;
+    [Tooltip("Ses efektlerinin volume seviyesi (0-1 arası)")]
+    [Range(0f, 1f)]
+    public float soundVolume = 0.7f;
+    
     [Header("Legendary Fish Settings")]
     [Tooltip("Efsanevi balık - özel animasyonlar ve efektler ile")]
     public SCItem legendaryFish; // Inspector'dan assign edilecek özel balık
@@ -163,6 +176,8 @@ public class FishingManager : MonoBehaviour
     
     void Start()
     {
+        InitializeAudioSource();
+        
         if (promptText != null)
             promptText.SetActive(false);
             
@@ -230,6 +245,66 @@ public class FishingManager : MonoBehaviour
             panelBaseScale = fishingPanel.transform.localScale;
             panelBaseRotation = fishingPanel.transform.localRotation;
         }
+    }
+    
+    /// <summary>
+    /// AudioSource'u initialize et ve SettingsManager ile bağla
+    /// </summary>
+    private void InitializeAudioSource()
+    {
+        // AudioSource yoksa oluştur
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+        
+        // AudioSource ayarları
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0f; // 2D ses
+        audioSource.priority = 128;     // Orta öncelik
+        audioSource.volume = soundVolume;
+        
+        // SettingsManager'dan volume ayarını al
+        UpdateAudioVolume();
+        
+        Debug.Log("🔊 FishingManager AudioSource initialized");
+    }
+    
+    /// <summary>
+    /// Audio volume'u SettingsManager'dan güncelle
+    /// </summary>
+    private void UpdateAudioVolume()
+    {
+        if (audioSource == null) return;
+        
+        float masterVolume = 1f;
+        if (SettingsManager.Instance != null)
+        {
+            masterVolume = SettingsManager.Instance.Current.masterVolume;
+        }
+        else
+        {
+            masterVolume = PlayerPrefs.GetFloat("Volume", 1f);
+        }
+        
+        audioSource.volume = soundVolume * masterVolume;
+    }
+    
+    /// <summary>
+    /// Ses efekti çal
+    /// </summary>
+    private void PlaySoundEffect(AudioClip clip)
+    {
+        if (clip == null || audioSource == null) return;
+        
+        UpdateAudioVolume(); // Güncel volume ayarı ile çal
+        audioSource.PlayOneShot(clip);
+        
+        Debug.Log($"🔊 FishingManager playing sound: {clip.name}");
     }
 
     void Update()
@@ -748,12 +823,14 @@ public class FishingManager : MonoBehaviour
                 if (currentTargetFish.isLegendaryFish)
                 {
                     TriggerLegendaryFishCaught();
+                    PlaySoundEffect(fishCaughtSound); // Efsanevi balık için de yakalama sesi
                 }
                 else
                 {
                     // Normal balık yakalama animasyonu
                     TriggerFishCaughtAnimation();
                     UpdateStatusText("Fish Caught!", Color.green);
+                    PlaySoundEffect(fishCaughtSound); // Normal balık yakalama sesi
                 }
                 
                 // Balığı dünyaya spawn et
@@ -769,14 +846,21 @@ public class FishingManager : MonoBehaviour
             else
             {
                 UpdateStatusText("Failed to add to inventory!", Color.red);
+                PlaySoundEffect(fishingFailedSound); // Envanter başarısızlığı sesi
                 Debug.Log("Balık tutuldu ama envantere eklenemedi!");
             }
         }
         else
         {
             // Başarısızlık mesajı göster
-            UpdateStatusText("Fish Escaped!", Color.red);
+            UpdateStatusText("You missed the fish!", Color.red);
             Debug.Log("Balık kaçtı!");
+            
+            // Ek bilgilendirme mesajı (noFeedWarningText kullanarak)
+            ShowMissedFishMessage();
+            
+            // Balık kaçma sesi çal
+            PlaySoundEffect(fishEscapedSound);
             
             // Balık kaçma animasyonu trigger'ını tetikle
             TriggerFishEscapedAnimation();
@@ -1017,7 +1101,13 @@ public class FishingManager : MonoBehaviour
         if (elapsedTime >= maxFishingTime)
         {
             // Zaman doldu, balığı kaçır
-            UpdateStatusText("Time's Up! Fish Escaped!", Color.red);
+            UpdateStatusText("Time's Up! You missed the fish!", Color.red);
+            
+            // Balık kaçma bilgilendirme mesajı göster
+            ShowMissedFishMessage();
+            
+            // Balık kaçma sesi çal
+            PlaySoundEffect(fishEscapedSound);
             
             // 2 saniye bekle ve oyunu kapat (oyuncu mesajı okuyabilsin)
             Invoke("EndFishingTimeoutCallback", 2.0f);
@@ -1612,6 +1702,9 @@ public class FishingManager : MonoBehaviour
     // Fish Feed yokken uyarı mesajını göster
     private void ShowNoFeedWarning()
     {
+        // Başarısızlık sesi çal
+        PlaySoundEffect(fishingFailedSound);
+        
         if (noFeedWarningText != null)
         {
             noFeedWarningText.gameObject.SetActive(true);
@@ -1628,6 +1721,40 @@ public class FishingManager : MonoBehaviour
             // Fallback: StatusText kullan
             UpdateStatusText("Need Fish Feed to fish!", Color.red);
             Debug.LogWarning("NoFeedWarningText atanmamış, StatusText kullanılıyor.");
+        }
+    }
+    
+    /// <summary>
+    /// Balık kaçtığında ek bilgilendirme mesajı göster
+    /// </summary>
+    private void ShowMissedFishMessage()
+    {
+        if (noFeedWarningText != null)
+        {
+            noFeedWarningText.gameObject.SetActive(true);
+            noFeedWarningText.text = "🎣 Better luck next time! Try to keep the bobber close to the fish. 🎣";
+            noFeedWarningText.color = new Color(1f, 0.6f, 0f); // Turuncu renk
+            
+            // 4 saniye sonra mesajı gizle
+            StartCoroutine(HideMissedFishMessageAfterDelay(4f));
+            
+            Debug.Log("Balık kaçma bilgilendirme mesajı gösterildi!");
+        }
+        else
+        {
+            Debug.LogWarning("NoFeedWarningText atanmamış, missed fish mesajı gösterilemiyor.");
+        }
+    }
+    
+    // Belirtilen süre sonra missed fish mesajını gizle
+    private System.Collections.IEnumerator HideMissedFishMessageAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        if (noFeedWarningText != null)
+        {
+            noFeedWarningText.gameObject.SetActive(false);
+            Debug.Log("Balık kaçma mesajı gizlendi.");
         }
     }
     
