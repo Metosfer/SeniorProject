@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: feccdefb0fdb13e4fa7fb8a5e07e3a98, type: 3}
   m_Name: Aloe_Seed
   m_EditorClassIdentifier: 
-  itemName: AloeSeed
+  itemName: Aloe Seed
   itemDescription: Aloe vera herb's seed
   canStackable: 1
   itemIcon: {fileID: 21300000, guid: 5748c97b128f55e48bf7e1a190b342ac, type: 3}
@@ -38,3 +38,7 @@ MonoBehaviour:
   fishType: Common
   fishingXP: 10
   fishDifficulty: 3
+  isLegendaryFish: 0
+  isFishFeed: 0
+  feedAmount: 1
+  feedValue: 1

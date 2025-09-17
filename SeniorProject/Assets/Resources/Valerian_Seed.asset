@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: feccdefb0fdb13e4fa7fb8a5e07e3a98, type: 3}
   m_Name: Valerian_Seed
   m_EditorClassIdentifier: 
-  itemName: ValerianSeed
+  itemName: Valerian Seed
   itemDescription: Valerian herb's seed
   canStackable: 1
   itemIcon: {fileID: 21300000, guid: 50cba4916b48e7d41a253be71c725a97, type: 3}
@@ -38,3 +38,7 @@ MonoBehaviour:
   fishType: Common
   fishingXP: 10
   fishDifficulty: 3
+  isLegendaryFish: 0
+  isFishFeed: 0
+  feedAmount: 1
+  feedValue: 1

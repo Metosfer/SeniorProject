@@ -14,6 +14,12 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public Color readyColor = Color.green;
     public Color hoverColor = new Color(1f, 1f, 0.8f, 1f);
 
+    [Header("Item Name Display")]
+    [Tooltip("Item ismi gösterimi aktif mi?")]
+    public bool showItemName = true;
+    [Tooltip("Item ismi text komponenti (slot'un child'i olarak)")]
+    public TextMeshProUGUI itemNameText;
+
     [Header("Cursor")]
     [Tooltip("İmleç slot üzerine geldiğinde değişecek texture")]
     public Texture2D hoverCursor;
@@ -69,12 +75,32 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         {
             Debug.LogWarning($"InventorySlotUI: 'Background' child bulunamadı! GameObject: {gameObject.name}");
         }
+
+        // ItemName text bileşenini bul (opsiyonel)
+        Transform itemNameTransform = transform.Find("ItemName");
+        if (itemNameTransform != null)
+        {
+            itemNameText = itemNameTransform.GetComponent<TextMeshProUGUI>();
+            if (itemNameText != null)
+            {
+                itemNameText.gameObject.SetActive(false); // Başlangıçta gizli
+                Debug.Log($"InventorySlotUI: ItemName component found for {gameObject.name}");
+            }
+        }
+        // ItemName yoksa warning verme, çünkü opsiyonel
     }
 
     // Cursor management
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isHovered = true;
+        
+        // Item ismi göster
+        if (showItemName)
+        {
+            ShowItemName();
+        }
+        
         if (hoverCursor != null)
         {
             // Boyut ayarı varsa ölçeklenmiş cursor kullan
@@ -94,6 +120,13 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public void OnPointerExit(PointerEventData eventData)
     {
         _isHovered = false;
+        
+        // Item ismini gizle
+        if (showItemName)
+        {
+            HideItemName();
+        }
+        
         var cm = CursorManager.Instance;
         if (cm != null)
         {
@@ -240,5 +273,58 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             
             return readableTexture;
         }
+    }
+
+    // Item Name Display Methods
+    private void ShowItemName()
+    {
+        if (itemNameText == null) return;
+
+        // Item bilgisini al
+        string itemName = GetCurrentItemName();
+        if (string.IsNullOrEmpty(itemName))
+        {
+            itemNameText.gameObject.SetActive(false);
+            return;
+        }
+
+        // Text'i güncelle ve göster
+        itemNameText.text = itemName;
+        itemNameText.gameObject.SetActive(true);
+    }
+
+    private void HideItemName()
+    {
+        if (itemNameText != null)
+        {
+            itemNameText.gameObject.SetActive(false);
+        }
+    }
+
+    private string GetCurrentItemName()
+    {
+        // DragAndDropHandler'dan slot bilgisini al
+        var dragHandler = GetComponent<DragAndDropHandler>();
+        if (dragHandler == null || dragHandler.inventory == null)
+            return string.Empty;
+
+        int slotIndex = dragHandler.slotIndex;
+        var inventory = dragHandler.inventory;
+        
+        if (slotIndex < 0 || slotIndex >= inventory.inventorySlots.Count)
+            return string.Empty;
+
+        var slot = inventory.inventorySlots[slotIndex];
+        if (slot == null || slot.item == null || slot.itemCount <= 0)
+            return string.Empty;
+
+        // Sadece item adını döndür
+        string itemName = slot.item.itemName;
+        if (slot.itemCount > 1)
+        {
+            itemName += $" x{slot.itemCount}";
+        }
+
+        return itemName;
     }
 }

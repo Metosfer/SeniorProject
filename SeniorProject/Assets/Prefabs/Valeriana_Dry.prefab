@@ -5149,7 +5149,7 @@ GameObject:
   - component: {fileID: 5398389265820674203}
   - component: {fileID: -6225207455328074561}
   m_Layer: 0
-  m_Name: Plant_ValerianDry
+  m_Name: Plant_Valerian Dry
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

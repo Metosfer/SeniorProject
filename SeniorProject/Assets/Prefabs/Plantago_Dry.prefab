@@ -16492,7 +16492,7 @@ GameObject:
   - component: {fileID: 1518091543152155471}
   - component: {fileID: 6465830424661561906}
   m_Layer: 0
-  m_Name: Plant_PlantagoDry
+  m_Name: Plant_Plantago Dry
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -2439,7 +2439,7 @@ PrefabInstance:
     - target: {fileID: 45863292906531986, guid: ad1fff4d01d2d4f65b06439bddf4a183,
         type: 3}
       propertyPath: m_Name
-      value: Plant_DandelionSeed
+      value: Plant_Dandelion Seed
       objectReference: {fileID: 0}
     - target: {fileID: 2401313969909201279, guid: ad1fff4d01d2d4f65b06439bddf4a183,
         type: 3}
@@ -5463,7 +5463,7 @@ PrefabInstance:
     - target: {fileID: 3196120123495289164, guid: c8aeab1e49d934d34a170392ff3f5b46,
         type: 3}
       propertyPath: m_Name
-      value: Plant_AloeSeed
+      value: Plant_Aloe Seed
       objectReference: {fileID: 0}
     - target: {fileID: 3267810688299938308, guid: c8aeab1e49d934d34a170392ff3f5b46,
         type: 3}
@@ -24181,7 +24181,7 @@ PrefabInstance:
     - target: {fileID: 3196120123495289164, guid: c8aeab1e49d934d34a170392ff3f5b46,
         type: 3}
       propertyPath: m_Name
-      value: Plant_AloeSeed
+      value: Plant_Aloe Seed
       objectReference: {fileID: 0}
     - target: {fileID: 3267810688299938308, guid: c8aeab1e49d934d34a170392ff3f5b46,
         type: 3}
@@ -30454,7 +30454,7 @@ PrefabInstance:
     - target: {fileID: 3196120123495289164, guid: c8aeab1e49d934d34a170392ff3f5b46,
         type: 3}
       propertyPath: m_Name
-      value: Plant_AloeSeed
+      value: Plant_Aloe Seed
       objectReference: {fileID: 0}
     - target: {fileID: 3267810688299938308, guid: c8aeab1e49d934d34a170392ff3f5b46,
         type: 3}
@@ -55081,7 +55081,7 @@ PrefabInstance:
     - target: {fileID: 2637501576349691956, guid: 3a9da108518464b60a3b76b8f5d0c5ce,
         type: 3}
       propertyPath: m_Name
-      value: Plant_PlantagoSeed
+      value: Plant_Plantago Seed
       objectReference: {fileID: 0}
     - target: {fileID: 5501849158819429182, guid: 3a9da108518464b60a3b76b8f5d0c5ce,
         type: 3}

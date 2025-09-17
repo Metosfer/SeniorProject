@@ -149,7 +149,7 @@ GameObject:
   - component: {fileID: 2739281876947939826}
   - component: {fileID: 5170763875448956464}
   m_Layer: 0
-  m_Name: Plant_AloeSeed
+  m_Name: Plant_Aloe Seed
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

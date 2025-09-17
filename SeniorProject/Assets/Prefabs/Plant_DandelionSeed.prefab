@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: -8270579216905551976}
   - component: {fileID: 1150032635691449951}
   m_Layer: 0
-  m_Name: Plant_DandelionSeed
+  m_Name: Plant_Dandelion Seed
   m_TagString: Plant
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

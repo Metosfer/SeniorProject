@@ -149,7 +149,7 @@ GameObject:
   - component: {fileID: 4034940108793598137}
   - component: {fileID: 9046592750796002496}
   m_Layer: 0
-  m_Name: Plant_ValerianSeed
+  m_Name: Plant_Valerian Seed
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
