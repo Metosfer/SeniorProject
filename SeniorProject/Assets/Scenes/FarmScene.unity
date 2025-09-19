@@ -17055,9 +17055,9 @@ MonoBehaviour:
   uiStateStabilityTime: 0.08
   exclusiveInstructionOwnership: 1
   ownerSwitchDistanceDelta: 0.15
-  pickupSFX: {fileID: 0}
-  placeSFX: {fileID: 0}
-  cancelSFX: {fileID: 0}
+  pickupSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
+  placeSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
+  cancelSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
   freezeCameraZoomWhileCarrying: 1
 --- !u!4 &722534138 stripped
 Transform:
