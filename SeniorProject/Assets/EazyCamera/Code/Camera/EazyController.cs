@@ -148,6 +148,7 @@ namespace EazyCamera
 
         private void OnZoom(InputAction.CallbackContext ctx)
         {
+            if (ObjectCarrying.ActiveCarryCount > 0) return; // taşıma sırasında zoom kilitli
             _controlledCamera.IncreaseZoomDistance(ctx.ReadValue<Vector2>().y, Time.deltaTime);
         }
 
@@ -216,7 +217,10 @@ namespace EazyCamera
             float scrollDelta = Input.mouseScrollDelta.y;
             if (scrollDelta > Constants.DeadZone || scrollDelta < -Constants.DeadZone)
             {
-                _controlledCamera.IncreaseZoomDistance(scrollDelta, dt);
+                if (ObjectCarrying.ActiveCarryCount <= 0)
+                {
+                    _controlledCamera.IncreaseZoomDistance(scrollDelta, dt);
+                }
             }
 
             // Rotate only if RMB pressed when the option is enabled
