@@ -11,6 +11,19 @@ public class WellManager : MonoBehaviour
     [Tooltip("UI prompt to show when a carried bucket is in range and not filled.")]
     public GameObject fillPromptUI;
 
+    [Header("Prompt Facing")]
+    [Tooltip("Prompt UI oyuncu range içindeyken yalnızca Y ekseninde oyuncuya dönsün (billboard).")]
+    public bool facePlayerWhileInRange = true;
+    [Tooltip("Dönüş yumuşatma hızı (lerp). 0 = anlık, 10 = hızlı.")]
+    [Range(0f, 15f)] public float faceLerpSpeed = 8f;
+    [Tooltip("Minimum mesafe (XZ) - daha yakına gelirse dönme çok ufak jitter'i engellemek için yavaşlatılır.")]
+    public float faceMinDistance = 0.15f;
+    [Tooltip("Yüksek performans için bu kadar saniyede bir güncelle (0 = her frame)")]
+    [Range(0f, 0.2f)] public float faceUpdateInterval = 0.02f;
+
+    private float _lastFaceUpdate;
+    private Transform _playerCached;
+
     [Header("Well")]
     [Tooltip("Optional: Visual or particle effect to play when a bucket is filled.")]
     public GameObject fillVFX;
@@ -88,6 +101,46 @@ public class WellManager : MonoBehaviour
         UpdateFillPromptThrottled();
     // Handle right-click context menu
     UpdateRightClickMenu();
+        UpdatePromptFacing();
+    }
+
+    private void UpdatePromptFacing()
+    {
+        if (!facePlayerWhileInRange) return;
+        if (fillPromptUI == null || !fillPromptUI.activeSelf) return;
+        if (!_stableInRange) return; // sadece stabilized in-range iken
+
+        // Player referansı cache
+        if (_playerCached == null)
+        {
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null) _playerCached = player.transform;
+        }
+        if (_playerCached == null) return;
+
+        // Güncelleme frekansı kontrolü
+        if (faceUpdateInterval > 0f && (Time.unscaledTime - _lastFaceUpdate) < faceUpdateInterval)
+            return;
+        _lastFaceUpdate = Time.unscaledTime;
+
+        Transform t = fillPromptUI.transform;
+        Vector3 from = t.position; from.y = 0f;
+        Vector3 to = _playerCached.position; to.y = 0f;
+        Vector3 dir = to - from;
+        float planarDist = dir.magnitude;
+        if (planarDist < 0.0001f) return;
+        dir /= planarDist;
+
+        // Hedef rotasyon (sadece Y ekseni)
+    Quaternion targetRot = Quaternion.LookRotation(dir, Vector3.up) * Quaternion.Euler(0f, 180f, 0f); // 180° çevir
+        if (faceLerpSpeed <= 0f || planarDist <= faceMinDistance)
+        {
+            t.rotation = targetRot;
+        }
+        else
+        {
+            t.rotation = Quaternion.Slerp(t.rotation, targetRot, 1f - Mathf.Exp(-faceLerpSpeed * Time.unscaledDeltaTime));
+        }
     }
     
     private void UpdateFillPromptThrottled()

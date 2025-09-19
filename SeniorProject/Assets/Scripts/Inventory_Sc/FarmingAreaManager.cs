@@ -613,12 +613,22 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             Destroy(state.seedMarkerInstance);
             state.seedMarkerInstance = null;
         }
-        state.Reset();
-    // After harvesting, require re-preparation
-    state.isPrepared = false;
+        // IMPORTANT: Icon'ın kaybolmaması için komple Reset yerine ikonu koruyan versiyonu kullan
+        state.ResetWithoutDestroyingIcon();
+        // After harvesting require re-preparation
+        state.isPrepared = false;
         UpdateSoilPlaceVisual(plotIndex);
-    // Update icon to Unprepared
-    CreateOrUpdateIcon(plotIndex);
+
+        // Eğer mevcut iconInstance yoksa yeniden oluştur
+        EnsureIconInstanceAt(plotIndex);
+        // Sprite'ı Unprepared/Empty duruma göre güncelle
+        CreateOrUpdateIcon(plotIndex);
+        // Eğer hâlâ bir ikon oluşmadıysa geliştiriciye bilgi ver
+        var st = _plots[plotIndex];
+        if (st.iconInstance == null)
+        {
+            Debug.LogWarning("FarmingArea: Harvest sonrası unprepared ikon oluşturulamadı. 'statusIconPrefab' veya 'iconUnprepared' atandığından emin olun.");
+        }
     UpdateStatusText();
     }
 

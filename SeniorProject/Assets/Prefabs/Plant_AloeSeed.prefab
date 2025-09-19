@@ -304,7 +304,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   range: 2
   playerPos: {fileID: 0}
-  plantName: AloeSeed
+  plantName: Aloe Seed
   groundCheck: {fileID: 281413938514665456}
   text: {fileID: 3829968665524564622}
 --- !u!114 &5170763875448956464
