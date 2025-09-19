@@ -644,6 +644,15 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   occupiedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   readyColor: {r: 0, g: 1, b: 0, a: 1}
+  hoverCursor: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
+  cursorHotspot: {x: 0, y: 0}
+  hoverBackgroundColor: {r: 1, g: 1, b: 1, a: 0.85}
+  differentiateEmptyHover: 1
+  emptyHoverColor: {r: 0.9, g: 0.9, b: 1, a: 0.85}
+  occupiedHoverColor: {r: 1, g: 0.95, b: 0.75, a: 0.9}
+  readyHoverColor: {r: 0.75, g: 1, b: 0.75, a: 0.95}
+  restoreCursorOnExit: 1
+  debugHover: 0
   slotIndex: 0
   dryingAreaUI: {fileID: 0}
 --- !u!114 &24229000
@@ -4833,6 +4842,15 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   occupiedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   readyColor: {r: 0, g: 1, b: 0, a: 1}
+  hoverCursor: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
+  cursorHotspot: {x: 0, y: 0}
+  hoverBackgroundColor: {r: 1, g: 1, b: 1, a: 0.85}
+  differentiateEmptyHover: 1
+  emptyHoverColor: {r: 0.9, g: 0.9, b: 1, a: 0.85}
+  occupiedHoverColor: {r: 1, g: 0.95, b: 0.75, a: 0.9}
+  readyHoverColor: {r: 0.75, g: 1, b: 0.75, a: 0.95}
+  restoreCursorOnExit: 1
+  debugHover: 0
   slotIndex: 0
   dryingAreaUI: {fileID: 0}
 --- !u!114 &204445106
@@ -21866,7 +21884,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &902783568
 RectTransform:
   m_ObjectHideFlags: 0
@@ -21906,7 +21924,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Error Text
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 288c04fcafc12674eb16202f9f0de2ce, type: 2}
   m_sharedMaterial: {fileID: 430657281933834750, guid: 288c04fcafc12674eb16202f9f0de2ce,
@@ -21934,7 +21952,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 50
+  m_fontSize: 36
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -28196,7 +28214,7 @@ MonoBehaviour:
       m_Calls: []
   m_text: Please drag and drop to dry your herb!
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 4e6c3ed5ec304cd40b2fe3233de476c3, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 288c04fcafc12674eb16202f9f0de2ce, type: 2}
   m_sharedMaterial: {fileID: -650660883887620501, guid: 4e6c3ed5ec304cd40b2fe3233de476c3,
     type: 2}
   m_fontSharedMaterials: []
@@ -28261,7 +28279,7 @@ MonoBehaviour:
   m_margin: {x: -926.29626, y: 0, z: -782.6847, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
-  m_hasFontAssetChanged: 0
+  m_hasFontAssetChanged: 1
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
 --- !u!222 &1152591398
@@ -30340,6 +30358,15 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   occupiedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   readyColor: {r: 0, g: 1, b: 0, a: 1}
+  hoverCursor: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
+  cursorHotspot: {x: 0, y: 0}
+  hoverBackgroundColor: {r: 1, g: 1, b: 1, a: 0.85}
+  differentiateEmptyHover: 1
+  emptyHoverColor: {r: 0.9, g: 0.9, b: 1, a: 0.85}
+  occupiedHoverColor: {r: 1, g: 0.95, b: 0.75, a: 0.9}
+  readyHoverColor: {r: 0.75, g: 1, b: 0.75, a: 0.95}
+  restoreCursorOnExit: 1
+  debugHover: 0
   slotIndex: 0
   dryingAreaUI: {fileID: 0}
 --- !u!114 &1265856876
@@ -41127,7 +41154,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1695998072
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -49255,7 +49282,7 @@ GameObject:
   - component: {fileID: 2004422988}
   - component: {fileID: 2004422987}
   m_Layer: 5
-  m_Name: Press_T_Text
+  m_Name: Press_E_Text
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -49300,10 +49327,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Press T to open/close drying area
+  m_text: Press "E" to open/close drying area
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 4e6c3ed5ec304cd40b2fe3233de476c3, type: 2}
-  m_sharedMaterial: {fileID: -650660883887620501, guid: 4e6c3ed5ec304cd40b2fe3233de476c3,
+  m_fontAsset: {fileID: 11400000, guid: 288c04fcafc12674eb16202f9f0de2ce, type: 2}
+  m_sharedMaterial: {fileID: 430657281933834750, guid: 288c04fcafc12674eb16202f9f0de2ce,
     type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
@@ -49328,13 +49355,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 25
+  m_fontSize: 22.65
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 16
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
@@ -55735,6 +55762,11 @@ PrefabInstance:
       propertyPath: interactionUI
       value: 
       objectReference: {fileID: 2004422985}
+    - target: {fileID: 5521824601301375741, guid: af7a4e99a0cadb3429c460cf3de18a71,
+        type: 3}
+      propertyPath: interactionKey
+      value: 101
+      objectReference: {fileID: 0}
     - target: {fileID: 7214614170803818662, guid: af7a4e99a0cadb3429c460cf3de18a71,
         type: 3}
       propertyPath: m_StaticEditorFlags
@@ -55964,6 +55996,21 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: stepVolume
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: slowWalkStepInterval
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: normalWalkStepInterval
+      value: 0.4
+      objectReference: {fileID: 0}
     - target: {fileID: 2011692418836280718, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
       propertyPath: m_SortingOrder
@@ -55983,6 +56030,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 4830099231600928376, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: m_Center.y
+      value: 0.86
       objectReference: {fileID: 0}
     - target: {fileID: 6817378188415643753, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}

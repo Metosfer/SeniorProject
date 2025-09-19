@@ -110,7 +110,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   range: 2
   playerPos: {fileID: 0}
-  plantName: AloeDry
+  plantName: Aloe Dry
   groundCheck: {fileID: 3355146173856052872}
   text: {fileID: 7621818845574464851}
 --- !u!114 &613044189333151020

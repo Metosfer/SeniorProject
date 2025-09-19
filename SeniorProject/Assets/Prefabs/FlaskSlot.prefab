@@ -111,12 +111,13 @@ MonoBehaviour:
   slotBackground: {fileID: 7393085328574999031}
   itemIcon: {fileID: 7004374496466102064}
   itemNameText: {fileID: 6197582104038208302}
+  ghostOpacity: 0.5
   emptyColor: {r: 0.5752561, g: 1, b: 0.4764151, a: 1}
   occupiedColor: {r: 0.9, g: 0.9, b: 0.9, a: 1}
   hoverColor: {r: 1, g: 1, b: 0.8, a: 1}
-  hoverCursor: {fileID: 2800000, guid: 552731339a84c437cab98a333e733118, type: 3}
+  hoverCursor: {fileID: 2800000, guid: 9e6938af2e74fe54db15266ac8ddc5d7, type: 3}
   cursorHotspot: {x: 0, y: 0}
-  cursorSize: {x: 16, y: 16}
+  cursorSize: {x: 0, y: 0}
   slotIndex: 0
   flaskManager: {fileID: 0}
 --- !u!1 &3169019261354890902

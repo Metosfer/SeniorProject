@@ -3,132 +3,159 @@ using UnityEngine.SceneManagement;
 
 public class DryingAreaManager : MonoBehaviour, ISaveable
 {
-    [Header("Drying Settings")]
-    public DryingSlot[] dryingSlots = new DryingSlot[3];
-    
-    [Header("Player Interaction")]
-    public float interactionRange = 3f;
-        [Header("Save Identity")]
-        public string saveId = "DryingArea";
-    public KeyCode interactionKey = KeyCode.T   ;
-    public GameObject interactionUI; // "Press T to open drying area" UI
-    [Tooltip("UI titremesini önlemek için çıkış eşiği (histerezis). İçeri giriş: interactionRange, dışarı çıkış: interactionRange + bu değer")]
-    public float rangeHysteresis = 0.3f;
+    [Header("Drying Settings")] public DryingSlot[] dryingSlots = new DryingSlot[3];
 
-    [Header("UI References")]
-    public DryingAreaUI dryingUI;
-    
+    [Header("Player Interaction")] public float interactionRange = 3f;
+    [Header("Save Identity")] public string saveId = "DryingArea";
+    public KeyCode interactionKey = KeyCode.T;
+    public GameObject interactionUI; // "Press T to open drying area" UI
+    [Tooltip("UI titremesini önlemek için çıkış eşiği (histerezis). İçeri giriş: interactionRange, dışarı çıkış: interactionRange + bu değer")] public float rangeHysteresis = 0.3f;
+
+    [Header("UI References")] public DryingAreaUI dryingUI;
+
     private bool playerInRange = false;
     private Transform playerTransform;
     private Inventory playerInventory;
-    
-    [Header("Flicker Control")]
-    [Tooltip("Sahne yüklendikten sonra UI değişikliklerini bastırma süresi (sn)")]
-    public float initialUISuppressDuration = 0.3f;
-    [Tooltip("UI görünürlük değişimini uygulamadan önce gereken stabil süre (sn)")]
-    public float uiStateStabilityTime = 0.08f;
+
+    [Header("Flicker Control")] [Tooltip("Sahne yüklendikten sonra UI değişikliklerini bastırma süresi (sn)")] public float initialUISuppressDuration = 0.3f;
+    [Tooltip("UI görünürlük değişimini uygulamadan önce gereken stabil süre (sn)")] public float uiStateStabilityTime = 0.08f;
 
     private float _uiSuppressUntil;
     private bool _uiShown;
     private bool _uiDesiredLast;
     private float _uiDesiredSince;
 
-    // No global modal ownership here; we only consume ESC when closing to prevent Pause
+    // Added: explicit interaction readiness so first key press is never ignored
+    private bool _interactionReady = false; // becomes true first time we confirm playerInRange
+
+    [Header("Debug")] public bool debugInteraction = false;
+
+    [Header("Interaction Reliability")] 
+    [Tooltip("İlk tuş basışının kaç saniye buffer içinde tutulacağı")] [SerializeField] private float firstPressBufferWindow = 0.35f;
+    [Tooltip("İlk açılışta Market gibi modalları yok say (sadece ilk panel açılışına kadar)")] public bool ignoreModalBlockOnFirstOpen = true;
+    private float _lastInteractionKeyDownTime = -999f; // last time key was pressed
+    private bool _hasOpenedOnce = false; // after first successful open remains true
+
+    [Tooltip("Panel açıkken aynı tuşa tekrar basıldığında kapanmasına izin ver")] public bool allowToggleClose = true;
 
     private void Start()
     {
-        // Player referanslarını bul
         playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
         playerInventory = FindObjectOfType<Inventory>();
-    // Scene load sonrası kısa süre UI'ı bastır (flicker önlemek için)
-    _uiSuppressUntil = Time.unscaledTime + Mathf.Max(0f, initialUISuppressDuration);
-    UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
-        
-        // Interaction UI'yı başlangıçta gizle
+        _uiSuppressUntil = Time.unscaledTime + Mathf.Max(0f, initialUISuppressDuration);
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded; // fixed
         if (interactionUI != null)
         {
             interactionUI.SetActive(false);
             _uiShown = false;
         }
-        
-        // Slot'ları sıfırla
         for (int i = 0; i < dryingSlots.Length; i++)
         {
-            if (dryingSlots[i] != null)
-            {
-                dryingSlots[i].ResetSlot();
-            }
+            if (dryingSlots[i] != null) dryingSlots[i].ResetSlot();
         }
     }
 
     private void OnDestroy()
     {
-    UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
-    // nothing special on destroy
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded; // fixed
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Yeni sahnede tekrar bastırma penceresi başlat
         _uiSuppressUntil = Time.unscaledTime + Mathf.Max(0f, initialUISuppressDuration);
-        // UI'ı güvenli şekilde kapat
         if (interactionUI != null)
         {
             interactionUI.SetActive(false);
             _uiShown = false;
         }
-    // do not force-close panel on scene load; UI scripts should manage their own state
+        _interactionReady = false; // force recalculation in new scene
     }
 
     private void Update()
     {
-        // Player mesafe kontrolü (Market gibi modal UI'lar açıkken bastır)
+        // 1) Capture key down EARLY (range'e girmeden önce basılırsa buffer'layacağız)
+        bool keyDown = Input.GetKeyDown(interactionKey);
+        if (keyDown)
+        {
+            _lastInteractionKeyDownTime = Time.unscaledTime;
+        }
+
+        // 2) Distance / range state
         CheckPlayerDistance();
 
-        // ESC ile panel kapama ve pause menüyü bloklama
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // 3) Modal & state flags
+        bool modalOpen = MarketManager.IsAnyOpen; 
+        bool dryingOpen = IsDryingUIOpen();
+        bool withinBuffer = (Time.unscaledTime - _lastInteractionKeyDownTime) <= firstPressBufferWindow;
+
+        // 4) Determine if we should ignore modal block (first open only + option enabled)
+        bool canBypassModal = !_hasOpenedOnce && ignoreModalBlockOnFirstOpen;
+
+        // 5) Attempt open conditions
+        //    a) Immediate keyDown while in range
+        //    b) Buffered press (key pressed just BEFORE entering range)
+        bool requestOpen = false;
+        if (playerInRange)
         {
-            // If any drag is in progress, cancel it first and consume ESC
-            if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc())
+            if (keyDown) requestOpen = true; // pressed this frame inside range
+            else if (!dryingOpen && withinBuffer) requestOpen = true; // buffered
+        }
+
+        if (requestOpen)
+        {
+            // Check gating (dragging, modal). Allow bypass if configured and first open.
+            if (DragAndDropHandler.IsDragging)
             {
-                return;
+                if (debugInteraction) Debug.Log("[DryingArea] Blocked by drag in progress");
             }
-            // If drag-and-drop consumed ESC for cancel, ignore here
-            if (DragAndDropHandler.DidConsumeEscapeThisFrame())
+            else if (modalOpen && !dryingOpen && !(canBypassModal))
             {
-                return;
+                if (debugInteraction) Debug.Log("[DryingArea] Blocked by modal (Market open) – bypass not allowed");
             }
-            if (IsDryingUIOpen())
+            else
             {
-                // Mark ESC consumed so PauseMenuController ignores it this frame
-                MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
                 if (dryingUI != null)
                 {
-                    dryingUI.TogglePanel();
+                    if (!dryingOpen)
+                    {
+                        dryingUI.TogglePanel();
+                        _hasOpenedOnce = true;
+                        _interactionReady = true;
+                        if (debugInteraction) Debug.Log($"[DryingArea] Panel opened (buffered={(!keyDown).ToString()})");
+                        MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
+                    }
+                    else if (allowToggleClose && keyDown)
+                    {
+                        dryingUI.TogglePanel();
+                        if (debugInteraction) Debug.Log("[DryingArea] Panel closed via same key toggle");
+                        MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
+                    }
                 }
-                return; // early return to avoid processing other inputs this frame
+                return;
             }
         }
 
-        // T tuşu kontrolü (input işlemleri Update'te olmalı)
-        if (playerInRange && !MarketManager.IsAnyOpen && Input.GetKeyDown(interactionKey))
+        // 6) Existing ESC logic (unchanged)
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
-            if (dryingUI != null)
+            if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc()) return;
+            if (DragAndDropHandler.DidConsumeEscapeThisFrame()) return;
+            if (IsDryingUIOpen())
             {
-                dryingUI.TogglePanel();
+                if (debugInteraction) Debug.Log("[DryingArea] ESC closing panel");
+                MarketManager.s_lastEscapeConsumedFrame = Time.frameCount;
+                if (dryingUI != null) dryingUI.TogglePanel();
+                return;
             }
         }
 
-        // Kurutma timer'ları güncelle
+        // 7) Drying timers (unchanged)
         foreach (DryingSlot slot in dryingSlots)
         {
             if (slot != null && slot.isOccupied && !slot.isReadyToCollect)
             {
                 slot.timer -= Time.deltaTime;
-                if (slot.timer <= 0f)
-                {
-                    CompleteDrying(slot);
-                }
+                if (slot.timer <= 0f) CompleteDrying(slot);
             }
         }
     }
@@ -143,82 +170,46 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
         if (playerTransform == null)
         {
             if (interactionUI != null && interactionUI.activeSelf) interactionUI.SetActive(false);
-            playerInRange = false;
-            return;
+            playerInRange = false; return;
         }
-        // Modal UI açıkken (Market vb.) proximity UI gösterme ve range'i false say
-        if (MarketManager.IsAnyOpen)
+        if (MarketManager.IsAnyOpen && !IsDryingUIOpen()) // fixed property usage
         {
             if (interactionUI != null && interactionUI.activeSelf)
-            {
-                interactionUI.SetActive(false);
-                _uiShown = false;
-            }
-            playerInRange = false;
-            return;
+            { interactionUI.SetActive(false); _uiShown = false; }
+            playerInRange = false; return;
         }
-        
         float distance = Vector3.Distance(transform.position, playerTransform.position);
-        bool wasInRange = playerInRange;
-        // Histerezis: içeri giriş interactionRange ile, dışarı çıkış interactionRange + rangeHysteresis ile
         if (playerInRange)
         {
-            if (distance > interactionRange + Mathf.Max(0f, rangeHysteresis))
-                playerInRange = false;
+            if (distance > interactionRange + Mathf.Max(0f, rangeHysteresis)) playerInRange = false;
         }
         else
         {
             if (distance <= interactionRange)
-                playerInRange = true;
+            { playerInRange = true; if (!_interactionReady) _interactionReady = true; }
         }
-        
-        // Player range'e girdi/çıktı: UI görünürlüğünü stabil/delay ile işle
         UpdateInteractionUI(playerInRange);
     }
 
     private void UpdateInteractionUI(bool desiredVisible)
     {
         if (interactionUI == null) return;
-        // Sahne yüklendikten sonra kısa süre UI bastır
         if (Time.unscaledTime < _uiSuppressUntil)
         {
-            if (_uiShown)
-            {
-                interactionUI.SetActive(false);
-                _uiShown = false;
-            }
-            // Suppress süresi bitene kadar state izle ama uygulama
-            _uiDesiredLast = desiredVisible;
-            _uiDesiredSince = Time.unscaledTime;
-            return;
+            if (_uiShown) { interactionUI.SetActive(false); _uiShown = false; }
+            _uiDesiredLast = desiredVisible; _uiDesiredSince = Time.unscaledTime; return;
         }
-        // Entering range: gösterimi geciktirmeden aç (hızlı feedback)
         if (desiredVisible)
         {
-            if (!_uiShown)
-            {
-                interactionUI.SetActive(true);
-                _uiShown = true;
-            }
-            // Track state
-            _uiDesiredLast = true;
-            _uiDesiredSince = Time.unscaledTime;
-            return;
+            if (!_uiShown) { interactionUI.SetActive(true); _uiShown = true; }
+            _uiDesiredLast = true; _uiDesiredSince = Time.unscaledTime; return;
         }
-
-        // Çıkarken/hide için küçük stabilite penceresi uygula (flicker önleme)
         if (desiredVisible != _uiDesiredLast)
-        {
-            _uiDesiredLast = desiredVisible;
-            _uiDesiredSince = Time.unscaledTime;
-        }
+        { _uiDesiredLast = desiredVisible; _uiDesiredSince = Time.unscaledTime; }
         if (Time.unscaledTime - _uiDesiredSince >= Mathf.Max(0f, uiStateStabilityTime))
         {
             if (_uiShown != desiredVisible)
-            {
-                interactionUI.SetActive(false);
-                _uiShown = false;
-            }
+            { interactionUI.SetActive(false); _uiShown = false; }
         }
     }
 
@@ -226,10 +217,10 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
     {
         if (slotIndex < 0 || slotIndex >= dryingSlots.Length)
             return false;
-            
+
         DryingSlot slot = dryingSlots[slotIndex];
         if (slot == null) return false;
-        
+
         // Slot boş mu ve item kurutulabilir mi kontrol et
         if (!slot.isOccupied && item.canBeDried && item.dryingTime > 0)
         {
@@ -237,7 +228,7 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
             slot.timer = item.dryingTime;
             slot.isOccupied = true;
             slot.isReadyToCollect = false;
-            
+
             Debug.Log($"Item '{item.itemName}' kurutma slot {slotIndex}'a eklendi. Süre: {item.dryingTime}s");
             // Snapshot update
             if (GameSaveManager.Instance != null)
@@ -246,7 +237,7 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
             }
             return true;
         }
-        
+
         return false;
     }
 
@@ -267,10 +258,10 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
     {
         if (slotIndex < 0 || slotIndex >= dryingSlots.Length)
             return;
-            
+
         DryingSlot slot = dryingSlots[slotIndex];
         if (slot == null) return;
-        
+
         if (slot.isReadyToCollect && slot.currentItemData != null)
         {
             Debug.Log($"CollectSlot: slotIndex={slotIndex}, item={slot.currentItemData.itemName}, driedVersion={(slot.currentItemData.driedVersion != null ? slot.currentItemData.driedVersion.itemName : "null")}");
