@@ -54932,6 +54932,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}
+      propertyPath: groundCheckDistance
+      value: 0.04
+      objectReference: {fileID: 0}
+    - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: minSpeedForFootsteps
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
       propertyPath: slowWalkStepInterval
       value: 0.3
       objectReference: {fileID: 0}
@@ -54939,6 +54949,11 @@ PrefabInstance:
         type: 3}
       propertyPath: normalWalkStepInterval
       value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1988362776716505030, guid: a7ef28767aa0aba4f864f2a632b3fa23,
+        type: 3}
+      propertyPath: requireGroundedForSteps
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2011692418836280718, guid: a7ef28767aa0aba4f864f2a632b3fa23,
         type: 3}

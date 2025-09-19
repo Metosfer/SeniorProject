@@ -68,14 +68,37 @@ public class PlayerSoundManager : MonoBehaviour
     [SerializeField] private float currentStepInterval = 0.5f; // Mevcut adım aralığı
     [SerializeField] private float timeSinceLastStep = 0f;     // Son adımdan beri geçen süre
     [SerializeField] private bool isMoving = false;            // Hareket ediyor mu?
-    [SerializeField] private bool isGrounded = true;           // Yerde mi?
+    [SerializeField] private bool isGrounded = true;           // Stabilize edilmiş grounded (Inspector gösterim)
     [SerializeField] private float currentPlayerSpeed = 0f;   // Mevcut oyuncu hızı
+
+    [Header("Ground Stabilization")]
+    [Tooltip("Yerde kalma durumunda flicker'ı filtrelemek için coyote time süresi (saniye)")]
+    [Range(0f, 0.5f)] public float groundedGraceTime = 0.15f;
+    [Tooltip("Ungrounded kabul edilmeden önce izin verilen ardışık false frame sayısı")]
+    [Range(0, 10)] public int ungroundedFrameTolerance = 2;
+    [Tooltip("Ek sphere/raycast probu yarıçapı (kararlı temas için)")]
+    [Range(0.05f, 0.6f)] public float groundProbeRadius = 0.25f;
+    [Tooltip("Probe origin Y offset (zemine gömülme / slope geçişlerinde stabilite)")]
+    [Range(-0.2f, 0.5f)] public float groundProbeYOffset = 0.05f;
+    [Tooltip("Raw (anlık) grounded durumu - debug")]
+    [SerializeField] private bool rawGrounded = true;
+    [Tooltip("Stabilize edilmiş grounded - internal")]
+    [SerializeField] private bool stableGrounded = true;
+
+    [Header("Speed Based Footsteps")] 
+    [Tooltip("Ayak sesi başlatmak için minimum hız (örn: 0.5). 0 yaparsanız çok düşük hızlarda da ses olur.")]
+    [Range(0f, 5f)] public float minSpeedForFootsteps = 0.6f;
+    [Tooltip("Seslerin çalması için yerde olma şartı (false ise havadayken hız yeterliyse çalabilir)")]
+    public bool requireGroundedForSteps = true;
     
     // Private References
     private PlayerMovement playerMovement;
     private CharacterController characterController;
     private Vector3 lastPosition;
     private float lastStepTime = 0f;
+    private int consecutiveUngroundedFrames = 0;
+    private float lastGroundedTime = 0f;
+    private bool previousStableGrounded = true;
     
     void Start()
     {
@@ -86,6 +109,8 @@ public class PlayerSoundManager : MonoBehaviour
         // Başlangıç pozisyonunu kaydet
         lastPosition = transform.position;
         lastStepTime = Time.time;
+        lastGroundedTime = Time.time;
+        previousStableGrounded = true;
         
         Debug.Log("🦶 PlayerSoundManager initialized with dual-footstep system");
     }
@@ -199,24 +224,46 @@ public class PlayerSoundManager : MonoBehaviour
     /// </summary>
     private void UpdateMovementData()
     {
-        // PlayerMovement'tan hız bilgisini al
+        // Hız bilgisi (varsa PlayerMovement'tan daha doğru alınır)
         if (playerMovement != null)
-        {
             currentPlayerSpeed = playerMovement.CurrentSpeed();
-            isGrounded = playerMovement.IsGrounded();
+        else
+        {
+            Vector3 currentPosition = transform.position;
+            Vector3 horizontalMovement = new Vector3(currentPosition.x, 0, currentPosition.z) - new Vector3(lastPosition.x, 0, lastPosition.z);
+            currentPlayerSpeed = horizontalMovement.magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
+            lastPosition = currentPosition;
+        }
+
+        // Raw grounded tespiti
+        rawGrounded = ComputeRawGrounded();
+
+        // Stabilizasyon (coyote time + frame toleransı)
+        if (rawGrounded)
+        {
+            stableGrounded = true;
+            lastGroundedTime = Time.time;
+            consecutiveUngroundedFrames = 0;
         }
         else
         {
-            // Fallback: Manuel hareket kontrolü
-            Vector3 currentPosition = transform.position;
-            Vector3 horizontalMovement = new Vector3(currentPosition.x, 0, currentPosition.z) - 
-                                       new Vector3(lastPosition.x, 0, lastPosition.z);
-            currentPlayerSpeed = horizontalMovement.magnitude / Time.deltaTime;
-            lastPosition = currentPosition;
-            
-            // Manuel zemin kontrolü
-            isGrounded = IsGroundedCheck();
+            consecutiveUngroundedFrames++;
+            // Grace time ve frame toleransı dolunca gerçekten ungrounded kabul et
+            if (Time.time - lastGroundedTime > groundedGraceTime && consecutiveUngroundedFrames > ungroundedFrameTolerance)
+            {
+                stableGrounded = false;
+            }
         }
+
+        // Inspector gösterimi için
+        isGrounded = stableGrounded;
+        
+        // Transisyon debug
+        if (debugFootstepTiming && previousStableGrounded != stableGrounded)
+        {
+            Debug.Log($"🟢 Grounded State Changed -> {(stableGrounded ? "GROUND" : "AIR")} (Raw={rawGrounded})");
+        }
+        previousStableGrounded = stableGrounded;
         
         // Hareket ediyor mu kontrolü
         isMoving = currentPlayerSpeed > 0.1f;
@@ -226,6 +273,49 @@ public class PlayerSoundManager : MonoBehaviour
         
         // Son adımdan beri geçen süreyi güncelle
         timeSinceLastStep = Time.time - lastStepTime;
+    }
+
+    /// <summary>
+    /// Raw (anlık) grounded bilgisini hesaplar (multi-probe + CharacterController + PlayerMovement fallback)
+    /// </summary>
+    private bool ComputeRawGrounded()
+    {
+        // Öncelik: PlayerMovement özel grounded (daha doğru olabilir)
+        if (playerMovement != null)
+        {
+            try { if (playerMovement.IsGrounded()) return true; } catch { /* ignore */ }
+        }
+
+        // CharacterController varsa hızlı kontrol
+        if (characterController != null && characterController.isGrounded)
+            return true;
+
+        // Sphere / Ray probeleri
+        Vector3 baseOrigin = (groundCheckObject != null ? groundCheckObject.position : transform.position) + Vector3.up * groundProbeYOffset;
+        float maxDistance = groundCheckDistance;
+        RaycastHit hit;
+
+        // SphereCast (daha stabil)
+        if (Physics.SphereCast(baseOrigin, groundProbeRadius, Vector3.down, out hit, maxDistance, groundLayerMask, QueryTriggerInteraction.Ignore))
+        {
+            if (hit.normal.y > 0.05f) return true; // eğimli yüzey toleransı
+        }
+
+        // Çoklu ray (merkez + 4 yön)
+        Vector3 r = new Vector3(groundProbeRadius * 0.8f, 0, 0);
+        Vector3 f = new Vector3(0, 0, groundProbeRadius * 0.8f);
+        Vector3[] offsets = new Vector3[] { Vector3.zero, r, -r, f, -f };
+        foreach (var o in offsets)
+        {
+            Vector3 origin = baseOrigin + o;
+            if (Physics.Raycast(origin, Vector3.down, out hit, maxDistance, groundLayerMask, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.normal.y > 0.05f)
+                    return true;
+            }
+        }
+
+        return false;
     }
     
     /// <summary>
@@ -261,11 +351,14 @@ public class PlayerSoundManager : MonoBehaviour
     /// </summary>
     private void UpdateFootstepTiming()
     {
-        // Footstep çalma koşulları:
-        // 1. Hareket ediyor
-        // 2. Yerde
-        // 3. Yeterli süre geçmiş
-        bool shouldPlayFootstep = isMoving && isGrounded && timeSinceLastStep >= currentStepInterval;
+        // Footstep çalma koşulları (hız bazlı):
+        // 1. Hız minSpeedForFootsteps üstünde
+        // 2. (Opsiyonel) Yerde olma şartı (requireGroundedForSteps)
+        // 3. Adım aralığı süresi dolmuş
+        bool speedCondition = currentPlayerSpeed >= minSpeedForFootsteps;
+        bool groundCondition = !requireGroundedForSteps || stableGrounded;
+        bool intervalCondition = timeSinceLastStep >= currentStepInterval;
+        bool shouldPlayFootstep = speedCondition && groundCondition && intervalCondition;
         
         if (shouldPlayFootstep)
         {
@@ -275,6 +368,14 @@ public class PlayerSoundManager : MonoBehaviour
             
             // Ayak sırasını değiştir
             isLeftFootNext = !isLeftFootNext;
+        }
+        else if (debugFootstepTiming)
+        {
+            // Neden çalmadığını görmek için kısa debug (seyrekleştirme için her 0.25s)
+            if (intervalCondition && timeSinceLastStep > currentStepInterval * 0.5f)
+            {
+                Debug.Log($"⏳ SkipFootstep - Speed {currentPlayerSpeed:F2}/{minSpeedForFootsteps:F2} ok? {currentPlayerSpeed >= minSpeedForFootsteps} | Ground {(stableGrounded ? "Y" : "N")} need? {requireGroundedForSteps} | Interval {timeSinceLastStep:F2}/{currentStepInterval:F2}");
+            }
         }
     }
     
@@ -343,30 +444,14 @@ public class PlayerSoundManager : MonoBehaviour
         
         if (debugFootstepTiming)
         {
-            Debug.Log($"🦶 {footType} footstep - Speed: {currentPlayerSpeed:F1}, Interval: {currentStepInterval:F2}s, Pitch: {randomPitch:F2}, Volume: {stepAudioSource.volume:F2}");
+            Debug.Log($"🦶 {footType} footstep - Speed: {currentPlayerSpeed:F2} (min {minSpeedForFootsteps:F2}), Interval: {currentStepInterval:F2}s, Pitch: {randomPitch:F2}, GroundOK: {!requireGroundedForSteps || stableGrounded}, Volume: {stepAudioSource.volume:F2}");
         }
     }
     
     /// <summary>
     /// Manuel zemin kontrolü (fallback)
     /// </summary>
-    private bool IsGroundedCheck()
-    {
-        // CharacterController varsa onun kontrolünü kullan
-        if (characterController != null)
-        {
-            return characterController.isGrounded;
-        }
-        
-        // GroundCheck objesi varsa raycast kullan
-        if (groundCheckObject != null)
-        {
-            return Physics.Raycast(groundCheckObject.position, Vector3.down, groundCheckDistance, groundLayerMask);
-        }
-        
-        // Fallback: Player pozisyonundan raycast
-        return Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundLayerMask);
-    }
+    private bool IsGroundedCheck() => stableGrounded; // Eski API'yi korumak için (geri uyum)
     
     /// <summary>
     /// Test kontrollerini işle
@@ -444,8 +529,11 @@ public class PlayerSoundManager : MonoBehaviour
     {
         // Zemin kontrol raycast'ini göster
         Vector3 rayStart = groundCheckObject != null ? groundCheckObject.position : transform.position;
-        Gizmos.color = isGrounded ? Color.green : Color.red;
-        Gizmos.DrawLine(rayStart, rayStart + Vector3.down * groundCheckDistance);
+    Gizmos.color = stableGrounded ? new Color(0.2f, 0.9f, 0.2f) : Color.red;
+    Gizmos.DrawLine(rayStart + Vector3.up * groundProbeYOffset, rayStart + Vector3.up * groundProbeYOffset + Vector3.down * groundCheckDistance);
+    // SphereCast gösterimi
+    Gizmos.color = Color.cyan;
+    Gizmos.DrawWireSphere(rayStart + Vector3.up * groundProbeYOffset, groundProbeRadius);
         
         // GroundCheck objesi varsa onu da göster
         if (groundCheckObject != null)
