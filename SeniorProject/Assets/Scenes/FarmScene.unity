@@ -9742,7 +9742,7 @@ PrefabInstance:
     - target: {fileID: 213899067198857936, guid: 84da55b25c571db4db84f7cd3c834c76,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -96.7252
+      value: -97.84
       objectReference: {fileID: 0}
     - target: {fileID: 213899067198857936, guid: 84da55b25c571db4db84f7cd3c834c76,
         type: 3}
@@ -22315,7 +22315,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: -62.727}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -965.25, y: -520.76}
+  m_AnchoredPosition: {x: -965.25, y: -517.82}
   m_SizeDelta: {x: 5, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &914038700
@@ -53715,6 +53715,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_StaticEditorFlags
       value: 126
+      objectReference: {fileID: 0}
+    - target: {fileID: 1594499882535214557, guid: 9c4f997dbdc3f4dd8b30c8cbff2b006a,
+        type: 3}
+      propertyPath: m_text
+      value: PRESS E TO CHANGE SCENE
       objectReference: {fileID: 0}
     - target: {fileID: 1594499882535214557, guid: 9c4f997dbdc3f4dd8b30c8cbff2b006a,
         type: 3}

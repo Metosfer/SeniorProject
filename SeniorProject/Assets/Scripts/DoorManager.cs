@@ -12,6 +12,7 @@ public class DoorManager : MonoBehaviour
 {
     public TMP_Text doorText;
     public float range = 5f;
+
     public Transform playerTransform;
     [Header("Prompt Stability")]
     public bool usePlanarDistance = true;
@@ -40,8 +41,8 @@ public class DoorManager : MonoBehaviour
     void Update()
     {
         UpdateDoorPromptThrottled();
-        // T tuşuna basıldığında kontrol et
-        if (Input.GetKeyDown(KeyCode.T))
+        // E tuşuna basıldığında kontrol et
+        if (Input.GetKeyDown(KeyCode.E))
         {
             CheckPlayerDistance();
         }
