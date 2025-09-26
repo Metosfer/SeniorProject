@@ -16,7 +16,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 126
   m_IsActive: 1
 --- !u!224 &2947359226703752313
 RectTransform:
@@ -186,12 +186,13 @@ GameObject:
   - component: {fileID: 78289539925685534}
   - component: {fileID: 8402439366744395433}
   - component: {fileID: 3870769701280821733}
+  - component: {fileID: 5537283917135768262}
   m_Layer: 0
   m_Name: SM_Gramophone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 126
   m_IsActive: 1
 --- !u!4 &1503844757079232779
 Transform:
@@ -229,7 +230,7 @@ MeshRenderer:
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
+  m_StaticShadowCaster: 1
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
@@ -279,12 +280,13 @@ MonoBehaviour:
   player: {fileID: 0}
   bindNearestOnAwake: 1
   bindMaxDistance: 0
-  boostResultText: {fileID: 4793347393795200126}
+  boostResultText: {fileID: 0}
   interactRange: 1.5
   interactKey: 101
   interactPromptUI: {fileID: 6031660975063348458}
   interactPromptText: {fileID: 8479415937560396662}
   infoText: {fileID: 0}
+  errorText: {fileID: 0}
   secondsPerThousandScore: 2
   secondsPerTenCombo: 0.5
   maxTotalSeconds: 15
@@ -337,6 +339,100 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 126
   m_CollisionDetection: 0
+--- !u!114 &5537283917135768262
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6125377157684126347}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 001a2e9d44f1642059c66135863810b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerTransform: {fileID: 0}
+  pickupKey: 9
+  cancelKey: 27
+  confirmMouseButton: 0
+  rotateMouseButton: 1
+  pickupRange: 2
+  groundRayDistance: 200
+  verticalLiftWhileCarrying: 0.02
+  placementOffset: {x: 0, y: 0, z: 0}
+  rotateSpeed: 60
+  enableScrollVerticalAdjust: 0
+  scrollStep: 0.2
+  fastScrollMultiplier: 3
+  minScrollOffset: -1
+  maxScrollOffset: 2
+  resetScrollOffsetOnEnd: 1
+  invalidOverlapMask:
+    serializedVersion: 2
+    m_Bits: 0
+  groundRayMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  overlapBoundsExpand: 0
+  validColor: {r: 0, g: 1, b: 0, a: 0.35}
+  invalidColor: {r: 1, g: 0, b: 0, a: 0.35}
+  overridePreviewAlpha: -1
+  restoreOriginalColors: 1
+  disableCollidersWhileCarrying: 1
+  makeRigidbodyKinematic: 1
+  smoothFollow: 1
+  followLerpSpeed: 25
+  debugLogs: 0
+  drawOverlapGizmo: 0
+  drawPickupRangeOnSelected: 1
+  drawPickupRangeAlways: 0
+  pickupRangeGizmoColor: {r: 0, g: 0.9, b: 1, a: 1}
+  enableScaleBounce: 1
+  pickupScaleMultiplier: 1.15
+  placeScaleMultiplier: 0.85
+  bounceDuration: 0.15
+  bounceCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  returnSpeed: 12
+  instructionText: {fileID: 0}
+  pickupMessage: Press TAB to pick up
+  carryValidMessage: 'LMB: Place  |  RMB: Rotate  |  ESC: Cancel'
+  carryInvalidMessage: 'Invalid position - adjust  |  ESC: Cancel'
+  placedMessage: Placed
+  placedMessageDuration: 1.2
+  instructionRangeHysteresis: 0.25
+  instructionMinUpdateInterval: 0.15
+  instructionExitGraceTime: 0.2
+  initialUISuppressDuration: 0.3
+  uiStateStabilityTime: 0.08
+  exclusiveInstructionOwnership: 1
+  ownerSwitchDistanceDelta: 0.15
+  pickupSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
+  placeSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
+  cancelSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
+  freezeCameraZoomWhileCarrying: 1
 --- !u!1 &7467080391348857682
 GameObject:
   m_ObjectHideFlags: 0
@@ -353,7 +449,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 126
   m_IsActive: 1
 --- !u!224 &2982211880706154190
 RectTransform:

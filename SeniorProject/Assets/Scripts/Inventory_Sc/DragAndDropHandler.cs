@@ -359,21 +359,21 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         if (dropZone != null && dropZone.CanAcceptDrop())
         {
             Vector3 worldPosition = GetWorldDropPosition(eventData);
-            WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
+            WorldItem spawned = WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1, preferDropPrefab: true);
             // Notify save system
-            if (GameSaveManager.Instance != null)
+            if (spawned != null && GameSaveManager.Instance != null)
             {
-                try { GameSaveManager.Instance.OnWorldItemDropped(currentSlotRef.item, worldPosition, 1); } catch {}
+                try { GameSaveManager.Instance.OnWorldItemDropped(spawned); } catch {}
             }
             RemoveSingleItemFromInventory();
         }
         else if (hitObject == null || (!IsUIElement(hitObject)))
         {
             Vector3 worldPosition = GetWorldDropPosition(eventData);
-            WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1);
-            if (GameSaveManager.Instance != null)
+            WorldItem spawned = WorldItemSpawner.SpawnItem(currentSlotRef.item, worldPosition, 1, preferDropPrefab: true);
+            if (spawned != null && GameSaveManager.Instance != null)
             {
-                try { GameSaveManager.Instance.OnWorldItemDropped(currentSlotRef.item, worldPosition, 1); } catch {}
+                try { GameSaveManager.Instance.OnWorldItemDropped(spawned); } catch {}
             }
             RemoveSingleItemFromInventory();
         }

@@ -59,6 +59,8 @@ public class WorldItemSaveData
     public Vector3 scale;
     public int quantity;
     public string sceneName;
+    public string persistentId;
+    public string origin;
 }
 
 [System.Serializable]
@@ -189,6 +191,13 @@ public class GameSaveManager : MonoBehaviour
     private const string SAVE_TIMES_KEY = "SaveTimes";
     
     private GameSaveData currentSaveData;
+    // Sahne restorasyon sürecinin devam edip etmediğini izlemek için flag
+    private bool _isRestoringScene = false;
+    public bool IsRestoringScene => _isRestoringScene;
+    public float lastRestoreCompletedTime { get; private set; } = -1f;
+    // Scene unload sırasında yok edilmeden hemen önce snapshot alınan world item sahneleri takip et
+    private readonly HashSet<string> _pendingWorldItemSnapshots = new HashSet<string>();
+    private bool _worldItemSnapshotScheduled;
     
     private void Awake()
     {
@@ -334,53 +343,79 @@ public class GameSaveManager : MonoBehaviour
     
     private void SaveWorldItems()
     {
+        _worldItemSnapshotScheduled = false;
         if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
-        
+
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        // Preserve other scenes' items; only replace current scene entries
-        currentSaveData.worldItems.RemoveAll(w => w != null && w.sceneName == currentScene);
-        
-        var newEntries = new List<WorldItemSaveData>();
-        // WorldItem component'ine sahip tüm objeleri bul
-        WorldItem[] worldItems = FindObjectsOfType<WorldItem>();
-        foreach (WorldItem worldItem in worldItems)
+        bool hasPendingSnapshot = _pendingWorldItemSnapshots.Contains(currentScene);
+
+        var worldItems = FindObjectsOfType<WorldItem>();
+        bool hasLiveWorldItems = worldItems != null && worldItems.Length > 0;
+
+        // Eğer sahnede canlı world item yoksa ve OnDestroy ile snapshot alındıysa, mevcut kaydı koru
+        if (!hasLiveWorldItems && hasPendingSnapshot)
         {
-            if (worldItem.item != null)
+            _pendingWorldItemSnapshots.Remove(currentScene);
+            Debug.Log($"[SaveWorldItems] No live world items found but preserved pending snapshot for scene {currentScene}");
+            return;
+        }
+
+        // Yeni snapshot alınacağından, mevcut sahne kayıtlarını temizle
+        currentSaveData.worldItems.RemoveAll(w => w != null && w.sceneName == currentScene);
+
+        var newEntries = new List<WorldItemSaveData>();
+        var seenIds = new HashSet<string>();
+
+        if (worldItems != null)
+        {
+            foreach (WorldItem worldItem in worldItems)
             {
+                if (worldItem == null || worldItem.item == null) continue;
                 // Skip if this world item is actually a plant container
                 if (worldItem.GetComponent<Plant>() != null || worldItem.GetComponentInParent<Plant>() != null)
                 {
                     continue;
                 }
-                WorldItemSaveData itemData = new WorldItemSaveData();
-                itemData.itemName = worldItem.item.itemName;
-                itemData.position = worldItem.transform.position;
-                itemData.rotation = worldItem.transform.eulerAngles;
-                itemData.scale = worldItem.transform.localScale;
-                itemData.quantity = worldItem.quantity;
-                itemData.sceneName = currentScene;
-                newEntries.Add(itemData);
+                string persistentId = worldItem.PersistentId;
+                if (!string.IsNullOrEmpty(persistentId))
+                {
+                    if (!seenIds.Add(persistentId))
+                    {
+                        continue;
+                    }
+                }
+                newEntries.Add(new WorldItemSaveData
+                {
+                    itemName = worldItem.item.itemName,
+                    position = worldItem.transform.position,
+                    rotation = worldItem.transform.eulerAngles,
+                    scale = worldItem.transform.localScale,
+                    quantity = worldItem.quantity,
+                    sceneName = currentScene,
+                    persistentId = persistentId,
+                    origin = worldItem.Origin.ToString()
+                });
             }
         }
-        
-        // DroppedItem component'ine sahip objeleri de kaydet
-        DroppedItem[] droppedItems = FindObjectsOfType<DroppedItem>();
-        foreach (DroppedItem droppedItem in droppedItems)
-        {
-            if (droppedItem.itemData != null)
-            {
-                WorldItemSaveData itemData = new WorldItemSaveData();
-                itemData.itemName = droppedItem.itemData.itemName;
-                itemData.position = droppedItem.transform.position;
-                itemData.rotation = droppedItem.transform.eulerAngles;
-                itemData.scale = droppedItem.transform.localScale;
-                itemData.quantity = 1;
-                itemData.sceneName = currentScene;
-                newEntries.Add(itemData);
-            }
-        }
-        
+
         currentSaveData.worldItems.AddRange(newEntries);
+        _pendingWorldItemSnapshots.Remove(currentScene);
+        Debug.Log($"[SaveWorldItems] Snapshot updated for scene {currentScene} with {newEntries.Count} entries");
+    }
+
+    private System.Collections.IEnumerator SaveWorldItemsDeferred()
+    {
+        yield return null; // bir frame bekle, Destroy edilen objeler temizlensin
+        _worldItemSnapshotScheduled = false;
+        SaveWorldItems();
+    }
+
+    public void RequestWorldItemSnapshotRefresh()
+    {
+        if (!gameObject.activeInHierarchy) return;
+        if (_worldItemSnapshotScheduled) return;
+        _worldItemSnapshotScheduled = true;
+        StartCoroutine(SaveWorldItemsDeferred());
     }
     
     private void SavePlants()
@@ -686,6 +721,8 @@ public class GameSaveManager : MonoBehaviour
     private void RestoreSceneData()
     {
         if (currentSaveData == null) return;
+        // Restorasyon başladı
+        _isRestoringScene = true;
         
         Debug.Log("Starting scene data restoration...");
         
@@ -716,6 +753,9 @@ public class GameSaveManager : MonoBehaviour
         // Bazı renderer'lar için MPB uygulaması ilk frame'de gecikebilir; görselleri nudge et
         Invoke(nameof(PostRestoreNudge), 0.1f);
         Debug.Log("Scene data restoration completed");
+        // Restorasyon bitti
+        _isRestoringScene = false;
+        lastRestoreCompletedTime = Time.realtimeSinceStartup;
     }
 
     private void PostRestoreNudge()
@@ -813,35 +853,52 @@ public class GameSaveManager : MonoBehaviour
         
         foreach (WorldItemSaveData itemData in currentSaveData.worldItems)
         {
-            if (itemData.sceneName == currentScene)
+            if (itemData.sceneName != currentScene) continue;
+
+            // Skip if this world item overlaps a saved plant (same item and near-same position)
+            var kx = Mathf.Round(itemData.position.x * 100f) / 100f;
+            var ky = Mathf.Round(itemData.position.y * 100f) / 100f;
+            var kz = Mathf.Round(itemData.position.z * 100f) / 100f;
+            string key = $"{itemData.itemName}_{kx}_{ky}_{kz}";
+            if (plantKeys.Contains(key))
             {
-                // Skip if this world item overlaps a saved plant (same item and near-same position)
-                var kx = Mathf.Round(itemData.position.x * 100f) / 100f;
-                var ky = Mathf.Round(itemData.position.y * 100f) / 100f;
-                var kz = Mathf.Round(itemData.position.z * 100f) / 100f;
-                string key = $"{itemData.itemName}_{kx}_{ky}_{kz}";
-                if (plantKeys.Contains(key))
-                {
-                    continue;
-                }
-                // Item'ı SCResources'dan bul
-                SCItem item = FindItemByName(itemData.itemName);
-                if (item != null)
-                {
-                    // WorldItemSpawner kullanarak spawn et
-                    WorldItemSpawner.SpawnItem(item, itemData.position, itemData.quantity);
-                    
-                    // Son spawn edilen item'ın transform'unu ayarla
-                    WorldItem[] allWorldItems = FindObjectsOfType<WorldItem>();
-                    if (allWorldItems.Length > 0)
-                    {
-                        WorldItem lastSpawned = allWorldItems[allWorldItems.Length - 1];
-                        lastSpawned.transform.eulerAngles = itemData.rotation;
-                        lastSpawned.transform.localScale = itemData.scale;
-                    }
-                }
+                continue;
             }
+
+            SCItem item = FindItemByName(itemData.itemName);
+            if (item == null) continue;
+
+            var origin = ParseWorldItemOrigin(itemData.origin);
+            bool preferDrop = origin == WorldItem.WorldItemOrigin.ManualDrop;
+            Quaternion rotation = Quaternion.Euler(itemData.rotation);
+            Vector3 scale = itemData.scale == Vector3.zero ? Vector3.one : itemData.scale;
+
+            WorldItem spawned = WorldItemSpawner.SpawnItem(
+                item,
+                itemData.position,
+                Mathf.Max(1, itemData.quantity),
+                string.IsNullOrEmpty(itemData.persistentId) ? null : itemData.persistentId,
+                origin,
+                rotation,
+                scale,
+                preferDrop);
+
+            if (spawned == null) continue;
+
+            // Ensure transform precisely matches saved values after overrides (guard against prefabs overriding scale)
+            spawned.transform.position = itemData.position;
+            spawned.transform.rotation = rotation;
+            spawned.transform.localScale = scale;
         }
+    }
+
+    private static WorldItem.WorldItemOrigin ParseWorldItemOrigin(string raw)
+    {
+        if (!string.IsNullOrEmpty(raw) && Enum.TryParse(raw, out WorldItem.WorldItemOrigin parsed))
+        {
+            return parsed;
+        }
+        return WorldItem.WorldItemOrigin.ScenePlaced;
     }
     
     private void ClearExistingPlants()
@@ -1506,39 +1563,83 @@ public class GameSaveManager : MonoBehaviour
         if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
 
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        var pos = picked.transform.position;
-        // remove matching entries in current scene near the same spot and same item
-        int removed = currentSaveData.worldItems.RemoveAll(w =>
-            w != null && w.sceneName == currentScene && w.itemName == picked.item.itemName &&
-            (w.position - pos).sqrMagnitude <= 0.5f * 0.5f);
+        string persistentId = picked.PersistentId;
+        int removed = 0;
+        if (!string.IsNullOrEmpty(persistentId))
+        {
+            removed = currentSaveData.worldItems.RemoveAll(w =>
+                w != null && w.sceneName == currentScene && !string.IsNullOrEmpty(w.persistentId) && w.persistentId == persistentId);
+        }
+        if (removed == 0)
+        {
+            var pos = picked.transform.position;
+            removed = currentSaveData.worldItems.RemoveAll(w =>
+                w != null && w.sceneName == currentScene && w.itemName == picked.item.itemName &&
+                (w.position - pos).sqrMagnitude <= 0.5f * 0.5f);
+        }
         if (removed > 0)
         {
             Debug.Log($"[GameSaveManager] Removed {removed} saved world item entries for picked {picked.item.itemName}");
         }
-        // Also refresh the scene snapshot for world items to reflect the live removal
-        SaveWorldItems();
+        // Destroy işlemi tamamlandıktan sonra snapshot'ı güncelle
+        RequestWorldItemSnapshotRefresh();
     }
 
     // Called when an inventory item is dropped into the world
-    public void OnWorldItemDropped(SCItem item, Vector3 position, int quantity)
+    public void OnWorldItemDropped(WorldItem worldItem)
     {
-        if (item == null) return;
+        if (worldItem == null || worldItem.item == null) return;
         if (currentSaveData == null) currentSaveData = new GameSaveData();
         if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
-        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        var data = new WorldItemSaveData
+
+        worldItem.MarkRuntime(WorldItem.WorldItemOrigin.ManualDrop);
+        Debug.Log($"[GameSaveManager] Registered dropped world item {worldItem.item.itemName} with id {worldItem.PersistentId}");
+
+        // Spawn edilen objenin nihai transform'unu almak için snapshot'ı bir sonraki frame'e ertele
+        RequestWorldItemSnapshotRefresh();
+    }
+
+    public void CaptureWorldItemSnapshot(WorldItem worldItem)
+    {
+        if (worldItem == null || worldItem.item == null) return;
+        if (_isRestoringScene) return; // restore sırasında yok edilen objeleri yeniden kaydetme
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        if (currentSaveData.worldItems == null) currentSaveData.worldItems = new List<WorldItemSaveData>();
+
+        string sceneName = worldItem.gameObject.scene.IsValid()
+            ? worldItem.gameObject.scene.name
+            : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+
+        var position = worldItem.transform.position;
+        string persistentId = worldItem.PersistentId;
+        int removed = 0;
+        if (!string.IsNullOrEmpty(persistentId))
         {
-            itemName = item.itemName,
+            removed = currentSaveData.worldItems.RemoveAll(w =>
+                w != null && w.sceneName == sceneName && !string.IsNullOrEmpty(w.persistentId) && w.persistentId == persistentId);
+        }
+        if (removed == 0)
+        {
+            currentSaveData.worldItems.RemoveAll(w =>
+                w != null && w.sceneName == sceneName && w.itemName == worldItem.item.itemName &&
+                (w.position - position).sqrMagnitude <= 0.5f * 0.5f);
+        }
+
+        currentSaveData.worldItems.Add(new WorldItemSaveData
+        {
+            itemName = worldItem.item.itemName,
             position = position,
-            rotation = Vector3.zero,
-            scale = Vector3.one,
-            quantity = Mathf.Max(1, quantity),
-            sceneName = currentScene
-        };
-        currentSaveData.worldItems.Add(data);
-        Debug.Log($"[GameSaveManager] Tracked dropped item {item.itemName} at {position}");
-        // Refresh snapshot from scene as well (to capture exact rotation/scale after spawn)
-        SaveWorldItems();
+            rotation = worldItem.transform.eulerAngles,
+            scale = worldItem.transform.localScale,
+            quantity = Mathf.Max(1, worldItem.quantity),
+            sceneName = sceneName,
+            persistentId = persistentId,
+            origin = worldItem.Origin.ToString()
+        });
+
+        _pendingWorldItemSnapshots.Add(sceneName);
+        Debug.Log($"[GameSaveManager] Captured pending snapshot for world item {worldItem.item.itemName} in scene {sceneName}");
+        RequestWorldItemSnapshotRefresh();
     }
 
     // Public helper for components to update snapshot of ISaveable objects without flushing to disk

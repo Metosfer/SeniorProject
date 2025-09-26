@@ -5769,6 +5769,7 @@ MonoBehaviour:
   pickupSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
   placeSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
   cancelSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
+  saveId: 
   freezeCameraZoomWhileCarrying: 1
 --- !u!1001 &234995935
 PrefabInstance:
@@ -17149,106 +17150,6 @@ RectTransform:
   m_AnchoredPosition: {x: 3.9785495, y: 2.3159506}
   m_SizeDelta: {x: 20, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!1 &714765663 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6125377157684126347, guid: a49206e40dd072d47b1844bb2d713e07,
-    type: 3}
-  m_PrefabInstance: {fileID: 1400289674}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &714765670
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 714765663}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 001a2e9d44f1642059c66135863810b3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerTransform: {fileID: 7949885079087181006}
-  pickupKey: 9
-  cancelKey: 27
-  confirmMouseButton: 0
-  rotateMouseButton: 1
-  pickupRange: 2
-  groundRayDistance: 200
-  verticalLiftWhileCarrying: 0.02
-  placementOffset: {x: 0, y: 0, z: 0}
-  rotateSpeed: 60
-  enableScrollVerticalAdjust: 0
-  scrollStep: 0.2
-  fastScrollMultiplier: 3
-  minScrollOffset: -1
-  maxScrollOffset: 2
-  resetScrollOffsetOnEnd: 1
-  invalidOverlapMask:
-    serializedVersion: 2
-    m_Bits: 0
-  groundRayMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  overlapBoundsExpand: 0
-  validColor: {r: 0, g: 1, b: 0, a: 0.35}
-  invalidColor: {r: 1, g: 0, b: 0, a: 0.35}
-  overridePreviewAlpha: -1
-  restoreOriginalColors: 1
-  disableCollidersWhileCarrying: 1
-  makeRigidbodyKinematic: 1
-  smoothFollow: 1
-  followLerpSpeed: 25
-  debugLogs: 0
-  drawOverlapGizmo: 0
-  drawPickupRangeOnSelected: 1
-  drawPickupRangeAlways: 0
-  pickupRangeGizmoColor: {r: 0, g: 0.9, b: 1, a: 1}
-  enableScaleBounce: 1
-  pickupScaleMultiplier: 1.15
-  placeScaleMultiplier: 0.85
-  bounceDuration: 0.15
-  bounceCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  returnSpeed: 12
-  instructionText: {fileID: 1521965581}
-  pickupMessage: Press TAB to pick up
-  carryValidMessage: 'LMB: Place  |  RMB: Rotate  |  ESC: Cancel'
-  carryInvalidMessage: 'Invalid position - adjust  |  ESC: Cancel'
-  placedMessage: Placed
-  placedMessageDuration: 1.2
-  instructionRangeHysteresis: 0.25
-  instructionMinUpdateInterval: 0.15
-  instructionExitGraceTime: 0.2
-  initialUISuppressDuration: 0.3
-  uiStateStabilityTime: 0.08
-  exclusiveInstructionOwnership: 1
-  ownerSwitchDistanceDelta: 0.15
-  pickupSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
-  placeSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
-  cancelSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
-  freezeCameraZoomWhileCarrying: 1
 --- !u!4 &722534138 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8881504610387854135, guid: 6b0b0b098177a3b439c80991ec9deacc,
@@ -32600,39 +32501,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6031660975063348458, guid: a49206e40dd072d47b1844bb2d713e07,
+    - target: {fileID: 5537283917135768262, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
-      propertyPath: m_StaticEditorFlags
-      value: 126
-      objectReference: {fileID: 0}
+      propertyPath: instructionText
+      value: 
+      objectReference: {fileID: 1521965581}
+    - target: {fileID: 5537283917135768262, guid: a49206e40dd072d47b1844bb2d713e07,
+        type: 3}
+      propertyPath: playerTransform
+      value: 
+      objectReference: {fileID: 7949885079087181006}
     - target: {fileID: 6125377157684126347, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
       propertyPath: m_Name
       value: MusicBox
       objectReference: {fileID: 0}
-    - target: {fileID: 6125377157684126347, guid: a49206e40dd072d47b1844bb2d713e07,
-        type: 3}
-      propertyPath: m_StaticEditorFlags
-      value: 126
-      objectReference: {fileID: 0}
-    - target: {fileID: 6216016672145996592, guid: a49206e40dd072d47b1844bb2d713e07,
-        type: 3}
-      propertyPath: m_StaticShadowCaster
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 7467080391348857682, guid: a49206e40dd072d47b1844bb2d713e07,
-        type: 3}
-      propertyPath: m_StaticEditorFlags
-      value: 126
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6125377157684126347, guid: a49206e40dd072d47b1844bb2d713e07,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 714765670}
     - targetCorrespondingSourceObject: {fileID: 6031660975063348458, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
       insertIndex: -1

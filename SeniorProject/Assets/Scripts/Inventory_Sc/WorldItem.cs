@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class WorldItem : MonoBehaviour
@@ -15,6 +17,25 @@ public class WorldItem : MonoBehaviour
     private Inventory playerInventory;
     private bool pendingPickup = false; // wait until TakeItem anim finishes
     private PlayerAnimationController playerAnim;
+    private bool destroyedByPickup;
+
+    public enum WorldItemOrigin
+    {
+        ScenePlaced,
+        ManualDrop,
+        AutoSpawn,
+        Other
+    }
+
+    [SerializeField] private string persistentId;
+    [SerializeField] private WorldItemOrigin origin = WorldItemOrigin.ScenePlaced;
+
+    private static readonly Dictionary<string, WeakReference<WorldItem>> s_registry = new Dictionary<string, WeakReference<WorldItem>>();
+
+    private void Awake()
+    {
+        EnsurePersistentId();
+    }
 
     private void Start()
     {
@@ -85,17 +106,8 @@ public class WorldItem : MonoBehaviour
         if (playerAnim != null)
         {
             pendingPickup = true;
-            if (shouldTakeItem)
-            {
-                playerAnim.TriggerTakeItem();
-                StartCoroutine(WaitTakeItemThenPickup());
-            }
-            else
-            {
-                // Varsayılan davranış: Spuding yerine de TakeItem tercih edilebilir, ancak burada istenmiyor ise direkt pickup
-                // İstenirse: playerAnim.TriggerSpuding(); ve spuding bekleme mantığı eklenebilir.
-                StartCoroutine(WaitTakeItemThenPickup()); // kısa bekleme ile hizalı pickup
-            }
+            if (shouldTakeItem) playerAnim.TriggerTakeItem();
+            StartCoroutine(WaitTakeItemThenPickup());
         }
         else
         {
@@ -146,6 +158,7 @@ public class WorldItem : MonoBehaviour
                 {
                     // Quantity 1 ise eşyayı tamamen kaldır
                     ShowPickupUI(false);
+                    destroyedByPickup = true;
                     Destroy(gameObject);
                 }
             }
@@ -181,5 +194,74 @@ public class WorldItem : MonoBehaviour
         {
             gameObject.name = $"WorldItem_{item.itemName}";
         }
+        if (!Application.isPlaying)
+        {
+            EnsurePersistentId();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (!Application.isPlaying) return;
+        if (destroyedByPickup) return;
+        if (GameSaveManager.Instance == null) return;
+        if (GameSaveManager.Instance.IsRestoringScene) return;
+
+        try
+        {
+            GameSaveManager.Instance.CaptureWorldItemSnapshot(this);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"WorldItem OnDestroy snapshot failed: {ex.Message}");
+        }
+
+        if (!string.IsNullOrEmpty(persistentId))
+        {
+            s_registry.Remove(persistentId);
+        }
+    }
+
+    public string PersistentId => EnsurePersistentId();
+    public WorldItemOrigin Origin => origin;
+
+    public void ApplyPersistentId(string id, WorldItemOrigin newOrigin)
+    {
+        persistentId = string.IsNullOrEmpty(id) ? GenerateNewId() : id;
+        origin = newOrigin;
+        RegisterPersistentId();
+    }
+
+    public void MarkRuntime(WorldItemOrigin newOrigin)
+    {
+        origin = newOrigin;
+        EnsurePersistentId();
+    }
+
+    private string EnsurePersistentId()
+    {
+        if (string.IsNullOrEmpty(persistentId))
+        {
+            persistentId = GenerateNewId();
+        }
+
+        if (s_registry.TryGetValue(persistentId, out var existing) && existing.TryGetTarget(out var other) && other != null && other != this)
+        {
+            persistentId = GenerateNewId();
+        }
+
+        RegisterPersistentId();
+        return persistentId;
+    }
+
+    private void RegisterPersistentId()
+    {
+        if (string.IsNullOrEmpty(persistentId)) return;
+        s_registry[persistentId] = new WeakReference<WorldItem>(this);
+    }
+
+    private static string GenerateNewId()
+    {
+        return Guid.NewGuid().ToString("N");
     }
 }

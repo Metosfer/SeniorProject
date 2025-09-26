@@ -86,9 +86,27 @@ public class SaveSystemManager : MonoBehaviour
 
     private IEnumerator DeferredSave()
     {
-        yield return null; // next frame
-        GameSaveManager.Instance.SaveGame();
-        Debug.Log("[SaveSystemManager] Deferred SaveGame after activeSceneChanged");
+        // Önce bir frame bekle ki GameSaveManager RestoreSceneData çağrısını planlasın
+        yield return null;
+        float startTime = Time.realtimeSinceStartup;
+        const float timeout = 5f; // en fazla 5 saniye bekle
+        // Restorasyon sürüyorsa bitene kadar bekle
+        while (GameSaveManager.Instance != null && GameSaveManager.Instance.IsRestoringScene)
+        {
+            if (Time.realtimeSinceStartup - startTime > timeout)
+            {
+                Debug.LogWarning("[SaveSystemManager] DeferredSave timeout - forcing SaveGame even though restoration not finished");
+                break;
+            }
+            yield return null; // her frame kontrol et
+        }
+        // Küçük bir ek gecikme (restored objeler transform güncellemelerini tamamlansın)
+        yield return null;
+        if (GameSaveManager.Instance != null)
+        {
+            GameSaveManager.Instance.SaveGame();
+            Debug.Log("[SaveSystemManager] Deferred SaveGame after activeSceneChanged (restoration complete)");
+        }
     }
     
     private void OnDestroy()

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
-public class ObjectCarrying : MonoBehaviour
+public class ObjectCarrying : MonoBehaviour, ISaveable
 {
     #region Serialized Configuration
     [Header("General References")]
@@ -83,6 +83,50 @@ public class ObjectCarrying : MonoBehaviour
     [Tooltip("Objeyi aldığında çalacak ses")] [SerializeField] private AudioClip pickupSFX;
     [Tooltip("Objeyi bıraktığında çalacak ses")] [SerializeField] private AudioClip placeSFX;
     [Tooltip("Objeyi iptal ettiğinde çalacak ses")] [SerializeField] private AudioClip cancelSFX;
+    #endregion
+
+    #region Save System Integration
+    [Header("Save System")]
+    [Tooltip("Bu obje için sabit bir ID. Boş bırakılırsa hierarchy path kullanılır (sahne içinde isim/hiyerarşi değişirse kayıp yaşanabilir).")]
+    public string saveId = ""; // GameSaveManager.TryGetStableObjectId bunu önce kontrol eder
+
+    // Save'de yalnızca transform bilgisi gerekiyor; başka state tutulmuyorsa ek alan yok.
+    public Dictionary<string, object> GetSaveData()
+    {
+        var data = new Dictionary<string, object>();
+        // Konum / rotasyon / scale kaydet
+        data["pos"] = transform.position; // GameSaveManager SerializeValue Vector3 desteği var
+        data["rot"] = transform.eulerAngles;
+        data["scale"] = transform.localScale;
+        return data;
+    }
+
+    public void LoadSaveData(Dictionary<string, object> data)
+    {
+        // GameSaveManager sod.componentDataValues string olarak döner; Vector3 parse gerekiyor
+        if (data == null) return;
+        Vector3 ParseVec(object val, Vector3 fallback)
+        {
+            if (val == null) return fallback;
+            if (val is Vector3 v) return v; // doğrudan gelmiş olabilir
+            var s = val.ToString();
+            if (string.IsNullOrEmpty(s)) return fallback;
+            // format: x,y,z
+            var parts = s.Split(',');
+            if (parts.Length != 3) return fallback;
+            if (float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float x) &&
+                float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float y) &&
+                float.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float z))
+            {
+                return new Vector3(x, y, z);
+            }
+            return fallback;
+        }
+        // CharacterController vs. yok, direkt atayabiliriz
+        if (data.TryGetValue("pos", out var pObj)) transform.position = ParseVec(pObj, transform.position);
+        if (data.TryGetValue("rot", out var rObj)) transform.eulerAngles = ParseVec(rObj, transform.eulerAngles);
+        if (data.TryGetValue("scale", out var sObj)) transform.localScale = ParseVec(sObj, transform.localScale);
+    }
     #endregion
 
     #region Internal State

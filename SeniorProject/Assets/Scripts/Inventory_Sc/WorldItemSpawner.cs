@@ -227,10 +227,10 @@ public class WorldItemSpawner : MonoBehaviour
             // İstenen davranış: seçilen ScriptableObject'i Auto Spawn Item alanına yansıt
             if (useWeightedItems) { autoSpawnItem = chosen; }
             // Y seviyesini (opsiyonel) clamp politikası zaten uygulanacak
-            GameObject go = CreateWorldItemObject(chosen, pos, Mathf.Max(1, autoSpawnQuantity), preferDropPrefab: false);
+            WorldItem go = CreateWorldItemObject(chosen, pos, Mathf.Max(1, autoSpawnQuantity), false, null, WorldItem.WorldItemOrigin.AutoSpawn, null, null);
             if (go != null)
             {
-                var tag = go.AddComponent<AutoSpawnTag>();
+                var tag = go.gameObject.AddComponent<AutoSpawnTag>();
                 tag.owner = this;
                 _autoSpawned.Add(tag);
             }
@@ -289,24 +289,42 @@ public class WorldItemSpawner : MonoBehaviour
         return defaultPrefab;
     }
 
-    public static void SpawnItem(SCItem item, Vector3 position, int quantity = 1)
+    public static WorldItem SpawnItem(
+        SCItem item,
+        Vector3 position,
+        int quantity = 1,
+        string forcedId = null,
+        WorldItem.WorldItemOrigin? originOverride = null,
+        Quaternion? rotationOverride = null,
+        Vector3? scaleOverride = null,
+        bool preferDropPrefab = true)
     {
         if (item == null)
         {
             Debug.LogWarning("WorldItemSpawner: Item null!");
-            return;
+            return null;
         }
 
         // Envanterden yere atma senaryosu: dropPrefab tercih edilir
-        GameObject worldItem = CreateWorldItemObject(item, position, quantity, preferDropPrefab: true);
-        
+        WorldItem worldItem = CreateWorldItemObject(item, position, quantity, preferDropPrefab, forcedId, originOverride, rotationOverride, scaleOverride);
+
         if (worldItem != null)
         {
             Debug.Log($"World'e spawn edildi: {item.itemName} x{quantity} at {position}");
         }
+
+        return worldItem;
     }
 
-    private static GameObject CreateWorldItemObject(SCItem item, Vector3 position, int quantity, bool preferDropPrefab)
+    private static WorldItem CreateWorldItemObject(
+        SCItem item,
+        Vector3 position,
+        int quantity,
+        bool preferDropPrefab,
+    string forcedId,
+    WorldItem.WorldItemOrigin? originOverride,
+        Quaternion? rotationOverride,
+        Vector3? scaleOverride)
     {
         GameObject worldItem;
         SpawnOrigin origin = SpawnOrigin.Unknown;
@@ -371,6 +389,17 @@ public class WorldItemSpawner : MonoBehaviour
         worldItemComponent.item = item;
         worldItemComponent.quantity = quantity;
 
+        if (!string.IsNullOrEmpty(forcedId) || originOverride.HasValue)
+        {
+            var originToUse = originOverride ?? (preferDropPrefab ? WorldItem.WorldItemOrigin.ManualDrop : WorldItem.WorldItemOrigin.AutoSpawn);
+              worldItemComponent.ApplyPersistentId(forcedId, originToUse);
+        }
+        else
+        {
+            var originToUse = preferDropPrefab ? WorldItem.WorldItemOrigin.ManualDrop : WorldItem.WorldItemOrigin.AutoSpawn;
+            worldItemComponent.MarkRuntime(originToUse);
+        }
+
     // Meta bilgisi ekle (persist için)
     var meta = worldItem.GetComponent<WorldItemMeta>();
     if (meta == null) meta = worldItem.AddComponent<WorldItemMeta>();
@@ -404,7 +433,16 @@ public class WorldItemSpawner : MonoBehaviour
     // Zemin hizalaması
     AlignToGround(worldItem);
 
-        return worldItem;
+        if (rotationOverride.HasValue)
+        {
+            worldItem.transform.rotation = rotationOverride.Value;
+        }
+        if (scaleOverride.HasValue)
+        {
+            worldItem.transform.localScale = scaleOverride.Value;
+        }
+
+        return worldItemComponent;
     }
 
     public static void SetWorldItemPrefab(GameObject prefab)
@@ -487,6 +525,7 @@ public class WorldItemSpawner : MonoBehaviour
         go.tag = "WorldItem";
         var meta = go.AddComponent<WorldItemMeta>();
         meta.origin = SpawnOrigin.Fallback; meta.usedFallbackPrefab = prefab; meta.owner = instance;
+        wi.MarkRuntime(WorldItem.WorldItemOrigin.ScenePlaced);
         return go;
     }
 
@@ -692,20 +731,29 @@ public class WorldItemSpawner : MonoBehaviour
         {
             var d = list[i]; if (d == null || d.item == null) continue;
             GameObject go = null;
+            WorldItem worldItem = null;
             if (d.origin == SpawnOrigin.Fallback && d.usedFallbackPrefab != null)
             {
                 go = CreateWorldItemFromPrefab(d.usedFallbackPrefab, d.item, d.position, d.rotation, d.scale, d.quantity);
+                if (go != null)
+                {
+                    worldItem = go.GetComponent<WorldItem>();
+                }
             }
             else
             {
                 // Recreate using selection path and then force transform
-                go = CreateWorldItemObject(d.item, d.position, d.quantity, preferDropPrefab: d.origin == SpawnOrigin.PreferDrop);
-                if (go != null)
+                worldItem = CreateWorldItemObject(d.item, d.position, d.quantity, d.origin == SpawnOrigin.PreferDrop, null, WorldItem.WorldItemOrigin.ScenePlaced, null, null);
+                if (worldItem != null)
                 {
-                    go.transform.position = d.position;
-                    go.transform.rotation = d.rotation;
-                    go.transform.localScale = d.scale;
+                    go = worldItem.gameObject;
                 }
+            }
+            if (go != null)
+            {
+                go.transform.position = d.position;
+                go.transform.rotation = d.rotation;
+                go.transform.localScale = d.scale;
             }
         }
         _restoredThisScene = true;
