@@ -125,7 +125,7 @@ public class FlaskManager : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     void Update()
     {
         // ESC tuşuna basıldığında ve panel açıksa, paneli kapat
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             // If any drag is in progress, cancel it first and consume ESC
             if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc())

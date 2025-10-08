@@ -159,8 +159,8 @@ public class RythmGameManager : MonoBehaviour
         // Allow closing with ESC or E while UI is open
         if (rootUI != null && rootUI.activeSelf)
         {
-            if ((allowEscClose && Input.GetKeyDown(KeyCode.Escape)) ||
-                (allowEKeyClose && Input.GetKeyDown(KeyCode.E)))
+            if ((allowEscClose && InputHelper.GetKeyDown(KeyCode.Escape)) ||
+                (allowEKeyClose && InputHelper.GetKeyDown(KeyCode.E)))
             {
                 StopGame();
                 return;
@@ -431,10 +431,10 @@ public class RythmGameManager : MonoBehaviour
 
     private void HandleInputs()
     {
-        if (Input.GetKeyDown(keyUp)) TryHitLane(0);
-        if (Input.GetKeyDown(keyDown)) TryHitLane(1);
-        if (Input.GetKeyDown(keyLeft)) TryHitLane(2);
-        if (Input.GetKeyDown(keyRight)) TryHitLane(3);
+    if (InputHelper.GetKeyDown(keyUp)) TryHitLane(0);
+    if (InputHelper.GetKeyDown(keyDown)) TryHitLane(1);
+    if (InputHelper.GetKeyDown(keyLeft)) TryHitLane(2);
+    if (InputHelper.GetKeyDown(keyRight)) TryHitLane(3);
     }
 
     public void TryHitLane(int lane)

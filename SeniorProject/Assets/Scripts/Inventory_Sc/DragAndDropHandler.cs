@@ -78,7 +78,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
     private void Update()
     {
         // If this handler is currently dragging, cancel on ESC even without pointer movement
-        if (CurrentDragHandler == this && Input.GetKeyDown(KeyCode.Escape))
+    if (CurrentDragHandler == this && InputHelper.GetKeyDown(KeyCode.Escape))
         {
             s_lastEscapeConsumedFrame = Time.frameCount;
             CancelDragOperation();
@@ -183,7 +183,7 @@ public class DragAndDropHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
         }
 
         // Check for ESC key to cancel drag operation
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             // Mark ESC as consumed to prevent PauseMenu from opening
             s_lastEscapeConsumedFrame = Time.frameCount;

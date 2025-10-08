@@ -49,7 +49,7 @@ public class MainMenuController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             if (settingsPanel != null && settingsPanel.activeSelf)
             {
@@ -64,12 +64,26 @@ public class MainMenuController : MonoBehaviour
 
     void StartGame()
     {
-        // Auto-save (if a save manager exists) before changing scenes
+        // Try to load the latest save if it exists
         var saveManager = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
         if (saveManager != null)
         {
-            saveManager.SaveGame();
+            var saveTimes = saveManager.GetSaveTimes();
+            if (saveTimes != null && saveTimes.Count > 0)
+            {
+                // Load the most recent save
+                string latestSave = saveTimes[saveTimes.Count - 1];
+                Debug.Log($"[MainMenu] Loading latest save: {latestSave}");
+                saveManager.LoadGame(latestSave);
+                return;
+            }
+            else
+            {
+                Debug.Log("[MainMenu] No existing saves, starting new game");
+            }
         }
+        
+        // No saves or no save manager - start fresh
         UnityEngine.SceneManagement.SceneManager.LoadScene("FarmScene");
     }
 

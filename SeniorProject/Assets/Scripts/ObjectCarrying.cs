@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 
@@ -89,6 +91,10 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
     [Header("Save System")]
     [Tooltip("Bu obje için sabit bir ID. Boş bırakılırsa hierarchy path kullanılır (sahne içinde isim/hiyerarşi değişirse kayıp yaşanabilir).")]
     public string saveId = ""; // GameSaveManager.TryGetStableObjectId bunu önce kontrol eder
+    [Tooltip("Minimum cooldown (seconds, unscaled) between incremental save snapshots.")]
+    [Range(0.05f, 5f)] public float saveCaptureCooldown = 0.4f;
+
+    private float _lastSaveCaptureTime = -999f;
 
     // Save'de yalnızca transform bilgisi gerekiyor; başka state tutulmuyorsa ek alan yok.
     public Dictionary<string, object> GetSaveData()
@@ -128,6 +134,51 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
         if (data.TryGetValue("scale", out var sObj)) transform.localScale = ParseVec(sObj, transform.localScale);
     }
     #endregion
+
+    private void EnsureSaveId()
+    {
+        if (!string.IsNullOrEmpty(saveId)) return;
+        var scene = gameObject.scene;
+        string path = GetHierarchyPath(transform);
+        if (scene.IsValid())
+        {
+            saveId = string.IsNullOrEmpty(path) ? scene.name : $"{scene.name}:{path}";
+        }
+        else
+        {
+            saveId = path;
+        }
+    }
+
+    private static string GetHierarchyPath(Transform t)
+    {
+        if (t == null) return string.Empty;
+        StringBuilder sb = new StringBuilder(t.name);
+        while (t.parent != null)
+        {
+            t = t.parent;
+            sb.Insert(0, '/');
+            sb.Insert(0, t.name);
+        }
+        return sb.ToString();
+    }
+
+    private void MarkStateDirty()
+    {
+        var gsm = GameSaveManager.Instance;
+        if (gsm == null || gsm.IsRestoringScene) return;
+        float now = Time.unscaledTime;
+        if (now - _lastSaveCaptureTime < Mathf.Max(0.05f, saveCaptureCooldown)) return;
+        _lastSaveCaptureTime = now;
+        try
+        {
+            gsm.CaptureSceneObjectsSnapshotNow();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[ObjectCarrying] Failed to capture scene snapshot: {ex.Message}");
+        }
+    }
 
     #region Internal State
     private enum InstructionDisplayState
@@ -189,6 +240,7 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
     #region Unity Lifecycle
     private void Awake()
     {
+        EnsureSaveId();
         if (playerTransform == null)
         {
             var playerGO = GameObject.FindGameObjectWithTag("Player");
@@ -198,6 +250,24 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
         GetComponentsInChildren(_colliders); // extension-like generic collection
         _rb = GetComponent<Rigidbody>();
         _uiSuppressUntil = Time.unscaledTime + Mathf.Max(0f, initialUISuppressDuration);
+    }
+
+    private void OnValidate()
+    {
+        EnsureSaveId();
+    }
+    
+    // CRITICAL: Save position before scene unload or object destruction
+    private void OnDisable()
+    {
+        Debug.Log($"[ObjectCarrying] OnDisable called for {gameObject.name}, forcing save...");
+        MarkStateDirty();
+    }
+    
+    private void OnDestroy()
+    {
+        Debug.Log($"[ObjectCarrying] OnDestroy called for {gameObject.name}, forcing final save...");
+        MarkStateDirty();
     }
 
     private void Update()
@@ -220,7 +290,7 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
     #region Input Flows
     private void HandlePickupInput()
     {
-        if (Input.GetKeyDown(pickupKey))
+    if (InputHelper.GetKeyDown(pickupKey))
         {
             if (playerTransform == null)
             {
@@ -242,7 +312,7 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
     private void HandleCarryingUpdate()
     {
         // Cancel (consume ESC input to prevent pause menu)
-        if (Input.GetKeyDown(cancelKey))
+    if (InputHelper.GetKeyDown(cancelKey))
         {
             CancelCarry();
             // Consume the ESC input by marking it as used
@@ -326,6 +396,7 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
             // Cancel sonrası tekrar pickup mesajını göstermek için reset
             _placedMsgHideTime = -1f;
         }
+        MarkStateDirty();
         if (debugLogs) Debug.Log("[ObjectCarrying] Taşıma iptal edildi");
     }
 
@@ -355,6 +426,7 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
             _currentInstructionState = InstructionDisplayState.ShowingPlaced;
             _placedMsgHideTime = Time.unscaledTime + placedMessageDuration;
         }
+        MarkStateDirty();
         if (debugLogs) Debug.Log("[ObjectCarrying] Yerleştirme onaylandı");
     }
 
@@ -394,7 +466,7 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
             float scroll = Input.mouseScrollDelta.y;
             if (Mathf.Abs(scroll) > 0.001f)
             {
-                float mult = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) ? fastScrollMultiplier : 1f;
+                float mult = (InputHelper.GetKey(KeyCode.LeftShift) || InputHelper.GetKey(KeyCode.RightShift)) ? fastScrollMultiplier : 1f;
                 _currentScrollOffset += scroll * scrollStep * mult;
                 _currentScrollOffset = Mathf.Clamp(_currentScrollOffset, minScrollOffset, maxScrollOffset);
             }

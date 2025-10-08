@@ -359,7 +359,7 @@ public class FishingManager : MonoBehaviour
     void HandleInput()
     {
         bool canInteract = playerInRange || (Time.time - lastTimeInRange <= interactLinger);
-        if (canInteract && Input.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
+    if (canInteract && InputHelper.GetKeyDown(KeyCode.E) && !isFishingActive && !isWaitingForFish)
         {
             // Check if player has Fish Feed before allowing fishing
             bool hasFeed = GetHasFishFeedCached();
@@ -377,12 +377,12 @@ public class FishingManager : MonoBehaviour
             }
         }
         
-        if (isFishingActive && Input.GetKey(KeyCode.Space))
+    if (isFishingActive && InputHelper.GetKey(KeyCode.Space))
         {
             MoveBobberUp();
         }
         
-        if ((isFishingActive || isWaitingForFish) && Input.GetKeyDown(KeyCode.Escape))
+    if ((isFishingActive || isWaitingForFish) && InputHelper.GetKeyDown(KeyCode.Escape))
         {
             EndFishing(false);
             escapeKeyConsumed = true; // ESC tuşunu tüket

@@ -42,7 +42,7 @@ public class DoorManager : MonoBehaviour
     {
         UpdateDoorPromptThrottled();
         // E tuşuna basıldığında kontrol et
-        if (Input.GetKeyDown(KeyCode.E))
+    if (InputHelper.GetKeyDown(KeyCode.E))
         {
             CheckPlayerDistance();
         }
@@ -111,16 +111,32 @@ public class DoorManager : MonoBehaviour
             transform.rotation = Quaternion.Euler(openEuler);
             Debug.Log("Kapı Açıldı");
             
-            // Sahne değişmeden önce otomatik save
-            AutoSaveBeforeSceneChange();
-            
-            UnityEngine.SceneManagement.SceneManager.LoadScene("ShopScene");
+            // CRITICAL: Coroutine ile sıralı işlem - save tamamlanana kadar sahne değişmesin
+            StartCoroutine(SaveAndTransitionScene("ShopScene"));
         }
         else
         {
             
             Debug.Log("Kapıya çok uzaksın!");
         }
+    }
+    
+    IEnumerator SaveAndTransitionScene(string targetScene)
+    {
+        Debug.Log("[DoorManager] Save işlemi başlatılıyor...");
+        
+        // Sahne değişmeden önce otomatik save
+        AutoSaveBeforeSceneChange();
+        
+        // CRITICAL: Save işleminin disk'e yazılması için bekle
+        // Build'de file I/O async olabilir
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForEndOfFrame(); // Double frame wait for safety
+        
+        Debug.Log("[DoorManager] Save tamamlandı, sahne yükleniyor: " + targetScene);
+        
+        // Şimdi güvenle sahne değişebiliriz
+        UnityEngine.SceneManagement.SceneManager.LoadScene(targetScene);
     }
     private void OnDisable()
     {

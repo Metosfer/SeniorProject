@@ -107,7 +107,7 @@ public class FishMarketManager : MonoBehaviour
         HandleInput();
         
         // Esc: sadece marketi kapat, PauseMenu bu durumda açılmamalı
-        if (marketPanel != null && marketPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
+    if (marketPanel != null && marketPanel.activeSelf && InputHelper.GetKeyDown(KeyCode.Escape))
         {
             s_lastEscapeConsumedFrame = Time.frameCount;
             CloseMarket();
@@ -138,7 +138,7 @@ public class FishMarketManager : MonoBehaviour
 
     void HandleInput()
     {
-        if (playerInRange && Input.GetKeyDown(KeyCode.E) && !marketPanel.activeSelf)
+    if (playerInRange && InputHelper.GetKeyDown(KeyCode.E) && !marketPanel.activeSelf)
         {
             OpenMarket();
         }

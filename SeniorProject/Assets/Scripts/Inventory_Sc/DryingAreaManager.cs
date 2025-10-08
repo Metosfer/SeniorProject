@@ -74,7 +74,7 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
     private void Update()
     {
         // 1) Capture key down EARLY (range'e girmeden önce basılırsa buffer'layacağız)
-        bool keyDown = Input.GetKeyDown(interactionKey);
+    bool keyDown = InputHelper.GetKeyDown(interactionKey);
         if (keyDown)
         {
             _lastInteractionKeyDownTime = Time.unscaledTime;
@@ -136,7 +136,7 @@ public class DryingAreaManager : MonoBehaviour, ISaveable
         }
 
         // 6) Existing ESC logic (unchanged)
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc()) return;
             if (DragAndDropHandler.DidConsumeEscapeThisFrame()) return;

@@ -164,7 +164,7 @@ public class HarrowManager : MonoBehaviour, ISaveable
     private void Update()
     {
         // Hotkey toggle
-        if (enableHotkeyEquip && Input.GetKeyDown(toggleKey))
+    if (enableHotkeyEquip && InputHelper.GetKeyDown(toggleKey))
         {
             ToggleEquip();
         }

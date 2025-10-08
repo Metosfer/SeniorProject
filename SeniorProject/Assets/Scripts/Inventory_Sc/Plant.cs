@@ -50,7 +50,7 @@ public class Plant : MonoBehaviour
     private void Update()
     {
         // Player range'de ise pickup kontrolü
-        if (!pickedUp && !pendingPickup && playerInRange && Input.GetKeyDown(pickupKey))
+    if (!pickedUp && !pendingPickup && playerInRange && InputHelper.GetKeyDown(pickupKey))
         {
             BeginHarvestSequence();
         }

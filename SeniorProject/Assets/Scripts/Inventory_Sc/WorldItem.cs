@@ -63,7 +63,7 @@ public class WorldItem : MonoBehaviour
     private void Update()
     {
         // Player range'de ise pickup kontrolü
-        if (!pendingPickup && playerInRange && Input.GetKeyDown(pickupKey))
+    if (!pendingPickup && playerInRange && InputHelper.GetKeyDown(pickupKey))
         {
             BeginPickupSequence();
         }

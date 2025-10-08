@@ -53,7 +53,7 @@ public class FishDropItem : MonoBehaviour
             if (player.CompareTag("Player"))
             {
                 // Oyuncu yakınsa ve F tuşuna basılırsa topla
-                if (Input.GetKeyDown(KeyCode.F))
+                if (InputHelper.GetKeyDown(KeyCode.F))
                 {
                     PickupFish(player.gameObject);
                     break;

@@ -5662,7 +5662,8 @@ MonoBehaviour:
   pickupSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
   placeSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
   cancelSFX: {fileID: 8300000, guid: ab3488f9317a144e39fad64a8a281009, type: 3}
-  saveId: 
+  saveId: FarmScene:Well
+  saveCaptureCooldown: 0.4
   freezeCameraZoomWhileCarrying: 1
 --- !u!1001 &234995935
 PrefabInstance:

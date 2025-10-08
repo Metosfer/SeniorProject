@@ -97,7 +97,7 @@ public class CrusherManager : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             // Önce sürükleme varsa iptal edip ESC'yi tüket
             if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc()) return;

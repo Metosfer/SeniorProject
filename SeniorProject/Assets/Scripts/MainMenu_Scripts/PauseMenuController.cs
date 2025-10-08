@@ -103,7 +103,7 @@ public partial class PauseMenuController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             // If any drag is in progress, cancel it first and consume ESC
             if (DragAndDropHandler.TryCancelCurrentDragAndConsumeEsc())
