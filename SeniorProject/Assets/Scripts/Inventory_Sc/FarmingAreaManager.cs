@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 // FarmingAreaManager: Manages dropping seeds, growth timing, and spawning the mature plant.
 // - 3D world drop is handled via DragAndDropHandler (raycast hits this object).
@@ -171,6 +172,13 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     // Internal state tracking
     private readonly List<PlotState> _plots = new List<PlotState>();
     private float _lastSaveCaptureTime = -999f;
+    // Auto diff snapshot
+    [Header("Auto Save (Redundancy)")]
+    [Tooltip("Plot durumlarında değişim algıladığında otomatik incremental snapshot alsın")] public bool autoSnapshot = true;
+    [Tooltip("Auto snapshot için minimum aralık (s)")] public float autoSnapshotInterval = 2f;
+    [Tooltip("Hazır/growing/waiting/empty sayılarından herhangi biri değişince tetikleyici aktif olsun")] public bool snapshotOnCountsChange = true;
+    private float _lastAutoSnapshotTime = -999f;
+    private int _lastReadyCnt, _lastGrowCnt, _lastWaitCnt, _lastEmptyCnt;
 
     // Throttled prompt update like WellManager
     private const float UI_UPDATE_INTERVAL = 0.1f;
@@ -277,6 +285,47 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         if (enableIconAnimations)
         {
             HandleIconHoverEffects();
+        }
+
+        // Passive diff-based snapshot
+        if (autoSnapshot && Application.isPlaying)
+        {
+            float now = Time.unscaledTime;
+            if (now - _lastAutoSnapshotTime >= Mathf.Max(0.25f, autoSnapshotInterval))
+            {
+                bool changed = false;
+                if (snapshotOnCountsChange)
+                {
+                    int r = CountReady();
+                    int g = CountGrowing();
+                    int w = CountWaiting();
+                    int e = CountEmpty();
+                    if (r != _lastReadyCnt || g != _lastGrowCnt || w != _lastWaitCnt || e != _lastEmptyCnt)
+                    {
+                        changed = true;
+                        _lastReadyCnt = r; _lastGrowCnt = g; _lastWaitCnt = w; _lastEmptyCnt = e;
+                    }
+                }
+                if (!changed)
+                {
+                    // Fallback: any plot timer finishing soon ( <0.2s ) triggers snapshot to capture transition
+                    for (int i = 0; i < _plots.Count && !changed; i++)
+                    {
+                        var ps = _plots[i];
+                        if (ps != null && ps.isGrowing)
+                        {
+                            float remain = Mathf.Max(0f, ps.growthEndTime - Time.time);
+                            if (remain < 0.2f)
+                                changed = true;
+                        }
+                    }
+                }
+                if (changed)
+                {
+                    _lastAutoSnapshotTime = now;
+                    MarkStateDirty();
+                }
+            }
         }
     }
 
@@ -1805,16 +1854,30 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     {
         var gsm = GameSaveManager.Instance;
         if (gsm == null || gsm.IsRestoringScene) return;
+
+        var scene = gameObject.scene;
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            return;
+        }
+
+    var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        if ((activeScene.IsValid() && activeScene != scene) || gsm.IsSceneUnloading)
+        {
+            return;
+        }
+
         float now = Time.unscaledTime;
         if (now - _lastSaveCaptureTime < Mathf.Max(0.05f, saveCaptureCooldown)) return;
         _lastSaveCaptureTime = now;
         try
         {
-            gsm.CaptureSceneObjectsSnapshotNow();
+            // Incremental snapshot (tam yenileme değil) - build'de disable/destroy sırasındaki veri kaybını azaltır
+            gsm.CaptureSceneObjectsIncremental();
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[FarmingAreaManager] Failed to capture scene snapshot: {ex.Message}");
+            Debug.LogWarning($"[FarmingAreaManager] Failed to capture incremental scene snapshot: {ex.Message}");
         }
     }
 

@@ -64,26 +64,11 @@ public class MainMenuController : MonoBehaviour
 
     void StartGame()
     {
-        // Try to load the latest save if it exists
-        var saveManager = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
-        if (saveManager != null)
-        {
-            var saveTimes = saveManager.GetSaveTimes();
-            if (saveTimes != null && saveTimes.Count > 0)
-            {
-                // Load the most recent save
-                string latestSave = saveTimes[saveTimes.Count - 1];
-                Debug.Log($"[MainMenu] Loading latest save: {latestSave}");
-                saveManager.LoadGame(latestSave);
-                return;
-            }
-            else
-            {
-                Debug.Log("[MainMenu] No existing saves, starting new game");
-            }
-        }
+        Debug.Log("[MainMenu] Start button clicked");
         
-        // No saves or no save manager - start fresh
+        // CRITICAL FIX for build: Don't call LoadGame here
+        // OnSceneLoaded will automatically load the latest save
+        // Just transition to FarmScene
         UnityEngine.SceneManagement.SceneManager.LoadScene("FarmScene");
     }
 

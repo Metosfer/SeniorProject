@@ -172,11 +172,12 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
         _lastSaveCaptureTime = now;
         try
         {
-            gsm.CaptureSceneObjectsSnapshotNow();
+            // Incremental: diğer objeler disable/destroy olurken tam listeyi silme riskini azaltır
+            gsm.CaptureSceneObjectsIncremental();
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[ObjectCarrying] Failed to capture scene snapshot: {ex.Message}");
+            Debug.LogWarning($"[ObjectCarrying] Failed to capture incremental scene snapshot: {ex.Message}");
         }
     }
 
@@ -426,6 +427,9 @@ public class ObjectCarrying : MonoBehaviour, ISaveable
             _currentInstructionState = InstructionDisplayState.ShowingPlaced;
             _placedMsgHideTime = Time.unscaledTime + placedMessageDuration;
         }
+        MarkStateDirty();
+        // Force an immediate second incremental capture (cooldown bypass) to reduce chance of losing final transform if scene switches instantly
+        _lastSaveCaptureTime = -999f;
         MarkStateDirty();
         if (debugLogs) Debug.Log("[ObjectCarrying] Yerleştirme onaylandı");
     }

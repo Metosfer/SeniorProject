@@ -32048,6 +32048,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5537283917135768262, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
+      propertyPath: saveId
+      value: SM_Gramophone_001
+      objectReference: {fileID: 0}
+    - target: {fileID: 5537283917135768262, guid: a49206e40dd072d47b1844bb2d713e07,
+        type: 3}
       propertyPath: instructionText
       value: 
       objectReference: {fileID: 1521965581}
@@ -32065,6 +32070,10 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6125377157684126347, guid: a49206e40dd072d47b1844bb2d713e07,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1400289676}
     - targetCorrespondingSourceObject: {fileID: 6031660975063348458, guid: a49206e40dd072d47b1844bb2d713e07,
         type: 3}
       insertIndex: -1
@@ -32074,6 +32083,31 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: a49206e40dd072d47b1844bb2d713e07, type: 3}
+--- !u!1 &1400289675 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6125377157684126347, guid: a49206e40dd072d47b1844bb2d713e07,
+    type: 3}
+  m_PrefabInstance: {fileID: 1400289674}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1400289676
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1400289675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 848f36abef4c44b17b93324e29dda1b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  saveId: FarmScene:MusicBox
+  ignoreScale: 0
+  saveActiveState: 1
+  autoCapture: 1
+  captureInterval: 0.5
+  positionThreshold: 0.01
+  scaleThreshold: 0.005
 --- !u!4 &1401555451 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3027071335612513535, guid: 23aeb96941b49fb49befd2058dd75b79,
@@ -53677,6 +53711,11 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3229235883500243324, guid: 523307a4c7e124fcfb7257b3ed868832,
+        type: 3}
+      propertyPath: saveId
+      value: FarmingArea_001
+      objectReference: {fileID: 0}
     - target: {fileID: 6333050299032202090, guid: 523307a4c7e124fcfb7257b3ed868832,
         type: 3}
       propertyPath: m_Name

@@ -208,11 +208,17 @@ public class GameSaveManager : MonoBehaviour
     private bool _isRestoringScene = false;
     public bool IsRestoringScene => _isRestoringScene;
     public float lastRestoreCompletedTime { get; private set; } = -1f;
+    [Header("Restore Reliability")]
+    [Tooltip("İlk restore sonrası ek tekrar sayısı (problemli objeler için tekrar uygulanır)")] public int extraRestorePasses = 2;
+    [Tooltip("Ek restore pasları arası gecikme (s)")] public float extraRestoreDelay = 0.5f;
+    [Tooltip("FarmingArea / ObjectCarrying snapshot özetlerini kaydet sırasında logla")] public bool debugLogFarmingSnapshots = true;
     // Scene unload sırasında yok edilmeden hemen önce snapshot alınan world item sahneleri takip et
     private readonly HashSet<string> _pendingWorldItemSnapshots = new HashSet<string>();
     private bool _worldItemSnapshotScheduled;
     private readonly HashSet<string> _worldItemsPendingRemoval = new HashSet<string>();
     private bool _playerPrefsSizeWarningLogged;
+    private bool _isSceneUnloading;
+    public bool IsSceneUnloading => _isSceneUnloading;
     
     private void Awake()
     {
@@ -269,6 +275,8 @@ public class GameSaveManager : MonoBehaviour
     
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        _isSceneUnloading = false;
+
         // MainMenu ve menü sahnelerinde restore yapma
         if (scene.name == "MainMenu" || scene.name.Contains("Menu"))
         {
@@ -302,33 +310,35 @@ public class GameSaveManager : MonoBehaviour
             }
         }
 
-        // Sahne yüklendiğinde biraz bekle, sonra restore et
-        Invoke(nameof(RestoreSceneData), 0.1f);
+        // CRITICAL: Wait for all objects to initialize (Awake/Start)
+        // Build needs more time than editor
+        StartCoroutine(RestoreSceneDataDelayed());
+    }
+    
+    private System.Collections.IEnumerator RestoreSceneDataDelayed()
+    {
+        Debug.Log("[GameSaveManager] Waiting for scene objects to initialize...");
+        
+        // Wait for end of frame to ensure all Awake calls complete
+        yield return new WaitForEndOfFrame();
+        
+        // EXTRA SAFETY: Wait one more frame for Start methods
+        yield return new WaitForEndOfFrame();
+        
+        Debug.Log("[GameSaveManager] Scene objects initialized, starting restore...");
+        RestoreSceneData();
     }
     
     private void OnSceneUnloaded(Scene scene)
     {
-    Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}, auto-saving Flask and game data...");
-        try
-        {
-            // Defensive: capture Flask state if its object is still alive
-            var flask = FindObjectOfType<FlaskManager>();
-            if (flask != null)
-            {
-                CaptureFlaskState(flask);
-            }
-            // Defensive: snapshot plants in the current scene
-            SavePlants();
-            SaveGame();
-            Debug.Log("[GameSaveManager] Auto-save completed successfully before scene unload");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"[GameSaveManager] Auto-save failed during scene unload: {e.Message}");
-        }
+        _isSceneUnloading = true;
+        Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}");
+        // DO NOT call SaveGame here - objects are already destroyed!
+        // Door transitions already handle save via OnBeforeSceneChange
+        // This event fires AFTER all objects are destroyed, so any save attempt will capture empty state
     }
     
-    public void SaveGame()
+    public void SaveGame(bool forceFullSceneSnapshot = false)
     {
         // Mevcut kayıt üzerine yaz, yeni kayıt oluşturma (scene geçişlerinde)
         string saveTime;
@@ -373,7 +383,14 @@ public class GameSaveManager : MonoBehaviour
     SaveMarketData();
         
         // Scene objects'leri kaydet
-        SaveSceneObjects();
+        if (forceFullSceneSnapshot)
+        {
+            CaptureSceneObjectsSnapshotNow();
+        }
+        else
+        {
+            SaveSceneObjects();
+        }
         
     // Save data'yı JSON'a çevir ve disk + PlayerPrefs'e kaydet
         string jsonData = JsonUtility.ToJson(currentSaveData, true);
@@ -709,12 +726,36 @@ public class GameSaveManager : MonoBehaviour
         Debug.Log($"[GameSaveManager] Captured Flask state with {currentSaveData.flaskData.slots.Count} filled slots");
     }
 
-    private void SaveSceneObjects()
+    private void SaveSceneObjects(bool incremental = false)
     {
+        if (currentSaveData == null)
+        {
+            Debug.LogError("[SaveSceneObjects] currentSaveData is NULL - cannot save!");
+            return;
+        }
+        
         // Collect all ISaveable components first
         var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
-        Debug.Log($"[SaveSceneObjects] Found {saveableComponents.Length} ISaveable components in scene {currentScene}");
+        
+        // CRITICAL: Find all MonoBehaviours first, then filter ISaveable
+        // This is more reliable than FindObjectsOfType<ISaveable>() in build
+        var allMonoBehaviours = FindObjectsOfType<MonoBehaviour>(true); // include inactive
+        var saveableComponents = allMonoBehaviours.OfType<ISaveable>().ToArray();
+        
+        Debug.Log($"[SaveSceneObjects] Scene: {currentScene}");
+        Debug.Log($"[SaveSceneObjects] Total MonoBehaviours: {allMonoBehaviours.Length}");
+        Debug.Log($"[SaveSceneObjects] ISaveable components: {saveableComponents.Length}");
+        
+        if (saveableComponents.Length == 0)
+        {
+            // Incremental modda boş bulduysak eski kayıtları KORU (örn: sahne unload sırasında son objeler yok olurken çağrılmış olabilir)
+            if (!incremental)
+            {
+                Debug.LogWarning($"[SaveSceneObjects] WARNING: No ISaveable components found in {currentScene}!");
+                Debug.LogWarning("[SaveSceneObjects] This may indicate timing issues or missing interfaces.");
+            }
+            return;
+        }
         
         var byObject = new Dictionary<GameObject, List<ISaveable>>();
         foreach (var comp in saveableComponents)
@@ -738,6 +779,7 @@ public class GameSaveManager : MonoBehaviour
 
             var sod = new SceneObjectSaveData();
             sod.objectId = TryGetStableObjectId(go, comps);
+            sod.isActive = go.activeSelf;
             sod.position = go.transform.position;
             sod.rotation = go.transform.eulerAngles;
             sod.scale = go.transform.localScale;
@@ -780,15 +822,80 @@ public class GameSaveManager : MonoBehaviour
 
         if (newEntries.Count > 0)
         {
-            // Replace only if we actually found something; prevents wiping on scene unload
-            int removed = currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
-            currentSaveData.sceneObjects.AddRange(newEntries);
-            Debug.Log($"[SaveSceneObjects] Replaced {removed} entries for scene '{currentScene}' with {newEntries.Count} new entries. Total now: {currentSaveData.sceneObjects.Count}");
+            if (incremental)
+            {
+                // Merge: var olanları güncelle, yoksa ekle; hiç bir şeyi topluca silme
+                int updates = 0, adds = 0;
+                foreach (var e in newEntries)
+                {
+                    int idx = currentSaveData.sceneObjects.FindIndex(s => s != null && s.objectId == e.objectId && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == e.sceneName));
+                    if (idx >= 0)
+                    {
+                        currentSaveData.sceneObjects[idx] = e; updates++;
+                    }
+                    else
+                    {
+                        currentSaveData.sceneObjects.Add(e); adds++;
+                    }
+                }
+                Debug.Log($"[SaveSceneObjects] Incremental snapshot: {updates} updated, {adds} added (total now {currentSaveData.sceneObjects.Count})");
+            }
+            else
+            {
+                // Replace only if we actually found something; prevents wiping on scene unload
+                int removed = currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
+                currentSaveData.sceneObjects.AddRange(newEntries);
+                Debug.Log($"[SaveSceneObjects] Replaced {removed} entries for scene '{currentScene}' with {newEntries.Count} new entries. Total now: {currentSaveData.sceneObjects.Count}");
+            }
         }
-        else
+        else if(!incremental)
         {
             Debug.LogWarning($"[SaveSceneObjects] Found 0 ISaveable objects for scene '{currentScene}'. Keeping previous saved entries to avoid data loss.");
         }
+        if (!incremental && debugLogFarmingSnapshots)
+        {
+            LogFarmingAreaSnapshotSummary(currentScene);
+        }
+    }
+
+    private void LogFarmingAreaSnapshotSummary(string currentScene)
+    {
+        try
+        {
+            int famCount = 0;
+            foreach (var sod in currentSaveData.sceneObjects)
+            {
+                if (sod == null) continue;
+                if (!string.IsNullOrEmpty(sod.sceneName) && sod.sceneName != currentScene) continue;
+                bool hasFamKey = sod.componentDataKeys != null && sod.componentDataKeys.Exists(k => k.StartsWith("FarmingAreaManager.Plot0."));
+                if (!hasFamKey) continue;
+                famCount++;
+                int prepared = 0, occupied = 0, ready = 0, growing = 0, waiting = 0;
+                foreach (var k in sod.componentDataKeys)
+                {
+                    if (!k.StartsWith("FarmingAreaManager.Plot")) continue;
+                    if (k.EndsWith("prepared")) prepared += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("occupied")) occupied += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("ready")) ready += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("growing")) growing += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("waiting")) waiting += GetBoolFromSod(sod, k) ? 1 : 0;
+                }
+                Debug.Log($"[SaveSceneObjects][FarmingSummary] id={sod.objectId} prepared={prepared} occupied={occupied} growing={growing} waiting={waiting} ready={ready}");
+            }
+            Debug.Log($"[SaveSceneObjects][FarmingSummary] Total FarmingArea snapshots: {famCount}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[SaveSceneObjects][FarmingSummary] Logging failed: {ex.Message}");
+        }
+    }
+
+    private bool GetBoolFromSod(SceneObjectSaveData sod, string key)
+    {
+        int idx = sod.componentDataKeys.IndexOf(key);
+        if (idx < 0) return false;
+        var val = sod.componentDataValues[idx];
+        return val == "true" || val == "True" || val == "1";
     }
 
     private void SaveMarketData()
@@ -905,6 +1012,30 @@ public class GameSaveManager : MonoBehaviour
         // Restorasyon bitti
         _isRestoringScene = false;
         lastRestoreCompletedTime = Time.realtimeSinceStartup;
+        if (extraRestorePasses > 0 && gameObject.activeInHierarchy)
+        {
+            StartCoroutine(PerformExtraRestorePasses());
+        }
+    }
+
+    private System.Collections.IEnumerator PerformExtraRestorePasses()
+    {
+        for (int i = 0; i < extraRestorePasses; i++)
+        {
+            yield return new WaitForSeconds(extraRestoreDelay);
+            if (currentSaveData == null) yield break;
+            Debug.Log($"[GameSaveManager] Extra restore pass {i+1}/{extraRestorePasses} starting...");
+            _isRestoringScene = true;
+            try
+            {
+                RestoreSceneObjects();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[GameSaveManager] Extra restore pass {i+1} failed: {ex.Message}");
+            }
+            _isRestoringScene = false;
+        }
     }
 
     private void PostRestoreNudge()
@@ -1410,11 +1541,25 @@ public class GameSaveManager : MonoBehaviour
 
     private void RestoreSceneObjects()
     {
-        Debug.Log($"[RestoreSceneObjects] Starting restoration for scene: {UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
+        var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        Debug.Log($"[RestoreSceneObjects] ===== Starting restoration for scene: {currentScene} =====");
+        
+        if (currentSaveData == null)
+        {
+            Debug.LogError("[RestoreSceneObjects] currentSaveData is NULL - cannot restore!");
+            return;
+        }
+        
+        if (currentSaveData.sceneObjects == null || currentSaveData.sceneObjects.Count == 0)
+        {
+            Debug.LogWarning($"[RestoreSceneObjects] No saved scene objects found for {currentScene}");
+            return;
+        }
+        
+        Debug.Log($"[RestoreSceneObjects] Total saved objects in save data: {currentSaveData.sceneObjects.Count}");
         
         // Index saved scene-objects by objectId for quick lookup (only for current scene)
         var map = new Dictionary<string, SceneObjectSaveData>();
-        var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         foreach (var sod in currentSaveData.sceneObjects)
         {
             if (string.IsNullOrEmpty(sod.objectId)) continue;
@@ -1426,8 +1571,21 @@ public class GameSaveManager : MonoBehaviour
 
         Debug.Log($"[RestoreSceneObjects] Found {map.Count} saved objects for current scene");
 
+        // CRITICAL: Find all MonoBehaviours first (same as SaveSceneObjects)
+        var allMonoBehaviours = FindObjectsOfType<MonoBehaviour>(true); // include inactive
+        var liveComps = allMonoBehaviours.OfType<ISaveable>().ToArray();
+        
+        Debug.Log($"[RestoreSceneObjects] Total MonoBehaviours in scene: {allMonoBehaviours.Length}");
+        Debug.Log($"[RestoreSceneObjects] ISaveable components found: {liveComps.Length}");
+        
+        if (liveComps.Length == 0)
+        {
+            Debug.LogWarning("[RestoreSceneObjects] WARNING: No ISaveable components found in scene!");
+            Debug.LogWarning("[RestoreSceneObjects] Cannot restore any object states.");
+            return;
+        }
+        
         // Group live ISaveable components by GameObject (mirror save-time grouping)
-        var liveComps = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>();
         var byObject = new Dictionary<GameObject, List<ISaveable>>();
         foreach (var comp in liveComps)
         {
@@ -1521,6 +1679,7 @@ public class GameSaveManager : MonoBehaviour
 
             // Apply saved transform once per object
             ApplyTransform(go.transform, sod.position, sod.rotation, sod.scale);
+            if (go.activeSelf != sod.isActive) go.SetActive(sod.isActive);
             if (go.GetComponent<HarrowManager>() != null || go.GetComponent<FarmingAreaManager>() != null)
             {
                 Debug.Log($"[RestoreSceneObjects] applied transform to {go.name}: pos={sod.position}, rot={sod.rotation}");
@@ -1574,26 +1733,34 @@ public class GameSaveManager : MonoBehaviour
 
     private static string TryGetStableObjectId(GameObject go, IList<ISaveable> comps)
     {
-        // If any component exposes a public 'saveId' field/property, use that for stable identity
+        List<string> ids = null;
         foreach (var c in comps)
         {
-            var mb = c as MonoBehaviour;
-            if (mb == null) continue;
+            var mb = c as MonoBehaviour; if (mb == null) continue;
             var type = mb.GetType();
             var fi = type.GetField("saveId", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (fi != null)
             {
-                var v = fi.GetValue(mb) as string;
-                if (!string.IsNullOrEmpty(v)) return v;
+                var v = fi.GetValue(mb) as string; if (!string.IsNullOrEmpty(v)) (ids ??= new List<string>()).Add(v);
             }
             var pi = type.GetProperty("saveId", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (pi != null && pi.PropertyType == typeof(string))
             {
-                var v = pi.GetValue(mb) as string;
-                if (!string.IsNullOrEmpty(v)) return v;
+                var v = pi.GetValue(mb) as string; if (!string.IsNullOrEmpty(v)) (ids ??= new List<string>()).Add(v);
             }
         }
-        // Fallback: hierarchy path (stable if scene hierarchy is stable)
+        if (ids != null && ids.Count > 0)
+        {
+            if (ids.Count > 1)
+            {
+                ids.Sort(StringComparer.Ordinal);
+                if (ids.Distinct().Count() > 1)
+                {
+                    Debug.LogWarning($"[GameSaveManager] Multiple differing saveIds detected on '{go.name}': {string.Join(",", ids)} - using '{ids[0]}' deterministically.");
+                }
+            }
+            return ids[0];
+        }
         return GetHierarchyPath(go);
     }
 
@@ -2060,7 +2227,28 @@ public class GameSaveManager : MonoBehaviour
     public void CaptureSceneObjectsSnapshotNow()
     {
         if (currentSaveData == null) currentSaveData = new GameSaveData();
-        SaveSceneObjects();
+        SaveSceneObjects(false); // tam yenileme
+    }
+
+    // Incremental (merging) snapshot - objeler disable/destroy sürecindeyken veri kaybını önler
+    public void CaptureSceneObjectsIncremental()
+    {
+        if (_isSceneUnloading)
+        {
+            Debug.Log("[GameSaveManager] Skipping incremental scene snapshot while scene unload is in progress");
+            return;
+        }
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        SaveSceneObjects(true);
+    }
+
+    // Incremental snapshot + immediate disk flush (yüksek riskli anlar için)
+    public void CaptureIncrementalAndFlush()
+    {
+        CaptureSceneObjectsIncremental();
+        // Küçük bir debounce olmadan direkt SaveGame çağırmak disk IO'yu artırabilir
+        // Bu yüzden sadece kritik anlarda kullanın
+        SaveGame();
     }
     
     // Auto-save on application focus/pause events
