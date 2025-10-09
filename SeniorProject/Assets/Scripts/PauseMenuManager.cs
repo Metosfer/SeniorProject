@@ -19,7 +19,7 @@ public class PauseMenuManager : MonoBehaviour
     
     void HandlePauseInput()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             // Önce balık tutma oyunu aktif mi kontrol et
             if (fishingManager != null && fishingManager.IsFishingGameActive())

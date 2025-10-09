@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -10,6 +11,7 @@ public class GameSaveData
     public string saveTime;
     public string sceneName;
     public PlayerSaveData playerData;
+    public List<ScenePlayerState> playerSceneStates;
     public List<WorldItemSaveData> worldItems;
     public List<PlantSaveData> plants;
     public InventorySaveData inventoryData;
@@ -29,7 +31,8 @@ public class GameSaveData
         sceneObjects = new List<SceneObjectSaveData>();
         playerInventoryData = new List<PlayerInventoryItemData>();
         flaskData = new FlaskSaveData();
-    marketData = new MarketSaveData();
+        marketData = new MarketSaveData();
+        playerSceneStates = new List<ScenePlayerState>();
     }
 }
 
@@ -48,6 +51,14 @@ public class PlayerSaveData
     public Vector3 rotation;
     public string currentScene;
     public int money; // Player's current money balance
+}
+
+[System.Serializable]
+public class ScenePlayerState
+{
+    public string sceneName;
+    public Vector3 position;
+    public Vector3 rotation;
 }
 
 [System.Serializable]
@@ -189,15 +200,25 @@ public class GameSaveManager : MonoBehaviour
     
     private const string SAVE_PREFIX = "GameSave_";
     private const string SAVE_TIMES_KEY = "SaveTimes";
+    private const string SAVE_DIRECTORY_NAME = "GameSaves";
+    private const int PLAYER_PREFS_STRING_LIMIT = 16000;
     
     private GameSaveData currentSaveData;
     // Sahne restorasyon sürecinin devam edip etmediğini izlemek için flag
     private bool _isRestoringScene = false;
     public bool IsRestoringScene => _isRestoringScene;
     public float lastRestoreCompletedTime { get; private set; } = -1f;
+    [Header("Restore Reliability")]
+    [Tooltip("İlk restore sonrası ek tekrar sayısı (problemli objeler için tekrar uygulanır)")] public int extraRestorePasses = 2;
+    [Tooltip("Ek restore pasları arası gecikme (s)")] public float extraRestoreDelay = 0.5f;
+    [Tooltip("FarmingArea / ObjectCarrying snapshot özetlerini kaydet sırasında logla")] public bool debugLogFarmingSnapshots = true;
     // Scene unload sırasında yok edilmeden hemen önce snapshot alınan world item sahneleri takip et
     private readonly HashSet<string> _pendingWorldItemSnapshots = new HashSet<string>();
     private bool _worldItemSnapshotScheduled;
+    private readonly HashSet<string> _worldItemsPendingRemoval = new HashSet<string>();
+    private bool _playerPrefsSizeWarningLogged;
+    private bool _isSceneUnloading;
+    public bool IsSceneUnloading => _isSceneUnloading;
     
     private void Awake()
     {
@@ -214,39 +235,127 @@ public class GameSaveManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+    private void SaveOrUpdateScenePlayerState(string sceneName, Vector3 position, Vector3 rotation)
+    {
+        if (string.IsNullOrEmpty(sceneName)) return;
+        if (currentSaveData.playerSceneStates == null)
+        {
+            currentSaveData.playerSceneStates = new List<ScenePlayerState>();
+        }
+
+        var state = currentSaveData.playerSceneStates.FirstOrDefault(s => s != null && s.sceneName == sceneName);
+        if (state == null)
+        {
+            state = new ScenePlayerState { sceneName = sceneName };
+            currentSaveData.playerSceneStates.Add(state);
+        }
+
+        state.position = position;
+        state.rotation = rotation;
+    }
+
+    private ScenePlayerState GetScenePlayerState(string sceneName)
+    {
+        if (currentSaveData?.playerSceneStates == null || string.IsNullOrEmpty(sceneName)) return null;
+        return currentSaveData.playerSceneStates.FirstOrDefault(s => s != null && s.sceneName == sceneName);
+    }
+
+    public void MarkWorldItemPendingRemoval(string persistentId)
+    {
+        if (string.IsNullOrEmpty(persistentId)) return;
+        _worldItemsPendingRemoval.Add(persistentId);
+    }
+
+    public void ConfirmWorldItemRemoval(string persistentId)
+    {
+        if (string.IsNullOrEmpty(persistentId)) return;
+        _worldItemsPendingRemoval.Remove(persistentId);
+    }
     
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Sahne yüklendiğinde biraz bekle, sonra restore et
-        Invoke(nameof(RestoreSceneData), 0.1f);
+        _isSceneUnloading = false;
+
+        // MainMenu ve menü sahnelerinde restore yapma
+        if (scene.name == "MainMenu" || scene.name.Contains("Menu"))
+        {
+            Debug.Log($"[GameSaveManager] Skipping restore for menu scene: {scene.name}");
+            return;
+        }
+
+        // Eğer currentSaveData null ise (ilk başlangıç veya MainMenu'den geliyoruz), en son kaydı yükle
+        if (currentSaveData == null)
+        {
+            var saveTimes = GetSaveTimes();
+            if (saveTimes != null && saveTimes.Count > 0)
+            {
+                string latestSave = saveTimes[saveTimes.Count - 1]; // en son kayıt
+                Debug.Log($"[GameSaveManager] No active save data, loading latest save: {latestSave}");
+                if (TryLoadJsonPayload(latestSave, out string jsonData))
+                {
+                    currentSaveData = JsonUtility.FromJson<GameSaveData>(jsonData);
+                    Debug.Log($"[GameSaveManager] Loaded save data from {latestSave}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[GameSaveManager] Failed to load latest save, starting fresh");
+                    currentSaveData = new GameSaveData();
+                }
+            }
+            else
+            {
+                Debug.Log("[GameSaveManager] No existing saves found, starting fresh");
+                currentSaveData = new GameSaveData();
+            }
+        }
+
+        // CRITICAL: Wait for all objects to initialize (Awake/Start)
+        // Build needs more time than editor
+        StartCoroutine(RestoreSceneDataDelayed());
+    }
+    
+    private System.Collections.IEnumerator RestoreSceneDataDelayed()
+    {
+        Debug.Log("[GameSaveManager] Waiting for scene objects to initialize...");
+        
+        // Wait for end of frame to ensure all Awake calls complete
+        yield return new WaitForEndOfFrame();
+        
+        // EXTRA SAFETY: Wait one more frame for Start methods
+        yield return new WaitForEndOfFrame();
+        
+        Debug.Log("[GameSaveManager] Scene objects initialized, starting restore...");
+        RestoreSceneData();
     }
     
     private void OnSceneUnloaded(Scene scene)
     {
-    Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}, auto-saving Flask and game data...");
-        try
-        {
-            // Defensive: capture Flask state if its object is still alive
-            var flask = FindObjectOfType<FlaskManager>();
-            if (flask != null)
-            {
-                CaptureFlaskState(flask);
-            }
-            // Defensive: snapshot plants in the current scene
-            SavePlants();
-            SaveGame();
-            Debug.Log("[GameSaveManager] Auto-save completed successfully before scene unload");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"[GameSaveManager] Auto-save failed during scene unload: {e.Message}");
-        }
+        _isSceneUnloading = true;
+        Debug.Log($"[GameSaveManager] Scene unloading: {scene.name}");
+        // DO NOT call SaveGame here - objects are already destroyed!
+        // Door transitions already handle save via OnBeforeSceneChange
+        // This event fires AFTER all objects are destroyed, so any save attempt will capture empty state
     }
     
-    public void SaveGame()
+    public void SaveGame(bool forceFullSceneSnapshot = false)
     {
-        string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"); // label shown to user
-        string sanitized = SanitizeSaveTime(saveTime);                    // key-safe variant
+        // Mevcut kayıt üzerine yaz, yeni kayıt oluşturma (scene geçişlerinde)
+        string saveTime;
+        if (currentSaveData != null && !string.IsNullOrEmpty(currentSaveData.saveTime))
+        {
+            // Mevcut save'in üzerine yaz
+            saveTime = currentSaveData.saveTime;
+            Debug.Log($"[GameSaveManager] Updating existing save: {saveTime}");
+        }
+        else
+        {
+            // İlk kez kaydediliyor
+            saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            Debug.Log($"[GameSaveManager] Creating new save: {saveTime}");
+        }
+        
+        string sanitized = SanitizeSaveTime(saveTime);
         // Reuse existing save data to preserve cross-scene state (e.g., collected plants)
         if (currentSaveData == null)
         {
@@ -274,34 +383,35 @@ public class GameSaveManager : MonoBehaviour
     SaveMarketData();
         
         // Scene objects'leri kaydet
-        SaveSceneObjects();
-        
-    // Save data'yı JSON'a çevir ve PlayerPrefs'e kaydet
-        string jsonData = JsonUtility.ToJson(currentSaveData, true);
-        PlayerPrefs.SetString(SAVE_PREFIX + saveTime, jsonData);
-        if (sanitized != saveTime)
+        if (forceFullSceneSnapshot)
         {
-            PlayerPrefs.SetString(SAVE_PREFIX + sanitized, jsonData);
+            CaptureSceneObjectsSnapshotNow();
         }
+        else
+        {
+            SaveSceneObjects();
+        }
+        
+    // Save data'yı JSON'a çevir ve disk + PlayerPrefs'e kaydet
+        string jsonData = JsonUtility.ToJson(currentSaveData, true);
+        PersistSavePayload(saveTime, sanitized, jsonData);
         
         // Save times listesini güncelle
         UpdateSaveTimesList(saveTime);
         
+        // CRITICAL: PlayerPrefs.Save() disk'e yazmayı zorlar (build'de önemli)
         PlayerPrefs.Save();
-        Debug.Log($"Game saved successfully at {saveTime}");
+        
+        Debug.Log($"[GameSaveManager] Game saved successfully at {saveTime} - JSON size: {jsonData.Length} bytes");
     }
     
     public void LoadGame(string saveTime)
     {
-        string saveKey = SAVE_PREFIX + saveTime;
-        string altKey = SAVE_PREFIX + SanitizeSaveTime(saveTime);
-        if (!PlayerPrefs.HasKey(saveKey) && !PlayerPrefs.HasKey(altKey))
+        if (!TryLoadJsonPayload(saveTime, out string jsonData))
         {
             Debug.LogError($"Save data not found for time: {saveTime}");
             return;
         }
-        
-        string jsonData = PlayerPrefs.HasKey(saveKey) ? PlayerPrefs.GetString(saveKey) : PlayerPrefs.GetString(altKey);
         currentSaveData = JsonUtility.FromJson<GameSaveData>(jsonData);
         
         if (currentSaveData == null)
@@ -329,15 +439,31 @@ public class GameSaveManager : MonoBehaviour
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
-            currentSaveData.playerData = new PlayerSaveData();
-            currentSaveData.playerData.position = player.transform.position;
-            currentSaveData.playerData.rotation = player.transform.eulerAngles;
-            currentSaveData.playerData.currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (currentSaveData.playerData == null)
+            {
+                currentSaveData.playerData = new PlayerSaveData();
+            }
+
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            Vector3 position = player.transform.position;
+            Vector3 rotation = player.transform.eulerAngles;
+
+            currentSaveData.playerData.position = position;
+            currentSaveData.playerData.rotation = rotation;
+            currentSaveData.playerData.currentScene = sceneName;
+
+            SaveOrUpdateScenePlayerState(sceneName, position, rotation);
+            Debug.Log($"[GameSaveManager] Saved player data for scene {sceneName}: pos={position}, rot={rotation}");
+            
             // Save player's money
             if (MoneyManager.Instance != null)
             {
                 currentSaveData.playerData.money = MoneyManager.Instance.Balance;
             }
+        }
+        else
+        {
+            Debug.LogWarning("[GameSaveManager] SavePlayerData: Player not found!");
         }
     }
     
@@ -365,6 +491,7 @@ public class GameSaveManager : MonoBehaviour
 
         var newEntries = new List<WorldItemSaveData>();
         var seenIds = new HashSet<string>();
+        var presentIds = new HashSet<string>();
 
         if (worldItems != null)
         {
@@ -379,6 +506,11 @@ public class GameSaveManager : MonoBehaviour
                 string persistentId = worldItem.PersistentId;
                 if (!string.IsNullOrEmpty(persistentId))
                 {
+                    presentIds.Add(persistentId);
+                    if (_worldItemsPendingRemoval.Contains(persistentId))
+                    {
+                        continue;
+                    }
                     if (!seenIds.Add(persistentId))
                     {
                         continue;
@@ -401,6 +533,27 @@ public class GameSaveManager : MonoBehaviour
         currentSaveData.worldItems.AddRange(newEntries);
         _pendingWorldItemSnapshots.Remove(currentScene);
         Debug.Log($"[SaveWorldItems] Snapshot updated for scene {currentScene} with {newEntries.Count} entries");
+
+        if (_worldItemsPendingRemoval.Count > 0)
+        {
+            var confirmedIds = new List<string>();
+            foreach (var pendingId in _worldItemsPendingRemoval)
+            {
+                if (!presentIds.Contains(pendingId))
+                {
+                    confirmedIds.Add(pendingId);
+                }
+            }
+
+            if (confirmedIds.Count > 0)
+            {
+                foreach (var id in confirmedIds)
+                {
+                    _worldItemsPendingRemoval.Remove(id);
+                    Debug.Log($"[SaveWorldItems] Confirmed removal for world item {id}");
+                }
+            }
+        }
     }
 
     private System.Collections.IEnumerator SaveWorldItemsDeferred()
@@ -573,11 +726,37 @@ public class GameSaveManager : MonoBehaviour
         Debug.Log($"[GameSaveManager] Captured Flask state with {currentSaveData.flaskData.slots.Count} filled slots");
     }
 
-    private void SaveSceneObjects()
+    private void SaveSceneObjects(bool incremental = false)
     {
+        if (currentSaveData == null)
+        {
+            Debug.LogError("[SaveSceneObjects] currentSaveData is NULL - cannot save!");
+            return;
+        }
+        
         // Collect all ISaveable components first
         var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        var saveableComponents = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>().ToArray();
+        
+        // CRITICAL: Find all MonoBehaviours first, then filter ISaveable
+        // This is more reliable than FindObjectsOfType<ISaveable>() in build
+        var allMonoBehaviours = FindObjectsOfType<MonoBehaviour>(true); // include inactive
+        var saveableComponents = allMonoBehaviours.OfType<ISaveable>().ToArray();
+        
+        Debug.Log($"[SaveSceneObjects] Scene: {currentScene}");
+        Debug.Log($"[SaveSceneObjects] Total MonoBehaviours: {allMonoBehaviours.Length}");
+        Debug.Log($"[SaveSceneObjects] ISaveable components: {saveableComponents.Length}");
+        
+        if (saveableComponents.Length == 0)
+        {
+            // Incremental modda boş bulduysak eski kayıtları KORU (örn: sahne unload sırasında son objeler yok olurken çağrılmış olabilir)
+            if (!incremental)
+            {
+                Debug.LogWarning($"[SaveSceneObjects] WARNING: No ISaveable components found in {currentScene}!");
+                Debug.LogWarning("[SaveSceneObjects] This may indicate timing issues or missing interfaces.");
+            }
+            return;
+        }
+        
         var byObject = new Dictionary<GameObject, List<ISaveable>>();
         foreach (var comp in saveableComponents)
         {
@@ -600,6 +779,7 @@ public class GameSaveManager : MonoBehaviour
 
             var sod = new SceneObjectSaveData();
             sod.objectId = TryGetStableObjectId(go, comps);
+            sod.isActive = go.activeSelf;
             sod.position = go.transform.position;
             sod.rotation = go.transform.eulerAngles;
             sod.scale = go.transform.localScale;
@@ -623,6 +803,12 @@ public class GameSaveManager : MonoBehaviour
                     continue;
                 }
                 if (data == null) continue;
+                
+                if (isHarrow || isFarming)
+                {
+                    Debug.Log($"[SaveSceneObjects] {go.name}.{typeName} save data keys: {string.Join(", ", data.Keys)}");
+                }
+                
                 foreach (var entry in data)
                 {
                     string key = $"{typeName}.{entry.Key}";
@@ -636,15 +822,80 @@ public class GameSaveManager : MonoBehaviour
 
         if (newEntries.Count > 0)
         {
-            // Replace only if we actually found something; prevents wiping on scene unload
-            int removed = currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
-            currentSaveData.sceneObjects.AddRange(newEntries);
-            Debug.Log($"[SaveSceneObjects] Replaced {removed} entries for scene '{currentScene}' with {newEntries.Count} new entries. Total now: {currentSaveData.sceneObjects.Count}");
+            if (incremental)
+            {
+                // Merge: var olanları güncelle, yoksa ekle; hiç bir şeyi topluca silme
+                int updates = 0, adds = 0;
+                foreach (var e in newEntries)
+                {
+                    int idx = currentSaveData.sceneObjects.FindIndex(s => s != null && s.objectId == e.objectId && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == e.sceneName));
+                    if (idx >= 0)
+                    {
+                        currentSaveData.sceneObjects[idx] = e; updates++;
+                    }
+                    else
+                    {
+                        currentSaveData.sceneObjects.Add(e); adds++;
+                    }
+                }
+                Debug.Log($"[SaveSceneObjects] Incremental snapshot: {updates} updated, {adds} added (total now {currentSaveData.sceneObjects.Count})");
+            }
+            else
+            {
+                // Replace only if we actually found something; prevents wiping on scene unload
+                int removed = currentSaveData.sceneObjects.RemoveAll(s => s != null && (string.IsNullOrEmpty(s.sceneName) || s.sceneName == currentScene));
+                currentSaveData.sceneObjects.AddRange(newEntries);
+                Debug.Log($"[SaveSceneObjects] Replaced {removed} entries for scene '{currentScene}' with {newEntries.Count} new entries. Total now: {currentSaveData.sceneObjects.Count}");
+            }
         }
-        else
+        else if(!incremental)
         {
             Debug.LogWarning($"[SaveSceneObjects] Found 0 ISaveable objects for scene '{currentScene}'. Keeping previous saved entries to avoid data loss.");
         }
+        if (!incremental && debugLogFarmingSnapshots)
+        {
+            LogFarmingAreaSnapshotSummary(currentScene);
+        }
+    }
+
+    private void LogFarmingAreaSnapshotSummary(string currentScene)
+    {
+        try
+        {
+            int famCount = 0;
+            foreach (var sod in currentSaveData.sceneObjects)
+            {
+                if (sod == null) continue;
+                if (!string.IsNullOrEmpty(sod.sceneName) && sod.sceneName != currentScene) continue;
+                bool hasFamKey = sod.componentDataKeys != null && sod.componentDataKeys.Exists(k => k.StartsWith("FarmingAreaManager.Plot0."));
+                if (!hasFamKey) continue;
+                famCount++;
+                int prepared = 0, occupied = 0, ready = 0, growing = 0, waiting = 0;
+                foreach (var k in sod.componentDataKeys)
+                {
+                    if (!k.StartsWith("FarmingAreaManager.Plot")) continue;
+                    if (k.EndsWith("prepared")) prepared += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("occupied")) occupied += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("ready")) ready += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("growing")) growing += GetBoolFromSod(sod, k) ? 1 : 0;
+                    else if (k.EndsWith("waiting")) waiting += GetBoolFromSod(sod, k) ? 1 : 0;
+                }
+                Debug.Log($"[SaveSceneObjects][FarmingSummary] id={sod.objectId} prepared={prepared} occupied={occupied} growing={growing} waiting={waiting} ready={ready}");
+            }
+            Debug.Log($"[SaveSceneObjects][FarmingSummary] Total FarmingArea snapshots: {famCount}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[SaveSceneObjects][FarmingSummary] Logging failed: {ex.Message}");
+        }
+    }
+
+    private bool GetBoolFromSod(SceneObjectSaveData sod, string key)
+    {
+        int idx = sod.componentDataKeys.IndexOf(key);
+        if (idx < 0) return false;
+        var val = sod.componentDataValues[idx];
+        return val == "true" || val == "True" || val == "1";
     }
 
     private void SaveMarketData()
@@ -720,11 +971,16 @@ public class GameSaveManager : MonoBehaviour
     
     private void RestoreSceneData()
     {
-        if (currentSaveData == null) return;
+        if (currentSaveData == null)
+        {
+            Debug.LogWarning("[GameSaveManager] RestoreSceneData called but currentSaveData is null!");
+            return;
+        }
         // Restorasyon başladı
         _isRestoringScene = true;
         
-        Debug.Log("Starting scene data restoration...");
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        Debug.Log($"[GameSaveManager] Starting scene data restoration for: {currentScene}");
         
         // Player pozisyonunu restore et
         RestorePlayerData();
@@ -752,10 +1008,34 @@ public class GameSaveManager : MonoBehaviour
         
         // Bazı renderer'lar için MPB uygulaması ilk frame'de gecikebilir; görselleri nudge et
         Invoke(nameof(PostRestoreNudge), 0.1f);
-        Debug.Log("Scene data restoration completed");
+        Debug.Log($"[GameSaveManager] Scene data restoration completed for: {currentScene}");
         // Restorasyon bitti
         _isRestoringScene = false;
         lastRestoreCompletedTime = Time.realtimeSinceStartup;
+        if (extraRestorePasses > 0 && gameObject.activeInHierarchy)
+        {
+            StartCoroutine(PerformExtraRestorePasses());
+        }
+    }
+
+    private System.Collections.IEnumerator PerformExtraRestorePasses()
+    {
+        for (int i = 0; i < extraRestorePasses; i++)
+        {
+            yield return new WaitForSeconds(extraRestoreDelay);
+            if (currentSaveData == null) yield break;
+            Debug.Log($"[GameSaveManager] Extra restore pass {i+1}/{extraRestorePasses} starting...");
+            _isRestoringScene = true;
+            try
+            {
+                RestoreSceneObjects();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[GameSaveManager] Extra restore pass {i+1} failed: {ex.Message}");
+            }
+            _isRestoringScene = false;
+        }
     }
 
     private void PostRestoreNudge()
@@ -785,30 +1065,61 @@ public class GameSaveManager : MonoBehaviour
     
     private void RestorePlayerData()
     {
-        if (currentSaveData.playerData != null)
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null)
         {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
+            Debug.LogWarning("[GameSaveManager] RestorePlayerData: Player not found!");
+            return;
+        }
+
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        ScenePlayerState sceneState = GetScenePlayerState(currentScene);
+
+        Vector3? targetPosition = null;
+        Vector3? targetRotation = null;
+
+        if (sceneState != null)
+        {
+            targetPosition = sceneState.position;
+            targetRotation = sceneState.rotation;
+            Debug.Log($"[GameSaveManager] Restoring player from scene-specific state for {currentScene}: pos={targetPosition}, rot={targetRotation}");
+        }
+        else if (currentSaveData.playerData != null && currentSaveData.playerData.currentScene == currentScene)
+        {
+            targetPosition = currentSaveData.playerData.position;
+            targetRotation = currentSaveData.playerData.rotation;
+            Debug.Log($"[GameSaveManager] Restoring player from global playerData for {currentScene}: pos={targetPosition}, rot={targetRotation}");
+        }
+        else
+        {
+            Debug.LogWarning($"[GameSaveManager] No saved position found for scene {currentScene}. Player will stay at default position.");
+        }
+
+        if (targetPosition.HasValue)
+        {
+            CharacterController controller = player.GetComponent<CharacterController>();
+            if (controller != null)
             {
-                CharacterController controller = player.GetComponent<CharacterController>();
-                if (controller != null)
-                {
-                    controller.enabled = false;
-                    player.transform.position = currentSaveData.playerData.position;
-                    player.transform.eulerAngles = currentSaveData.playerData.rotation;
-                    controller.enabled = true;
-                }
-                else
-                {
-                    player.transform.position = currentSaveData.playerData.position;
-                    player.transform.eulerAngles = currentSaveData.playerData.rotation;
-                }
+                controller.enabled = false;
             }
-            // Restore player's money
-            if (MoneyManager.Instance != null)
+
+            player.transform.position = targetPosition.Value;
+            if (targetRotation.HasValue)
             {
-                MoneyManager.Instance.SetBalance(currentSaveData.playerData.money);
+                player.transform.eulerAngles = targetRotation.Value;
             }
+
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
+            
+            Debug.Log($"[GameSaveManager] Player position restored to: {player.transform.position}");
+        }
+
+        if (currentSaveData.playerData != null && MoneyManager.Instance != null)
+        {
+            MoneyManager.Instance.SetBalance(currentSaveData.playerData.money);
         }
     }
     
@@ -1230,11 +1541,25 @@ public class GameSaveManager : MonoBehaviour
 
     private void RestoreSceneObjects()
     {
-        Debug.Log($"[RestoreSceneObjects] Starting restoration for scene: {UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
+        var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        Debug.Log($"[RestoreSceneObjects] ===== Starting restoration for scene: {currentScene} =====");
+        
+        if (currentSaveData == null)
+        {
+            Debug.LogError("[RestoreSceneObjects] currentSaveData is NULL - cannot restore!");
+            return;
+        }
+        
+        if (currentSaveData.sceneObjects == null || currentSaveData.sceneObjects.Count == 0)
+        {
+            Debug.LogWarning($"[RestoreSceneObjects] No saved scene objects found for {currentScene}");
+            return;
+        }
+        
+        Debug.Log($"[RestoreSceneObjects] Total saved objects in save data: {currentSaveData.sceneObjects.Count}");
         
         // Index saved scene-objects by objectId for quick lookup (only for current scene)
         var map = new Dictionary<string, SceneObjectSaveData>();
-        var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         foreach (var sod in currentSaveData.sceneObjects)
         {
             if (string.IsNullOrEmpty(sod.objectId)) continue;
@@ -1246,8 +1571,21 @@ public class GameSaveManager : MonoBehaviour
 
         Debug.Log($"[RestoreSceneObjects] Found {map.Count} saved objects for current scene");
 
+        // CRITICAL: Find all MonoBehaviours first (same as SaveSceneObjects)
+        var allMonoBehaviours = FindObjectsOfType<MonoBehaviour>(true); // include inactive
+        var liveComps = allMonoBehaviours.OfType<ISaveable>().ToArray();
+        
+        Debug.Log($"[RestoreSceneObjects] Total MonoBehaviours in scene: {allMonoBehaviours.Length}");
+        Debug.Log($"[RestoreSceneObjects] ISaveable components found: {liveComps.Length}");
+        
+        if (liveComps.Length == 0)
+        {
+            Debug.LogWarning("[RestoreSceneObjects] WARNING: No ISaveable components found in scene!");
+            Debug.LogWarning("[RestoreSceneObjects] Cannot restore any object states.");
+            return;
+        }
+        
         // Group live ISaveable components by GameObject (mirror save-time grouping)
-        var liveComps = FindObjectsOfType<MonoBehaviour>().OfType<ISaveable>();
         var byObject = new Dictionary<GameObject, List<ISaveable>>();
         foreach (var comp in liveComps)
         {
@@ -1341,6 +1679,7 @@ public class GameSaveManager : MonoBehaviour
 
             // Apply saved transform once per object
             ApplyTransform(go.transform, sod.position, sod.rotation, sod.scale);
+            if (go.activeSelf != sod.isActive) go.SetActive(sod.isActive);
             if (go.GetComponent<HarrowManager>() != null || go.GetComponent<FarmingAreaManager>() != null)
             {
                 Debug.Log($"[RestoreSceneObjects] applied transform to {go.name}: pos={sod.position}, rot={sod.rotation}");
@@ -1394,26 +1733,34 @@ public class GameSaveManager : MonoBehaviour
 
     private static string TryGetStableObjectId(GameObject go, IList<ISaveable> comps)
     {
-        // If any component exposes a public 'saveId' field/property, use that for stable identity
+        List<string> ids = null;
         foreach (var c in comps)
         {
-            var mb = c as MonoBehaviour;
-            if (mb == null) continue;
+            var mb = c as MonoBehaviour; if (mb == null) continue;
             var type = mb.GetType();
             var fi = type.GetField("saveId", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (fi != null)
             {
-                var v = fi.GetValue(mb) as string;
-                if (!string.IsNullOrEmpty(v)) return v;
+                var v = fi.GetValue(mb) as string; if (!string.IsNullOrEmpty(v)) (ids ??= new List<string>()).Add(v);
             }
             var pi = type.GetProperty("saveId", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (pi != null && pi.PropertyType == typeof(string))
             {
-                var v = pi.GetValue(mb) as string;
-                if (!string.IsNullOrEmpty(v)) return v;
+                var v = pi.GetValue(mb) as string; if (!string.IsNullOrEmpty(v)) (ids ??= new List<string>()).Add(v);
             }
         }
-        // Fallback: hierarchy path (stable if scene hierarchy is stable)
+        if (ids != null && ids.Count > 0)
+        {
+            if (ids.Count > 1)
+            {
+                ids.Sort(StringComparer.Ordinal);
+                if (ids.Distinct().Count() > 1)
+                {
+                    Debug.LogWarning($"[GameSaveManager] Multiple differing saveIds detected on '{go.name}': {string.Join(",", ids)} - using '{ids[0]}' deterministically.");
+                }
+            }
+            return ids[0];
+        }
         return GetHierarchyPath(go);
     }
 
@@ -1453,35 +1800,253 @@ public class GameSaveManager : MonoBehaviour
     
     private void UpdateSaveTimesList(string saveTime)
     {
-        List<string> saveTimes = GetSaveTimes();
+        var saveTimes = GetTrackedSaveTimes();
+        saveTimes.Remove(saveTime);
         saveTimes.Add(saveTime);
-        
-        // Maksimum save slot sayısını aş
-        if (saveTimes.Count > maxSaveSlots)
+        saveTimes.RemoveAll(t => string.IsNullOrEmpty(t) || !HasSaveData(t));
+
+        while (saveTimes.Count > maxSaveSlots)
         {
-            // En eski save'i sil
             string oldestSave = saveTimes[0];
-            PlayerPrefs.DeleteKey(SAVE_PREFIX + oldestSave);
+            RemoveSaveStorage(oldestSave);
             saveTimes.RemoveAt(0);
         }
-        
-        PlayerPrefs.SetString(SAVE_TIMES_KEY, string.Join(",", saveTimes.ToArray()));
+
+        PlayerPrefs.SetString(SAVE_TIMES_KEY, string.Join(",", saveTimes));
     }
     
     public List<string> GetSaveTimes()
     {
-        string times = PlayerPrefs.GetString(SAVE_TIMES_KEY, "");
-        var list = new List<string>(times.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
-        // prune entries that have no corresponding data (raw or sanitized)
-        list.RemoveAll(t => !HasSaveData(t));
-        return list;
+        var tracked = GetTrackedSaveTimes();
+        tracked.RemoveAll(t => string.IsNullOrEmpty(t) || !HasSaveData(t));
+
+        var known = new HashSet<string>(tracked);
+        foreach (var discovered in EnumerateSaveTimesFromFiles())
+        {
+            if (!string.IsNullOrEmpty(discovered) && known.Add(discovered))
+            {
+                tracked.Add(discovered);
+            }
+        }
+
+        return tracked;
     }
     
     public bool HasSaveData(string saveTime)
     {
-        if (PlayerPrefs.HasKey(SAVE_PREFIX + saveTime)) return true;
         string alt = SanitizeSaveTime(saveTime);
+        if (TryReadSaveFromFile(alt, out _)) return true;
+        if (PlayerPrefs.HasKey(SAVE_PREFIX + saveTime)) return true;
         return PlayerPrefs.HasKey(SAVE_PREFIX + alt);
+    }
+
+    private List<string> GetTrackedSaveTimes()
+    {
+        string times = PlayerPrefs.GetString(SAVE_TIMES_KEY, "");
+        var list = new List<string>(times.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+        list.RemoveAll(t => string.IsNullOrEmpty(t) || !HasSaveData(t));
+        return list;
+    }
+
+    private string GetSaveDirectoryPath()
+    {
+        return Path.Combine(Application.persistentDataPath, SAVE_DIRECTORY_NAME);
+    }
+
+    private string GetSaveFilePath(string sanitizedSaveTime)
+    {
+        return Path.Combine(GetSaveDirectoryPath(), $"{SAVE_PREFIX}{sanitizedSaveTime}.json");
+    }
+
+    private void EnsureSaveDirectory()
+    {
+        string dir = GetSaveDirectoryPath();
+        if (!Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
+    private void PersistSavePayload(string saveTime, string sanitized, string jsonData)
+    {
+        try
+        {
+            EnsureSaveDirectory();
+            string path = GetSaveFilePath(sanitized);
+            
+            // CRITICAL: File.WriteAllText is synchronous and flushes immediately
+            File.WriteAllText(path, jsonData ?? string.Empty);
+            
+            // EXTRA SAFETY: Verify file was written (build-specific check)
+            if (File.Exists(path))
+            {
+                Debug.Log($"[PersistSavePayload] File written successfully: {path} ({jsonData?.Length ?? 0} bytes)");
+            }
+            else
+            {
+                Debug.LogError($"[PersistSavePayload] File write verification FAILED: {path}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to write save file for {saveTime}: {ex.Message}");
+        }
+
+        if (string.IsNullOrEmpty(jsonData))
+        {
+            PlayerPrefs.DeleteKey(SAVE_PREFIX + saveTime);
+            if (sanitized != saveTime) PlayerPrefs.DeleteKey(SAVE_PREFIX + sanitized);
+            return;
+        }
+
+        if (jsonData.Length > PLAYER_PREFS_STRING_LIMIT)
+        {
+            if (!_playerPrefsSizeWarningLogged)
+            {
+                Debug.LogWarning($"Save payload size ({jsonData.Length} chars) exceeds PlayerPrefs limit; relying on disk files only.");
+                _playerPrefsSizeWarningLogged = true;
+            }
+            PlayerPrefs.DeleteKey(SAVE_PREFIX + saveTime);
+            if (sanitized != saveTime) PlayerPrefs.DeleteKey(SAVE_PREFIX + sanitized);
+            return;
+        }
+
+        try
+        {
+            PlayerPrefs.SetString(SAVE_PREFIX + saveTime, jsonData);
+            if (sanitized != saveTime)
+            {
+                PlayerPrefs.SetString(SAVE_PREFIX + sanitized, jsonData);
+            }
+        }
+        catch (PlayerPrefsException ex)
+        {
+            if (!_playerPrefsSizeWarningLogged)
+            {
+                Debug.LogWarning($"PlayerPrefs save failed, using disk files only: {ex.Message}");
+                _playerPrefsSizeWarningLogged = true;
+            }
+            PlayerPrefs.DeleteKey(SAVE_PREFIX + saveTime);
+            if (sanitized != saveTime) PlayerPrefs.DeleteKey(SAVE_PREFIX + sanitized);
+        }
+    }
+
+    private bool TryLoadJsonPayload(string saveTime, out string jsonData)
+    {
+        string sanitized = SanitizeSaveTime(saveTime);
+        if (TryReadSaveFromFile(sanitized, out jsonData))
+        {
+            return true;
+        }
+
+        string key = SAVE_PREFIX + saveTime;
+        if (PlayerPrefs.HasKey(key))
+        {
+            jsonData = PlayerPrefs.GetString(key);
+            return !string.IsNullOrEmpty(jsonData);
+        }
+
+        string altKey = SAVE_PREFIX + sanitized;
+        if (PlayerPrefs.HasKey(altKey))
+        {
+            jsonData = PlayerPrefs.GetString(altKey);
+            return !string.IsNullOrEmpty(jsonData);
+        }
+
+        jsonData = null;
+        return false;
+    }
+
+    private bool TryReadSaveFromFile(string sanitized, out string jsonData)
+    {
+        jsonData = null;
+        if (string.IsNullOrEmpty(sanitized)) return false;
+
+        string path = GetSaveFilePath(sanitized);
+        if (!File.Exists(path)) return false;
+
+        try
+        {
+            jsonData = File.ReadAllText(path);
+            return !string.IsNullOrEmpty(jsonData);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to read save file '{path}': {ex.Message}");
+            jsonData = null;
+            return false;
+        }
+    }
+
+    private void RemoveSaveStorage(string saveTime)
+    {
+        string sanitized = SanitizeSaveTime(saveTime);
+        try
+        {
+            string filePath = GetSaveFilePath(sanitized);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"Failed to delete save file for {saveTime}: {ex.Message}");
+        }
+
+        PlayerPrefs.DeleteKey(SAVE_PREFIX + saveTime);
+        if (sanitized != saveTime)
+        {
+            PlayerPrefs.DeleteKey(SAVE_PREFIX + sanitized);
+        }
+    }
+
+    private IEnumerable<string> EnumerateSaveTimesFromFiles()
+    {
+        string dir = GetSaveDirectoryPath();
+        if (!Directory.Exists(dir)) yield break;
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(dir, $"{SAVE_PREFIX}*.json");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"Failed to enumerate save files: {ex.Message}");
+            yield break;
+        }
+
+        foreach (var file in files)
+        {
+            string json;
+            try
+            {
+                json = File.ReadAllText(file);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Failed to read save metadata from '{file}': {ex.Message}");
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(json)) continue;
+
+            GameSaveData data = null;
+            try
+            {
+                data = JsonUtility.FromJson<GameSaveData>(json);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Failed to parse save metadata from '{file}': {ex.Message}");
+            }
+
+            if (!string.IsNullOrEmpty(data?.saveTime))
+            {
+                yield return data.saveTime;
+            }
+        }
     }
 
     private static string SanitizeSaveTime(string s)
@@ -1492,12 +2057,14 @@ public class GameSaveManager : MonoBehaviour
     
     public void DeleteSave(string saveTime)
     {
-        PlayerPrefs.DeleteKey(SAVE_PREFIX + saveTime);
-        
-        List<string> saveTimes = GetSaveTimes();
-        saveTimes.Remove(saveTime);
-        PlayerPrefs.SetString(SAVE_TIMES_KEY, string.Join(",", saveTimes.ToArray()));
-        PlayerPrefs.Save();
+        RemoveSaveStorage(saveTime);
+
+        var saveTimes = GetTrackedSaveTimes();
+        if (saveTimes.Remove(saveTime))
+        {
+            PlayerPrefs.SetString(SAVE_TIMES_KEY, string.Join(",", saveTimes));
+            PlayerPrefs.Save();
+        }
     }
     
     /// <summary>
@@ -1564,9 +2131,14 @@ public class GameSaveManager : MonoBehaviour
 
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         string persistentId = picked.PersistentId;
+        bool willDestroy = picked.quantity <= 1;
         int removed = 0;
         if (!string.IsNullOrEmpty(persistentId))
         {
+            if (willDestroy)
+            {
+                MarkWorldItemPendingRemoval(persistentId);
+            }
             removed = currentSaveData.worldItems.RemoveAll(w =>
                 w != null && w.sceneName == currentScene && !string.IsNullOrEmpty(w.persistentId) && w.persistentId == persistentId);
         }
@@ -1580,6 +2152,10 @@ public class GameSaveManager : MonoBehaviour
         if (removed > 0)
         {
             Debug.Log($"[GameSaveManager] Removed {removed} saved world item entries for picked {picked.item.itemName}");
+        }
+        if (!willDestroy && !string.IsNullOrEmpty(persistentId))
+        {
+            CaptureWorldItemSnapshot(picked);
         }
         // Destroy işlemi tamamlandıktan sonra snapshot'ı güncelle
         RequestWorldItemSnapshotRefresh();
@@ -1612,6 +2188,11 @@ public class GameSaveManager : MonoBehaviour
 
         var position = worldItem.transform.position;
         string persistentId = worldItem.PersistentId;
+        if (!string.IsNullOrEmpty(persistentId) && _worldItemsPendingRemoval.Contains(persistentId))
+        {
+            Debug.Log($"[GameSaveManager] Skipping snapshot for world item {worldItem.item.itemName} ({persistentId}) pending removal");
+            return;
+        }
         int removed = 0;
         if (!string.IsNullOrEmpty(persistentId))
         {
@@ -1646,7 +2227,28 @@ public class GameSaveManager : MonoBehaviour
     public void CaptureSceneObjectsSnapshotNow()
     {
         if (currentSaveData == null) currentSaveData = new GameSaveData();
-        SaveSceneObjects();
+        SaveSceneObjects(false); // tam yenileme
+    }
+
+    // Incremental (merging) snapshot - objeler disable/destroy sürecindeyken veri kaybını önler
+    public void CaptureSceneObjectsIncremental()
+    {
+        if (_isSceneUnloading)
+        {
+            Debug.Log("[GameSaveManager] Skipping incremental scene snapshot while scene unload is in progress");
+            return;
+        }
+        if (currentSaveData == null) currentSaveData = new GameSaveData();
+        SaveSceneObjects(true);
+    }
+
+    // Incremental snapshot + immediate disk flush (yüksek riskli anlar için)
+    public void CaptureIncrementalAndFlush()
+    {
+        CaptureSceneObjectsIncremental();
+        // Küçük bir debounce olmadan direkt SaveGame çağırmak disk IO'yu artırabilir
+        // Bu yüzden sadece kritik anlarda kullanın
+        SaveGame();
     }
     
     // Auto-save on application focus/pause events

@@ -279,7 +279,7 @@ public class BucketManager : MonoBehaviour, ISaveable
     private void Update()
     {
         // Hotkey equip/unequip
-        if (enableHotkeyEquip && Input.GetKeyDown(toggleKey))
+    if (enableHotkeyEquip && InputHelper.GetKeyDown(toggleKey))
         {
             ToggleEquip();
         }
@@ -366,7 +366,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         if (isCarried)
         {
             // Pressing fill always tries; acceptance is validated by WellManager
-            if (Input.GetKeyDown(fillKey) && !isFilled)
+            if (InputHelper.GetKeyDown(fillKey) && !isFilled)
             {
                 TryFillViaWellManager();
             }
@@ -379,7 +379,7 @@ public class BucketManager : MonoBehaviour, ISaveable
         if (!enableHotkeyEquip)
         {
             bool nearBucket = IsPlayerNearBucket();
-            if (enableKeyboardInteraction && !isCarried && nearBucket && Input.GetKeyDown(pickupKey))
+            if (enableKeyboardInteraction && !isCarried && nearBucket && InputHelper.GetKeyDown(pickupKey))
             {
                 PickUp();
             }

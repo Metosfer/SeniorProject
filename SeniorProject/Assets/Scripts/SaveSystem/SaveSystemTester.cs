@@ -162,12 +162,12 @@ public class SaveSystemTester : MonoBehaviour
     private void Update()
     {
         // Test için kısayol tuşları
-        if (Input.GetKeyDown(KeyCode.F5))
+    if (InputHelper.GetKeyDown(KeyCode.F5))
         {
             TestSave();
         }
         
-        if (Input.GetKeyDown(KeyCode.F9))
+    if (InputHelper.GetKeyDown(KeyCode.F9))
         {
             TestLoad();
         }

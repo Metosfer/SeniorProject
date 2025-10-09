@@ -49,7 +49,7 @@ public class MainMenuController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+    if (InputHelper.GetKeyDown(KeyCode.Escape))
         {
             if (settingsPanel != null && settingsPanel.activeSelf)
             {
@@ -64,12 +64,11 @@ public class MainMenuController : MonoBehaviour
 
     void StartGame()
     {
-        // Auto-save (if a save manager exists) before changing scenes
-        var saveManager = GameSaveManager.Instance ?? FindObjectOfType<GameSaveManager>();
-        if (saveManager != null)
-        {
-            saveManager.SaveGame();
-        }
+        Debug.Log("[MainMenu] Start button clicked");
+        
+        // CRITICAL FIX for build: Don't call LoadGame here
+        // OnSceneLoaded will automatically load the latest save
+        // Just transition to FarmScene
         UnityEngine.SceneManagement.SceneManager.LoadScene("FarmScene");
     }
 

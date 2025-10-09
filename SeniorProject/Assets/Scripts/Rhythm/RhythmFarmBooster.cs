@@ -118,7 +118,7 @@ public class RhythmFarmBooster : MonoBehaviour
             interactPromptText.text = canOpen ? "Press E to play" : "Add water first";
         }
 
-        if (_inRange && Input.GetKeyDown(interactKey))
+    if (_inRange && InputHelper.GetKeyDown(interactKey))
         {
             // Block if there is no planted seed in range/target area
             var targetArea = farmingArea; // must be bound/assigned

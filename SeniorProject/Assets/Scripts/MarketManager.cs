@@ -100,7 +100,7 @@ public class MarketManager : MonoBehaviour
     private void Update()
     {
         // Esc: sadece marketi kapat, PauseMenu bu durumda açılmamalı
-        if (marketPanel != null && marketPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
+    if (marketPanel != null && marketPanel.activeSelf && InputHelper.GetKeyDown(KeyCode.Escape))
         {
             s_lastEscapeConsumedFrame = Time.frameCount;
             CloseMarket();

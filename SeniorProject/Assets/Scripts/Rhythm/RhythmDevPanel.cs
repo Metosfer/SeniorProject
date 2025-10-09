@@ -56,7 +56,7 @@ public class RhythmDevPanel : MonoBehaviour
     private void Update()
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-    if (Input.GetKeyDown(toggleKey)) _visible = !_visible;
+    if (InputHelper.GetKeyDown(toggleKey)) _visible = !_visible;
 #else
         // Hide in release builds
         _visible = false;

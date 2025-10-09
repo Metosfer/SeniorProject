@@ -183,7 +183,7 @@ public class PlayerMovement : MonoBehaviour
         Vector3 directionInput = new Vector3(horizontalInput, 0f, verticalInput).normalized;
 
         // Koşma kontrolü
-        isRunning = Input.GetKey(KeyCode.LeftShift);
+    isRunning = InputHelper.GetKey(KeyCode.LeftShift);
 
         // Hareket etme
         if (directionInput.magnitude >= 0.1f)
@@ -209,7 +209,7 @@ public class PlayerMovement : MonoBehaviour
     // "Spuding" E tetikleme iptal — ileride farklı plan uygulanacak
         
         // Debug için F tuşu ile animator durumunu kontrol et
-        if (Input.GetKeyDown(KeyCode.F) && animController != null)
+    if (InputHelper.GetKeyDown(KeyCode.F) && animController != null)
         {
             animController.DebugCurrentState();
         }

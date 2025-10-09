@@ -155,7 +155,7 @@ public class InventoryUIManager : MonoBehaviour
     
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.I))
+    if (InputHelper.GetKeyDown(KeyCode.I))
         {
             isInventoryVisible = !isInventoryVisible;
             

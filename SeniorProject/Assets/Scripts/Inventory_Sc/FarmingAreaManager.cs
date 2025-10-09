@@ -2,10 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 // FarmingAreaManager: Manages dropping seeds, growth timing, and spawning the mature plant.
 // - 3D world drop is handled via DragAndDropHandler (raycast hits this object).
@@ -162,9 +164,21 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     [Tooltip("Persistent ID for save/load. Set a unique value if you have multiple farming areas.")]
     public string saveId;
 
+    [Header("Save System Tuning")]
+    [Tooltip("Minimum cooldown (seconds, unscaled) between incremental save snapshots to avoid spamming the save manager.")]
+    [Range(0.05f, 5f)] public float saveCaptureCooldown = 0.4f;
+
 
     // Internal state tracking
     private readonly List<PlotState> _plots = new List<PlotState>();
+    private float _lastSaveCaptureTime = -999f;
+    // Auto diff snapshot
+    [Header("Auto Save (Redundancy)")]
+    [Tooltip("Plot durumlarında değişim algıladığında otomatik incremental snapshot alsın")] public bool autoSnapshot = true;
+    [Tooltip("Auto snapshot için minimum aralık (s)")] public float autoSnapshotInterval = 2f;
+    [Tooltip("Hazır/growing/waiting/empty sayılarından herhangi biri değişince tetikleyici aktif olsun")] public bool snapshotOnCountsChange = true;
+    private float _lastAutoSnapshotTime = -999f;
+    private int _lastReadyCnt, _lastGrowCnt, _lastWaitCnt, _lastEmptyCnt;
 
     // Throttled prompt update like WellManager
     private const float UI_UPDATE_INTERVAL = 0.1f;
@@ -187,6 +201,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
     private void Awake()
     {
+    EnsureSaveId();
     SyncPlotStatesWithPoints();
     TryAutoAssignSoilPlaceRoots();
         // At startup, instantiate a StatusIcon at each plot so prefab's default (e.g., Unprepared) sprite is visible immediately
@@ -208,8 +223,22 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
 
     }
     
+    // CRITICAL: Save state before scene unload or object destruction
+    private void OnDisable()
+    {
+        Debug.Log("[FarmingAreaManager] OnDisable called, forcing save...");
+        MarkStateDirty();
+    }
+    
+    private void OnDestroy()
+    {
+        Debug.Log("[FarmingAreaManager] OnDestroy called, forcing final save...");
+        MarkStateDirty();
+    }
+    
     private void OnValidate()
     {
+    EnsureSaveId();
     SyncPlotStatesWithPoints();
     TryAutoAssignSoilPlaceRoots();
         // Keep view consistent in editor when toggling visibility
@@ -256,6 +285,47 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         if (enableIconAnimations)
         {
             HandleIconHoverEffects();
+        }
+
+        // Passive diff-based snapshot
+        if (autoSnapshot && Application.isPlaying)
+        {
+            float now = Time.unscaledTime;
+            if (now - _lastAutoSnapshotTime >= Mathf.Max(0.25f, autoSnapshotInterval))
+            {
+                bool changed = false;
+                if (snapshotOnCountsChange)
+                {
+                    int r = CountReady();
+                    int g = CountGrowing();
+                    int w = CountWaiting();
+                    int e = CountEmpty();
+                    if (r != _lastReadyCnt || g != _lastGrowCnt || w != _lastWaitCnt || e != _lastEmptyCnt)
+                    {
+                        changed = true;
+                        _lastReadyCnt = r; _lastGrowCnt = g; _lastWaitCnt = w; _lastEmptyCnt = e;
+                    }
+                }
+                if (!changed)
+                {
+                    // Fallback: any plot timer finishing soon ( <0.2s ) triggers snapshot to capture transition
+                    for (int i = 0; i < _plots.Count && !changed; i++)
+                    {
+                        var ps = _plots[i];
+                        if (ps != null && ps.isGrowing)
+                        {
+                            float remain = Mathf.Max(0f, ps.growthEndTime - Time.time);
+                            if (remain < 0.2f)
+                                changed = true;
+                        }
+                    }
+                }
+                if (changed)
+                {
+                    _lastAutoSnapshotTime = now;
+                    MarkStateDirty();
+                }
+            }
         }
     }
 
@@ -324,6 +394,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         if (applied > 0f)
         {
             UpdateStatusText();
+            MarkStateDirty();
         }
         return applied;
     }
@@ -412,6 +483,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         // Start monitoring harvest and refresh UI
         StartCoroutine(WatchForHarvest(plotIndex));
         UpdateStatusText();
+        MarkStateDirty();
     }
 
     private void SyncPlotStatesWithPoints()
@@ -431,6 +503,34 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
         // SoilPlace görsellerini senkronize et
         UpdateAllSoilPlaceVisuals();
+    }
+
+    private void EnsureSaveId()
+    {
+        if (!string.IsNullOrEmpty(saveId)) return;
+        var scene = gameObject.scene;
+        string path = GetHierarchyPath(transform);
+        if (scene.IsValid())
+        {
+            saveId = string.IsNullOrEmpty(path) ? scene.name : $"{scene.name}:{path}";
+        }
+        else
+        {
+            saveId = path;
+        }
+    }
+
+    private static string GetHierarchyPath(Transform t)
+    {
+        if (t == null) return string.Empty;
+        StringBuilder sb = new StringBuilder(t.name);
+        while (t.parent != null)
+        {
+            t = t.parent;
+            sb.Insert(0, '/');
+            sb.Insert(0, t.name);
+        }
+        return sb.ToString();
     }
 
     // DragAndDropHandler calls this directly; also works via IDropHandler if this is a UI target
@@ -509,6 +609,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     // Update icon to Waiting (water)
     CreateOrUpdateIcon(plotIndex);
         UpdateStatusText();
+        MarkStateDirty();
         return true;
     }
 
@@ -597,6 +698,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         // Watch for harvest
         StartCoroutine(WatchForHarvest(plotIndex));
     UpdateStatusText();
+    MarkStateDirty();
     }
 
     private IEnumerator WatchForHarvest(int plotIndex)
@@ -630,6 +732,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             Debug.LogWarning("FarmingArea: Harvest sonrası unprepared ikon oluşturulamadı. 'statusIconPrefab' veya 'iconUnprepared' atandığından emin olun.");
         }
     UpdateStatusText();
+    MarkStateDirty();
     }
 
     private int GetBestFreePlotIndex(Vector3? worldHint)
@@ -1747,6 +1850,37 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         Debug.Log($"[FarmingAreaManager] RefreshAllIconsAfterLoad tamamlandı.");
     }
 
+    private void MarkStateDirty()
+    {
+        var gsm = GameSaveManager.Instance;
+        if (gsm == null || gsm.IsRestoringScene) return;
+
+        var scene = gameObject.scene;
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            return;
+        }
+
+    var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        if ((activeScene.IsValid() && activeScene != scene) || gsm.IsSceneUnloading)
+        {
+            return;
+        }
+
+        float now = Time.unscaledTime;
+        if (now - _lastSaveCaptureTime < Mathf.Max(0.05f, saveCaptureCooldown)) return;
+        _lastSaveCaptureTime = now;
+        try
+        {
+            // Incremental snapshot (tam yenileme değil) - build'de disable/destroy sırasındaki veri kaybını azaltır
+            gsm.CaptureSceneObjectsIncremental();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[FarmingAreaManager] Failed to capture incremental scene snapshot: {ex.Message}");
+        }
+    }
+
     private static bool GetBool(Dictionary<string, object> data, string key)
     {
         if (!data.TryGetValue(key, out var v) || v == null) return false;
@@ -1978,7 +2112,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         bool baseCanWater = bucket != null && bucket.IsCarried && bucket.IsFilled && HasAnyWaiting();
 
         // Buffer input so a quick flicker won't drop the press
-        if (Input.GetKeyDown(waterKey))
+    if (InputHelper.GetKeyDown(waterKey))
         {
             _pendingWaterPressUntil = Time.unscaledTime + INPUT_GRACE_WINDOW;
         }
@@ -2123,7 +2257,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
         }
 
         // Buffer input so a quick flicker won't drop the press
-        if (Input.GetKeyDown(prepareKey))
+    if (InputHelper.GetKeyDown(prepareKey))
         {
             _pendingPreparePressUntil = Time.unscaledTime + INPUT_GRACE_WINDOW;
         }
@@ -2212,6 +2346,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
     UpdateSoilPlaceVisual(plotIndex);
     UpdateStatusText();
         CreateOrUpdateIcon(plotIndex); // prepared/empty icon
+        MarkStateDirty();
         return true;
     }
 
@@ -2275,6 +2410,7 @@ public class FarmingAreaManager : MonoBehaviour, IDropHandler, ISaveable
             UpdateStatusText();
             // Refresh icons for all plots to reflect new states
             for (int i = 0; i < _plots.Count; i++) CreateOrUpdateIcon(i);
+            MarkStateDirty();
         }
         return count;
     }

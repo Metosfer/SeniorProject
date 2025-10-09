@@ -193,7 +193,7 @@ public class WellManager : MonoBehaviour
         }
 
         // Close via Escape
-        if (_showContextMenu && Input.GetKeyDown(KeyCode.Escape))
+    if (_showContextMenu && InputHelper.GetKeyDown(KeyCode.Escape))
         {
             CloseContextMenu();
         }
