@@ -16,6 +16,7 @@ MonoBehaviour:
   itemDescription: Plantago herb's seed
   canStackable: 1
   itemIcon: {fileID: 21300000, guid: 7d07c82ec49229649aaee802a4fd7379, type: 3}
+  itemValue: 1
   itemPrefab: {fileID: 2637501576349691956, guid: 3a9da108518464b60a3b76b8f5d0c5ce,
     type: 3}
   dropPrefab: {fileID: 2637501576349691956, guid: 3a9da108518464b60a3b76b8f5d0c5ce,
@@ -23,7 +24,7 @@ MonoBehaviour:
   dryPrefab: {fileID: 2637501576349691956, guid: 3a9da108518464b60a3b76b8f5d0c5ce,
     type: 3}
   isSeed: 1
-  growthTime: 20
+  growthTime: 30
   grownPrefab: {fileID: 5413114494039111643, guid: 6490238b61859ac48b885b01f272486f,
     type: 3}
   harvestItem: {fileID: 11400000, guid: 558dc3863de201a47ae3f5779c55fa22, type: 2}

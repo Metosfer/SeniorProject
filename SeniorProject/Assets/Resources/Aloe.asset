@@ -16,6 +16,7 @@ MonoBehaviour:
   itemDescription: Aloe vera herb
   canStackable: 1
   itemIcon: {fileID: 21300000, guid: 2ce8c5996df70a34585ec3e76a1fdd54, type: 3}
+  itemValue: 15
   itemPrefab: {fileID: 274698330208481050, guid: 9b18b24a5ed9bc043805d04e9add7695,
     type: 3}
   dropPrefab: {fileID: 6494029105147101976, guid: 3c0ec09ce30939b4aafd89bccb0f774a,
@@ -31,3 +32,13 @@ MonoBehaviour:
   driedVersion: {fileID: 11400000, guid: 61c2653c935f041cabed5e5ffc1a1af5, type: 2}
   isExpirable: 1
   expirationTime: 15
+  isFish: 0
+  fishValue: 1
+  fishWeight: 1
+  fishType: Common
+  fishingXP: 10
+  fishDifficulty: 3
+  isLegendaryFish: 0
+  isFishFeed: 0
+  feedAmount: 1
+  feedValue: 1
