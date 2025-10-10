@@ -12,6 +12,8 @@ public class SCItem : ScriptableObject
     public bool canStackable;
     [Tooltip("Envanterde görünecek ikon sprite'ı")]
     public Sprite itemIcon;
+    [Tooltip("Item'ın değeri (para/puan)")]
+    public int itemValue = 1;
 
     [Header("3D Models")]
     [Tooltip("Dünyada bulunurken kullanılan prefab (örn: Aloe bitkisi, balık)")]
